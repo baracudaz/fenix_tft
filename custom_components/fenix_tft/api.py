@@ -23,7 +23,7 @@ class FenixTFTApi:
         self._session = session
         self._access_token = access_token
         self._refresh_token = refresh_token
-        self._sub = None  # user id (fetched from userinfo)
+        self._sub = None  # user id (from /userinfo)
 
     def _headers(self):
         return {
@@ -38,13 +38,17 @@ class FenixTFTApi:
         async with self._session.get(
             url, headers={"Authorization": f"Bearer {self._access_token}"}
         ) as resp:
+            if resp.status != 200:
+                text = await resp.text()
+                _LOGGER.error("Userinfo failed: %s %s", resp.status, text)
+                raise Exception(f"Userinfo failed {resp.status}")
             data = await resp.json()
             _LOGGER.debug("Userinfo response: %s", data)
             self._sub = data.get("sub")
             return data
 
     async def get_installations(self):
-        """Fetch installations for the logged-in user (requires sub)."""
+        """Fetch installations for the logged-in user."""
         if not self._sub:
             await self.get_userinfo()
         url = f"{API_BASE}/businessmodule/v1/installations/admins/{self._sub}"
@@ -53,8 +57,26 @@ class FenixTFTApi:
             _LOGGER.debug("Installations response: %s", data)
             return data
 
+    async def get_device_properties(self, device_id: str):
+        """Fetch device twin properties, including target temperature."""
+        url = f"{API_BASE}/iotmanagement/v1/configuration/{device_id}/{device_id}/v1/content/"
+
+        async with self._session.get(url, headers=self._headers()) as resp:
+            if resp.status != 200:
+                text = await resp.text()
+                _LOGGER.error(
+                    "Failed to fetch device properties %s: %s %s",
+                    device_id,
+                    resp.status,
+                    text,
+                )
+                raise Exception(f"Device props failed {resp.status}")
+            data = await resp.json()
+            _LOGGER.debug("Device properties for %s: %s", device_id, data)
+            return data
+
     async def get_devices(self):
-        """Flatten all devices across all installations/rooms."""
+        """Flatten all devices across all installations/rooms and include target temp."""
         installations = await self.get_installations()
         devices = []
 
@@ -65,13 +87,28 @@ class FenixTFTApi:
                 for dev in room.get("devices", []):
                     dev_id = dev.get("Id_deviceId")
                     name = dev.get("Dn", "Fenix TFT")
+
+                    target_temp = None
+                    try:
+                        props = await self.get_device_properties(dev_id)
+                        raw_val = props["Ma"]["value"]  # Raw target temp
+                        target_temp = decode_temp(raw_val)
+                        _LOGGER.debug(
+                            "Decoded target temp for %s: raw=%s -> %s °C",
+                            dev_id,
+                            raw_val,
+                            target_temp,
+                        )
+                    except Exception as e:
+                        _LOGGER.warning("Could not decode temp for %s: %s", dev_id, e)
+
                     devices.append(
                         {
                             "id": dev_id,
                             "name": name,
                             "installation_id": inst_id,
                             "room": room.get("Rn"),
-                            "target_temp": None,  # will be fetched separately if needed
+                            "target_temp": target_temp,
                         }
                     )
         return devices
