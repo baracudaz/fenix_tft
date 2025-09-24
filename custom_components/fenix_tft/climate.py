@@ -28,6 +28,7 @@ class FenixTFTClimate(ClimateEntity):
         self._device = device
         self._attr_name = f"{device['name']} ({device['room']})"
         self._attr_unique_id = device["id"]
+        self._attr_current_temperature = device.get("current_temp")
         self._attr_target_temperature = device.get("target_temp")
         self._attr_hvac_mode = HVACMode.HEAT
 
@@ -41,14 +42,20 @@ class FenixTFTClimate(ClimateEntity):
 
     async def async_update(self):
         """Poll the device for updated target temperature."""
+        # TODO: Duplicate code with api.get_devices
         try:
             props = await self._api.get_device_properties(self._device["id"])
-            raw_val = props["Ma"]["value"]  # Raw target temp
-            self._attr_target_temperature = decode_temp(raw_val)
+            self._attr_target_temperature = decode_temp(
+                props["Ma"]["value"]
+            )  # Target temperature
+            self._attr_current_temperature = decode_temp(
+                props["At"]["value"]
+            )  # Current temperature
             _LOGGER.debug(
-                "Decoding target temp for device %s, temp: %f",
+                "Decoded temp for %s: target %s °C current %s °C",
                 self._device["id"],
                 self._attr_target_temperature,
+                self._attr_current_temperature,
             )
 
         except Exception as e:

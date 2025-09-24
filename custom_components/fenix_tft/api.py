@@ -1,3 +1,4 @@
+from calendar import c
 import logging
 import aiohttp
 
@@ -89,15 +90,20 @@ class FenixTFTApi:
                     name = dev.get("Dn", "Fenix TFT")
 
                     target_temp = None
+                    current_temp = None
                     try:
                         props = await self.get_device_properties(dev_id)
-                        raw_val = props["Ma"]["value"]  # Raw target temp
-                        target_temp = decode_temp(raw_val)
+                        target_temp = decode_temp(
+                            props["Ma"]["value"]
+                        )  # Target temperature
+                        current_temp = decode_temp(
+                            props["At"]["value"]
+                        )  # Current temperature
                         _LOGGER.debug(
-                            "Decoded target temp for %s: raw=%s -> %s °C",
+                            "Decoded temp for %s: target %s °C current %s °C",
                             dev_id,
-                            raw_val,
                             target_temp,
+                            current_temp,
                         )
                     except Exception as e:
                         _LOGGER.warning("Could not decode temp for %s: %s", dev_id, e)
@@ -109,6 +115,7 @@ class FenixTFTApi:
                             "installation_id": inst_id,
                             "room": room.get("Rn"),
                             "target_temp": target_temp,
+                            "current_temp": current_temp,
                         }
                     )
         return devices
