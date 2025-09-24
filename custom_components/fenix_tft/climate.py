@@ -19,7 +19,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 
 class FenixTFTClimate(ClimateEntity):
-    _attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
+    _attr_hvac_modes = [HVACMode.HEAT, HVACMode.AUTO, HVACMode.OFF]
     _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
 
@@ -39,6 +39,10 @@ class FenixTFTClimate(ClimateEntity):
         await self._api.set_device_temperature(self._device["id"], temp)
         self._attr_target_temperature = temp
         self.async_write_ha_state()
+
+    async def async_set_hvac_mode(self, hvac_mode):
+        """Set new target hvac mode."""
+        # TODO: Implement actual API call to control HVAC mode
 
     async def async_update(self):
         """Poll the device for updated target temperature."""
