@@ -4,7 +4,7 @@ from homeassistant.components.climate.const import ClimateEntityFeature, HVACMod
 from homeassistant.const import UnitOfTemperature, ATTR_TEMPERATURE
 
 from .const import DOMAIN
-from .api import decode_temp
+from .api import decode_temp_from_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,15 +46,10 @@ class FenixTFTClimate(ClimateEntity):
 
     async def async_update(self):
         """Poll the device for updated target temperature."""
-        # TODO: Duplicate code with api.get_devices
         try:
             props = await self._api.get_device_properties(self._device["id"])
-            self._attr_target_temperature = decode_temp(
-                props["Ma"]["value"]
-            )  # Target temperature
-            self._attr_current_temperature = decode_temp(
-                props["At"]["value"]
-            )  # Current temperature
+            self._attr_target_temperature = decode_temp_from_entry(props.get("Ma"))
+            self._attr_current_temperature = decode_temp_from_entry(props.get("At"))
             _LOGGER.debug(
                 "Decoded temp for %s: target %s °C current %s °C",
                 self._device["id"],

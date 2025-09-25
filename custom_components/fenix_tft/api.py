@@ -1,4 +1,3 @@
-from calendar import c
 import logging
 import aiohttp
 
@@ -9,12 +8,22 @@ API_BASE = "https://vs2-fe-apim-prod.azure-api.net"
 SUBSCRIPTION_KEY = "e14bfd9fa2b3477e874895cb3babe608"
 
 
-def decode_temp(value: int) -> float:
-    return (value - 320) / 18.0
+def decode_temp_from_entry(entry: dict | None) -> float | None:
+    """Decode temperature from API entry (Fahrenheit + divFactor)."""
+    if not entry:
+        return None
+    value = entry.get("value")
+    div = entry.get("divFactor", 1)
+    if value is None:
+        return None
+    f_temp = value / div
+    return (f_temp - 32.0) * 5.0 / 9.0
 
 
-def encode_temp(temp_c: float) -> int:
-    return int(round(temp_c * 18.0 + 320))
+def encode_temp_to_entry(temp_c: float, div_factor: int = 10) -> int:
+    """Encode Celsius temp into API raw Fahrenheit*divFactor value."""
+    f_temp = (temp_c * 9.0 / 5.0) + 32.0
+    return int(round(f_temp * div_factor))
 
 
 class FenixTFTApi:
@@ -77,7 +86,7 @@ class FenixTFTApi:
             return data
 
     async def get_devices(self):
-        """Flatten all devices across all installations/rooms and include target temp."""
+        """Flatten all devices across all installations/rooms and include target/current temp."""
         installations = await self.get_installations()
         devices = []
 
@@ -93,12 +102,8 @@ class FenixTFTApi:
                     current_temp = None
                     try:
                         props = await self.get_device_properties(dev_id)
-                        target_temp = decode_temp(
-                            props["Ma"]["value"]
-                        )  # Target temperature
-                        current_temp = decode_temp(
-                            props["At"]["value"]
-                        )  # Current temperature
+                        target_temp = decode_temp_from_entry(props.get("Ma"))
+                        current_temp = decode_temp_from_entry(props.get("At"))
                         _LOGGER.debug(
                             "Decoded temp for %s: target %s °C current %s °C",
                             dev_id,
@@ -122,7 +127,7 @@ class FenixTFTApi:
 
     async def set_device_temperature(self, device_id: str, temp_c: float):
         """Send new target temperature."""
-        raw_val = encode_temp(temp_c)
+        raw_val = encode_temp_to_entry(temp_c, div_factor=10)
         payload = {
             "Id_deviceId": device_id,
             "S1": device_id,
