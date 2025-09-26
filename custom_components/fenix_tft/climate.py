@@ -123,8 +123,8 @@ class FenixTFTClimate(ClimateEntity):
         """Return the current HVAC mode."""
         dev = self._device
         raw_preset = dev.get("preset_mode") if dev else None
+        preset = PRESET_MAP.get(raw_preset) if raw_preset is not None else None
         _LOGGER.debug("Device %s preset mode: %s", self._id, preset)
-        preset = PRESET_MAP.get(raw_preset)
         match preset:
             case "manual":
                 return HVACMode.HEAT
