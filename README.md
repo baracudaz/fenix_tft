@@ -12,9 +12,11 @@ This is a custom Home Assistant integration for the [FENIX TFT WiFi thermostat](
 ### How to acquire tokens
 
 To use this integration, you need your FENIX cloud API `access_token` and `refresh_token`.
-You can obtain these by logging into the official FENIX mobile app and extracting tokens from network traffic (for example, using browser developer tools or a proxy tool like mitmproxy or Charles Proxy).
+You can obtain these by logging into the official FENIX mobile app and extracting tokens from network traffic (for example, using browser developer tools or a proxy tool like mitmproxy, Charles Proxy, Proxyman, etc).
 
 ### Installation
+
+#### Manual installation
 
 1. Clone this repository into your Home Assistant `custom_components` folder:
     ```bash
@@ -22,6 +24,15 @@ You can obtain these by logging into the official FENIX mobile app and extractin
     ```
 2. Restart Home Assistant.
 3. Add the integration via the Home Assistant UI and provide your tokens.
+
+#### Installation via HACS
+
+1. Open HACS in your Home Assistant instance.
+2. Go to "Integrations" and click the three dots in the top right, then select "Custom repositories".
+3. Add `https://github.com/baracudaz/fenix_tft` as a custom repository and select "Integration" as the category.
+4. Install the integration from HACS.
+5. Restart Home Assistant.
+6. Add the integration via the Home Assistant UI and provide your tokens.
 
 ### Configuration
 
