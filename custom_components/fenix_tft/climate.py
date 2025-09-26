@@ -1,6 +1,7 @@
 """Platform for Fenix TFT climate entities."""
 
 import logging
+from tkinter import N
 from typing import Any, ClassVar
 
 from homeassistant.components.climate import ClimateEntity
@@ -23,6 +24,16 @@ FENIX_TFT_TO_HASS_HVAC_ACTION: dict[int | None, HVACAction] = {
     0: HVACAction.IDLE,
     None: HVACAction.OFF,
 }
+
+PRESET_MAP = {
+    0: "off",
+    1: "manual",
+    2: "program",
+    4: "defrost",
+    5: "boost",
+    6: "manual",
+}
+PRESET_INVERTED = {v: k for k, v in PRESET_MAP.items()}
 
 
 async def async_setup_entry(
@@ -49,14 +60,26 @@ class FenixTFTClimate(ClimateEntity):
         HVACMode.AUTO,
         HVACMode.OFF,
     ]
-    _attr_supported_features: ClassVar[int] = ClimateEntityFeature.TARGET_TEMPERATURE
+    _attr_preset_modes: ClassVar[list[str]] = [
+        "off",
+        "program",
+        "defrost",
+        "boost",
+        "manual",
+    ]
+    _attr_supported_features: ClassVar[int] = (
+        ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+    )
     _attr_temperature_unit: ClassVar[str] = UnitOfTemperature.CELSIUS
+    _attr_has_entity_name: bool = True
+    _attr_preset_mode: str = "manual"
 
     def __init__(self, api: Any, device_id: str, coordinator: Any) -> None:
         """Initialize the climate entity."""
         self._api = api
         self._id = device_id
         self._coordinator = coordinator
+        self._attr_hvac_mode = HVACMode.HEAT
 
     @property
     def _device(self) -> dict[str, Any] | None:
@@ -98,7 +121,19 @@ class FenixTFTClimate(ClimateEntity):
     @property
     def hvac_mode(self) -> HVACMode:
         """Return the current HVAC mode."""
-        return HVACMode.HEAT
+        dev = self._device
+        raw_preset = dev.get("preset_mode") if dev else None
+        _LOGGER.debug("Device %s preset mode: %s", self._id, preset)
+        preset = PRESET_MAP.get(raw_preset)
+        match preset:
+            case "manual":
+                return HVACMode.HEAT
+            case "off":
+                return HVACMode.OFF
+            case "program":
+                return HVACMode.AUTO
+            case _:
+                return HVACMode.HEAT  # Default/fallback
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
@@ -108,9 +143,25 @@ class FenixTFTClimate(ClimateEntity):
         await self._api.set_device_temperature(self._id, temp)
         await self._coordinator.async_request_refresh()
 
-    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:  # noqa: ARG002
-        """Set new HVAC mode (not implemented)."""
-        _LOGGER.warning("Setting HVAC mode is not implemented")
+    # async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+    #     """Set new HVAC mode."""
+    #     if hvac_mode == HVACMode.HEAT:
+    #         # Manual override: enable temp set via UI
+    #         await self._api.set_device_preset_mode(self._id, PRESET_INVERTED["manual"])
+    #         self._attr_hvac_mode = HVACMode.HEAT
+    #     elif hvac_mode == HVACMode.OFF:
+    #         # Turn off thermostat: disable controls
+    #         await self._api.set_device_preset_mode(self._id, PRESET_INVERTED["off"])
+    #         self._attr_hvac_mode = HVACMode.OFF
+    #     elif hvac_mode == HVACMode.AUTO:
+    #         # Program mode: disable manual controls
+    #         await self._api.set_device_preset_mode(self._id, PRESET_INVERTED["program"])
+    #         self._attr_hvac_mode = HVACMode.AUTO
+    #     else:
+    #         _LOGGER.warning("Unsupported HVAC mode: %s", hvac_mode)
+    #         return
+
+    #     await self._coordinator.async_request_refresh()
 
     async def async_update(self) -> None:
         """Request latest data from coordinator."""

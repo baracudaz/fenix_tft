@@ -146,6 +146,7 @@ class FenixTFTApi:
                         target_temp = decode_temp_from_entry(props.get("Ma"))
                         current_temp = decode_temp_from_entry(props.get("At"))
                         hvac_action = props.get("Hs", {}).get("value")
+                        preset_mode = props.get("Cm", {}).get("value")
                     except FenixTFTApiError as err:
                         _LOGGER.warning("Could not decode temp for %s: %s", dev_id, err)
 
@@ -158,6 +159,7 @@ class FenixTFTApi:
                             "target_temp": target_temp,
                             "current_temp": current_temp,
                             "hvac_action": hvac_action,
+                            "preset_mode": preset_mode,
                         }
                     )
         return devices
@@ -185,6 +187,32 @@ class FenixTFTApi:
                 text = await resp.text()
                 _LOGGER.error("Failed to set temperature: %s %s", resp.status, text)
                 msg = f"Failed to set temp {resp.status}"
+                raise FenixTFTApiError(msg)
+            return await resp.json()
+
+    async def set_device_preset_mode(
+        self, device_id: str, preset_mode: int
+    ) -> dict[str, Any]:
+        """Set preset mode for a device."""
+        await self._ensure_token()
+        if preset_mode not in mode_map:
+            raise FenixTFTApiError(f"Invalid preset mode: {preset_mode}")
+        payload = {
+            "Id_deviceId": device_id,
+            "S1": device_id,
+            "configurationVersion": "v1.0",
+            "data": [
+                {"wattsType": "Cm", "wattsTypeValue": preset_mode},
+            ],
+        }
+        url = f"{API_BASE}/iotmanagement/v1/devices/twin/properties/config/replace"
+        async with self._session.put(
+            url, headers=self._headers(), json=payload
+        ) as resp:
+            if resp.status != HTTP_OK:
+                text = await resp.text()
+                _LOGGER.error("Failed to set preset mode: %s %s", resp.status, text)
+                msg = f"Failed to set preset mode {resp.status}"
                 raise FenixTFTApiError(msg)
             return await resp.json()
 
