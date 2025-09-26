@@ -1,3 +1,5 @@
+"""Fenix TFT Home Assistant integration package."""
+
 import logging
 
 from homeassistant.config_entries import ConfigEntry

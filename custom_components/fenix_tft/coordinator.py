@@ -1,6 +1,7 @@
 """Coordinator for Fenix TFT integration."""
 
 import logging
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -18,17 +19,20 @@ class FenixTFTCoordinator(DataUpdateCoordinator):
     def __init__(
         self, hass: HomeAssistant, api: FenixTFTApi, config_entry: ConfigEntry
     ) -> None:
+        """Initialize the Fenix TFT coordinator."""
         super().__init__(
             hass,
             logger=_LOGGER,
             name=DOMAIN,
-            update_interval=SCAN_INTERVAL,
+            update_interval=timedelta(seconds=SCAN_INTERVAL),
             config_entry=config_entry,
         )
         self.api = api
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> list[dict]:
+        """Fetch data from Fenix TFT API."""
         try:
             return await self.api.get_devices()
         except Exception as err:
-            raise UpdateFailed(f"Error fetching Fenix TFT data: {err}") from err
+            msg = f"Error fetching Fenix TFT data: {err}"
+            raise UpdateFailed(msg) from err

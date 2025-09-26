@@ -1,5 +1,8 @@
+"""API client for Fenix TFT cloud integration."""
+
 import logging
 import time
+from typing import Any
 
 import aiohttp
 
@@ -8,9 +11,10 @@ _LOGGER = logging.getLogger(__name__)
 API_IDENTITY = "https://vs2-fe-identity-prod.azurewebsites.net"
 API_BASE = "https://vs2-fe-apim-prod.azure-api.net"
 SUBSCRIPTION_KEY = "e14bfd9fa2b3477e874895cb3babe608"
+HTTP_OK = 200
 
 
-def decode_temp_from_entry(entry: dict | None) -> float | None:
+def decode_temp_from_entry(entry: dict[str, Any] | None) -> float | None:
     """Decode temperature from API entry (Fahrenheit + divFactor)."""
     if not entry:
         return None
@@ -22,30 +26,34 @@ def decode_temp_from_entry(entry: dict | None) -> float | None:
     return (f_temp - 32.0) * 5.0 / 9.0
 
 
-def encode_temp_to_entry(temp_c: float, div_factor: int = 10) -> int:
+def encode_temp_to_entry(temp_c: float, div_factor: int = 10) -> float:
     """Encode Celsius temp into API raw Fahrenheit*divFactor value."""
     f_temp = (temp_c * 9.0 / 5.0) + 32.0
-    return int(round(f_temp * div_factor))
+    return round(f_temp * div_factor)
 
 
 class FenixTFTApi:
+    """Client for Fenix TFT cloud API."""
+
     def __init__(
         self, session: aiohttp.ClientSession, access_token: str, refresh_token: str
-    ):
+    ) -> None:
+        """Initialize the API client."""
         self._session = session
         self._access_token = access_token
         self._refresh_token = refresh_token
-        self._token_expires = time.time() + 3600  # assume 1h lifetime
-        self._sub = None  # user id (from /userinfo)
+        self._token_expires = time.time() + 3600  # Assume 1h lifetime
+        self._sub = None  # User id (from /userinfo)
 
-    def _headers(self):
+    def _headers(self) -> dict[str, str]:
+        """Return headers for API requests."""
         return {
             "Authorization": f"Bearer {self._access_token}",
             "ocp-apim-subscription-key": SUBSCRIPTION_KEY,
             "Accept": "application/json",
         }
 
-    async def _ensure_token(self):
+    async def _ensure_token(self) -> None:
         """Refresh token if expired."""
         if time.time() < self._token_expires - 60:
             return
@@ -57,32 +65,36 @@ class FenixTFTApi:
             "client_id": "b1760b2e-69f1-4e89-8233-5840a9accdf8",
         }
         async with self._session.post(url, data=data) as resp:
-            if resp.status != 200:
+            if resp.status != HTTP_OK:
                 text = await resp.text()
                 _LOGGER.error("Token refresh failed: %s %s", resp.status, text)
-                raise Exception(f"Token refresh failed {resp.status}")
+                msg = f"Token refresh failed {resp.status}"
+                raise FenixTFTApiError(msg)
             tokens = await resp.json()
             self._access_token = tokens["access_token"]
             self._refresh_token = tokens.get("refresh_token", self._refresh_token)
             self._token_expires = time.time() + tokens.get("expires_in", 3600)
             _LOGGER.info("Access token refreshed, valid until %s", self._token_expires)
 
-    async def get_userinfo(self):
+    async def get_userinfo(self) -> dict[str, Any]:
+        """Fetch user info from API."""
         await self._ensure_token()
         url = f"{API_IDENTITY}/connect/userinfo"
         async with self._session.get(
             url, headers={"Authorization": f"Bearer {self._access_token}"}
         ) as resp:
-            if resp.status != 200:
+            if resp.status != HTTP_OK:
                 text = await resp.text()
                 _LOGGER.error("Userinfo failed: %s %s", resp.status, text)
-                raise Exception(f"Userinfo failed {resp.status}")
+                msg = f"Userinfo failed {resp.status}"
+                raise FenixTFTApiError(msg)
             data = await resp.json()
             _LOGGER.debug("Userinfo response: %s", data)
             self._sub = data.get("sub")
             return data
 
-    async def get_installations(self):
+    async def get_installations(self) -> list[dict[str, Any]]:
+        """Fetch installations for the user."""
         await self._ensure_token()
         if not self._sub:
             await self.get_userinfo()
@@ -92,11 +104,15 @@ class FenixTFTApi:
             _LOGGER.debug("Installations response: %s", data)
             return data
 
-    async def get_device_properties(self, device_id: str):
+    async def get_device_properties(self, device_id: str) -> dict[str, Any]:
+        """Fetch device properties from API."""
         await self._ensure_token()
-        url = f"{API_BASE}/iotmanagement/v1/configuration/{device_id}/{device_id}/v1/content/"
+        url = (
+            f"{API_BASE}/iotmanagement/v1/configuration/"
+            f"{device_id}/{device_id}/v1/content/"
+        )
         async with self._session.get(url, headers=self._headers()) as resp:
-            if resp.status != 200:
+            if resp.status != HTTP_OK:
                 text = await resp.text()
                 _LOGGER.error(
                     "Failed to fetch device properties %s: %s %s",
@@ -104,12 +120,14 @@ class FenixTFTApi:
                     resp.status,
                     text,
                 )
-                raise Exception(f"Device props failed {resp.status}")
+                msg = f"Device props failed {resp.status}"
+                raise FenixTFTApiError(msg)
             data = await resp.json()
             _LOGGER.debug("Device %s properties: %s", device_id, data)
             return data
 
-    async def get_devices(self):
+    async def get_devices(self) -> list[dict[str, Any]]:
+        """Fetch all devices for the user."""
         installations = await self.get_installations()
         devices = []
         for inst in installations:
@@ -128,8 +146,8 @@ class FenixTFTApi:
                         target_temp = decode_temp_from_entry(props.get("Ma"))
                         current_temp = decode_temp_from_entry(props.get("At"))
                         hvac_action = props.get("Hs", {}).get("value")
-                    except Exception as e:
-                        _LOGGER.warning("Could not decode temp for %s: %s", dev_id, e)
+                    except FenixTFTApiError as err:
+                        _LOGGER.warning("Could not decode temp for %s: %s", dev_id, err)
 
                     devices.append(
                         {
@@ -144,7 +162,10 @@ class FenixTFTApi:
                     )
         return devices
 
-    async def set_device_temperature(self, device_id: str, temp_c: float):
+    async def set_device_temperature(
+        self, device_id: str, temp_c: float
+    ) -> dict[str, Any]:
+        """Set target temperature for a device."""
         await self._ensure_token()
         raw_val = encode_temp_to_entry(temp_c, div_factor=10)
         payload = {
@@ -160,8 +181,13 @@ class FenixTFTApi:
         async with self._session.put(
             url, headers=self._headers(), json=payload
         ) as resp:
-            if resp.status != 200:
+            if resp.status != HTTP_OK:
                 text = await resp.text()
                 _LOGGER.error("Failed to set temperature: %s %s", resp.status, text)
-                raise Exception(f"Failed to set temp {resp.status}")
+                msg = f"Failed to set temp {resp.status}"
+                raise FenixTFTApiError(msg)
             return await resp.json()
+
+
+class FenixTFTApiError(Exception):
+    """Custom exception for Fenix TFT API errors."""
