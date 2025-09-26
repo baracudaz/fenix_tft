@@ -59,7 +59,8 @@ class FenixTFTOptionsFlowHandler(config_entries.OptionsFlow):
         self.config_entry = config_entry
 
     async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002 # not implemented yet
     ) -> FlowResult:
         """Handle options flow init step."""
         # user_input is unused because options are not yet implemented

@@ -108,9 +108,9 @@ class FenixTFTClimate(ClimateEntity):
         await self._api.set_device_temperature(self._id, temp)
         await self._coordinator.async_request_refresh()
 
-    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:  # noqa: ARG002
         """Set new HVAC mode (not implemented)."""
-        # TODO(baracudaz): Implement hvac mode control if supported. See https://github.com/baracudaz/fenix_tft/issues/1
+        _LOGGER.warning("Setting HVAC mode is not implemented")
 
     async def async_update(self) -> None:
         """Request latest data from coordinator."""
