@@ -16,12 +16,8 @@ class FenixTFTCoordinator(DataUpdateCoordinator):
     """Data update coordinator for Fenix TFT."""
 
     def __init__(
-        self,
-        hass: HomeAssistant,
-        api: FenixTFTApi,
-        config_entry: ConfigEntry,
+        self, hass: HomeAssistant, api: FenixTFTApi, config_entry: ConfigEntry
     ) -> None:
-        """Initialize the Fenix TFT coordinator."""
         super().__init__(
             hass,
             logger=_LOGGER,
@@ -32,7 +28,6 @@ class FenixTFTCoordinator(DataUpdateCoordinator):
         self.api = api
 
     async def _async_update_data(self):
-        """Fetch data from Fenix TFT API."""
         try:
             return await self.api.get_devices()
         except Exception as err:

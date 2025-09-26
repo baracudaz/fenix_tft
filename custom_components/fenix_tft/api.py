@@ -2,7 +2,6 @@ import logging
 import aiohttp
 import time
 
-from custom_components.integration_blueprint import data
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -123,6 +122,7 @@ class FenixTFTApi:
 
                     target_temp = None
                     current_temp = None
+                    hvac_action = None
                     try:
                         props = await self.get_device_properties(dev_id)
                         target_temp = decode_temp_from_entry(props.get("Ma"))
