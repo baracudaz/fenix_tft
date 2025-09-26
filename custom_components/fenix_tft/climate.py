@@ -35,6 +35,7 @@ class FenixTFTClimate(ClimateEntity):
     _attr_hvac_modes = [HVACMode.HEAT, HVACMode.AUTO, HVACMode.OFF]
     _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    # _attr_preset_modes = # TODO: Add preset modes
 
     def __init__(self, api, device_id, coordinator):
         self._api = api

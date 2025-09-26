@@ -3,6 +3,7 @@
     "name": "Fenix TFT Thermostat",
     "version": "0.1.0",
     "documentation": "https://github.com/baracudaz/fenix_tft",
+    "issue_tracker": "https://github.com/baracudaz/fenix_tft/issues",
     "requirements": [],
     "codeowners": [
         "@baracudaz"
