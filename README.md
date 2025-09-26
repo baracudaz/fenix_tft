@@ -12,6 +12,7 @@ This is a custom Home Assistant integration for the [FENIX TFT WiFi thermostat](
 ### How to acquire tokens
 
 To use this integration, you need your FENIX cloud API `access_token` and `refresh_token`.
+Tokens are necessary because user login and password APIs have not been implemented yet.
 
 #### Fenix tokens
 
@@ -20,7 +21,7 @@ You must use a proxy tool like Proxyman on your mobile device and capture traffi
 Steps:
 1. Set Proxyman to catch all traffic.
 2. Enable SSL Proxying for the domain `https://vs2-fe-identity-prod.azurewebsites.net/`.
-3. Open the FENIX TFT WiFi application on your mobile.
+3. Open the [FENIX Control application](https://apps.apple.com/ch/app/fenix-control/id1474206689?l=en-GB) on your mobile.
 4. Log in using your credentials.
 5. In Proxyman, look for a POST request to `https://vs2-fe-identity-prod.azurewebsites.net/connect/token`.
 6. The response to this request contains both `access_token` and `refresh_token`.
@@ -62,6 +63,7 @@ Steps:
 ## Product information
 
 - [FENIX TFT WiFi Thermostat product page](https://www.fenixgroup.cz/en/products/thermostat-fenix-tft-wifi)
+- [FENIX Control app on Google Play](https://play.google.com/store/apps/details?id=cz.fenixgroup.tftwifi)
 
 ---
 
