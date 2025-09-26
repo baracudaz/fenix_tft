@@ -1,7 +1,7 @@
 import logging
-import aiohttp
 import time
 
+import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
