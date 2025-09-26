@@ -1,13 +1,13 @@
 {
     "domain": "fenix_tft",
     "name": "Fenix TFT Thermostat",
-    "version": "0.1.0",
-    "documentation": "https://github.com/baracudaz/fenix_tft",
-    "issue_tracker": "https://github.com/baracudaz/fenix_tft/issues",
-    "requirements": [],
     "codeowners": [
         "@baracudaz"
     ],
     "config_flow": true,
-    "iot_class": "cloud_polling"
+    "documentation": "https://github.com/baracudaz/fenix_tft",
+    "iot_class": "cloud_polling",
+    "issue_tracker": "https://github.com/baracudaz/fenix_tft/issues",
+    "requirements": [],
+    "version": "0.1.0"
 }
