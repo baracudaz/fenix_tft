@@ -1,34 +1,25 @@
 import logging
-from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import FenixTFTApi
 from .const import DOMAIN, PLATFORMS
+from .coordinator import FenixTFTCoordinator  # Import the custom coordinator
 
 _LOGGER = logging.getLogger(__name__)
-SCAN_INTERVAL = timedelta(seconds=60)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Fenix TFT from a config entry."""
     session = async_get_clientsession(hass)
     api = FenixTFTApi(session, entry.data["access_token"], entry.data["refresh_token"])
 
-    async def async_update_data():
-        try:
-            return await api.get_devices()
-        except Exception as err:
-            raise UpdateFailed(f"Error fetching Fenix TFT data: {err}") from err
-
-    coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
-        name="fenix_tft",
-        update_method=async_update_data,
-        update_interval=SCAN_INTERVAL,
+    coordinator = FenixTFTCoordinator(
+        hass=hass,
+        api=api,
+        config_entry=entry,
     )
 
     await coordinator.async_config_entry_first_refresh()
@@ -43,7 +34,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)

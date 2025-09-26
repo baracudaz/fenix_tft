@@ -1,12 +1,23 @@
 import logging
 
 from homeassistant.components.climate import ClimateEntity
-from homeassistant.components.climate.const import ClimateEntityFeature, HVACMode
+from homeassistant.components.climate.const import (
+    ClimateEntityFeature,
+    HVACAction,
+    HVACMode,
+)
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+FENIX_TFT_TO_HASS_HVAC_ACTION = {
+    1: HVACAction.HEATING,
+    2: HVACAction.OFF,
+    0: HVACAction.IDLE,
+    None: HVACAction.OFF,
+}
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -55,10 +66,9 @@ class FenixTFTClimate(ClimateEntity):
 
     @property
     def hvac_action(self):
-        hvac_action = self._device.get("hvac_action")
-        if hvac_action == 1:  # Assuming 1 means heating, 2 means off
-            return HVACMode.HEAT
-        return HVACMode.OFF
+        dev = self._device
+        raw_action = dev.get("hvac_action") if dev else None
+        return FENIX_TFT_TO_HASS_HVAC_ACTION.get(raw_action, HVACAction.OFF)
 
     @property
     def hvac_mode(self):
