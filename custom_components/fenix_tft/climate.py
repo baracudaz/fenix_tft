@@ -29,6 +29,7 @@ HVAC_MODE_MAP = {
     0: "off",
     1: "manual",
     2: "auto",
+    6: "manual",
 }
 HVAC_MODE_INVERTED = {v: k for k, v in HVAC_MODE_MAP.items()}
 
