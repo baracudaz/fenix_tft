@@ -12,6 +12,26 @@ from .const import DOMAIN, SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
+# Time to keep optimistic updates before allowing server data to override
+OPTIMISTIC_UPDATE_DURATION = 10  # seconds
+
+
+def _predict_hvac_action(preset_mode: int) -> int:
+    """
+    Predict hvac_action based on preset_mode.
+
+    Based on typical thermostat behavior:
+    - preset_mode 0 (off): hvac_action should be 2 (OFF)
+    - preset_mode 1 (manual): hvac_action should be 0 (IDLE) or 1 (HEATING)
+    - preset_mode 2 (program): hvac_action should be 0 (IDLE) or 1 (HEATING)
+    - For active modes, we predict IDLE as a safe default
+    """
+    if preset_mode == 0:  # off
+        return 2  # OFF
+    # For manual/program modes, predict IDLE - the actual heating state
+    # will be updated by the server based on temperature differential
+    return 0  # IDLE
+
 
 class FenixTFTCoordinator(DataUpdateCoordinator):
     """Data update coordinator for Fenix TFT."""
@@ -28,11 +48,74 @@ class FenixTFTCoordinator(DataUpdateCoordinator):
             config_entry=config_entry,
         )
         self.api = api
+        self._optimistic_updates = {}  # Track recent optimistic updates
 
     async def _async_update_data(self) -> list[dict]:
         """Fetch data from Fenix TFT API."""
         try:
-            return await self.api.get_devices()
+            fresh_data = await self.api.get_devices()
         except Exception as err:
             msg = f"Error fetching Fenix TFT data: {err}"
             raise UpdateFailed(msg) from err
+
+        # Preserve optimistic updates for recently changed devices
+        current_time = self.hass.loop.time()
+        expired_updates = []
+
+        for device_id, (
+            preset_mode,
+            hvac_action,
+            timestamp,
+        ) in self._optimistic_updates.items():
+            # Keep optimistic updates to allow API to catch up
+            if current_time - timestamp > OPTIMISTIC_UPDATE_DURATION:
+                expired_updates.append(device_id)
+            else:
+                # Apply optimistic update to fresh data
+                for device in fresh_data:
+                    if device.get("id") == device_id:
+                        _LOGGER.debug(
+                            "Preserving optimistic update for device %s: "
+                            "preset_mode=%s, hvac_action=%s",
+                            device_id,
+                            preset_mode,
+                            hvac_action,
+                        )
+                        device["preset_mode"] = preset_mode
+                        device["hvac_action"] = hvac_action
+                        break
+
+        # Clean up expired optimistic updates
+        for device_id in expired_updates:
+            del self._optimistic_updates[device_id]
+
+        return fresh_data
+
+    def update_device_preset_mode(self, device_id: str, preset_mode: int) -> None:
+        """Optimistically update device preset mode in coordinator data."""
+        if not self.data:
+            return
+
+        # Predict hvac_action based on preset_mode
+        predicted_hvac_action = _predict_hvac_action(preset_mode)
+
+        # Store optimistic update with timestamp to prevent race conditions
+        current_time = self.hass.loop.time()
+        self._optimistic_updates[device_id] = (
+            preset_mode,
+            predicted_hvac_action,
+            current_time,
+        )
+
+        # Find and update the specific device in current data
+        for device in self.data:
+            if device.get("id") == device_id:
+                device["preset_mode"] = preset_mode
+                device["hvac_action"] = predicted_hvac_action
+                _LOGGER.debug(
+                    "Optimistically updated device %s: preset_mode=%s, hvac_action=%s",
+                    device_id,
+                    preset_mode,
+                    predicted_hvac_action,
+                )
+                break
