@@ -72,10 +72,10 @@ class FenixTFTApi:
         self._session = session
         self._username = username
         self._password = password
-        self._access_token = None
-        self._refresh_token = None
-        self._token_expires = None
-        self._sub = None
+        self._access_token: str | None = None
+        self._refresh_token: str | None = None
+        self._token_expires: float | None = None
+        self._sub: str | None = None
 
     def _headers(self) -> dict[str, str]:
         """Return headers for API requests."""
@@ -90,7 +90,8 @@ class FenixTFTApi:
         if not self._access_token or not self._refresh_token:
             _LOGGER.debug("No tokens, initiating login")
             if not await self.login():
-                raise FenixTFTApiError("Login failed")
+                msg = "Login failed"
+                raise FenixTFTApiError(msg)
             return
 
         if self._token_expires and time.time() < self._token_expires - 60:
@@ -105,11 +106,13 @@ class FenixTFTApi:
         }
         async with self._session.post(url, data=data, timeout=10) as resp:
             if resp.status != HTTP_OK:
-                _LOGGER.error("Token refresh failed: status=%s", resp.status)
-                raise FenixTFTApiError(f"Token refresh failed: {resp.status}")
+                msg = f"Token refresh failed: {resp.status}"
+                _LOGGER.error(msg)
+                raise FenixTFTApiError(msg)
             tokens = await resp.json()
             if "access_token" not in tokens:
-                raise FenixTFTApiError("No access_token in response")
+                msg = "No access_token in response"
+                raise FenixTFTApiError(msg)
             self._access_token = tokens["access_token"]
             self._refresh_token = tokens.get("refresh_token", self._refresh_token)
             self._token_expires = time.time() + tokens.get("expires_in", 3600)
@@ -182,7 +185,10 @@ class FenixTFTApi:
             return False
 
         token_headers = {
-            "Authorization": f"Basic {base64.b64encode(f'{CLIENT_ID}:{CLIENT_SECRET}'.encode()).decode()}",
+            "Authorization": (
+                "Basic "
+                f"{base64.b64encode(f'{CLIENT_ID}:{CLIENT_SECRET}'.encode()).decode()}"
+            ),
             "Content-Type": "application/x-www-form-urlencoded",
             "ocp-apim-subscription-key": SUBSCRIPTION_KEY,
         }
@@ -218,12 +224,14 @@ class FenixTFTApi:
             url, headers={"Authorization": f"Bearer {self._access_token}"}, timeout=10
         ) as resp:
             if resp.status != HTTP_OK:
-                _LOGGER.error("Userinfo failed: status=%s", resp.status)
-                raise FenixTFTApiError(f"Userinfo failed: {resp.status}")
+                msg = f"Userinfo failed: {resp.status}"
+                _LOGGER.error(msg)
+                raise FenixTFTApiError(msg)
             data = await resp.json()
             self._sub = data.get("sub")
             if not self._sub:
-                raise FenixTFTApiError("No 'sub' field in userinfo")
+                msg = "No 'sub' field in userinfo"
+                raise FenixTFTApiError(msg)
             return data
 
     async def get_installations(self) -> list[dict[str, Any]]:
@@ -233,22 +241,23 @@ class FenixTFTApi:
         url = f"{API_BASE}/businessmodule/v1/installations/admins/{self._sub}"
         async with self._session.get(url, headers=self._headers()) as resp:
             if resp.status != HTTP_OK:
-                _LOGGER.error("Installations request failed: status=%s", resp.status)
-                raise FenixTFTApiError(f"Installations failed: {resp.status}")
+                msg = f"Installations failed: {resp.status}"
+                _LOGGER.error(msg)
+                raise FenixTFTApiError(msg)
             return await resp.json()
 
     async def get_device_properties(self, device_id: str) -> dict[str, Any]:
         """Fetch device properties from API."""
         await self._ensure_token()
-        url = f"{API_BASE}/iotmanagement/v1/configuration/{device_id}/{device_id}/v1/content/"
+        url = (
+            f"{API_BASE}/iotmanagement/v1/configuration/"
+            f"{device_id}/{device_id}/v1/content/"
+        )
         async with self._session.get(url, headers=self._headers()) as resp:
             if resp.status != HTTP_OK:
-                _LOGGER.error(
-                    "Failed to fetch device %s properties: status=%s",
-                    device_id,
-                    resp.status,
-                )
-                raise FenixTFTApiError(f"Device props failed: {resp.status}")
+                msg = f"Device props failed: {resp.status}"
+                _LOGGER.error(msg)
+                raise FenixTFTApiError(msg)
             return await resp.json()
 
     async def get_devices(self) -> list[dict[str, Any]]:
@@ -258,8 +267,8 @@ class FenixTFTApi:
             installations = await self.get_installations()
             if not installations:
                 _LOGGER.warning("No installations found for user %s", self._sub)
-        except FenixTFTApiError as err:
-            _LOGGER.error("Failed to fetch installations: %s", err)
+        except FenixTFTApiError:
+            _LOGGER.exception("Failed to fetch installations")
             return []
 
         devices = []
@@ -292,9 +301,9 @@ class FenixTFTApi:
                                 "preset_mode": props.get("Cm", {}).get("value"),
                             }
                         )
-                    except FenixTFTApiError as err:
-                        _LOGGER.error(
-                            "Failed to fetch properties for device %s: %s", dev_id, err
+                    except FenixTFTApiError:
+                        _LOGGER.exception(
+                            "Failed to fetch properties for device %s", dev_id
                         )
                         continue
 
@@ -321,12 +330,9 @@ class FenixTFTApi:
             url, headers=self._headers(), json=payload
         ) as resp:
             if resp.status != HTTP_OK:
-                _LOGGER.error(
-                    "Failed to set temperature for %s: status=%s",
-                    device_id,
-                    resp.status,
-                )
-                raise FenixTFTApiError(f"Failed to set temp: {resp.status}")
+                msg = f"Failed to set temp: {resp.status}"
+                _LOGGER.error(msg)
+                raise FenixTFTApiError(msg)
             return await resp.json()
 
     async def set_device_preset_mode(
@@ -335,7 +341,8 @@ class FenixTFTApi:
         """Set preset mode for a device."""
         await self._ensure_token()
         if preset_mode not in VALID_PRESET_MODES:
-            raise FenixTFTApiError(f"Invalid preset mode: {preset_mode}")
+            msg = f"Invalid preset mode: {preset_mode}"
+            raise FenixTFTApiError(msg)
 
         _LOGGER.debug("Setting preset mode %s for device %s", preset_mode, device_id)
         payload = {
@@ -349,10 +356,7 @@ class FenixTFTApi:
             url, headers=self._headers(), json=payload
         ) as resp:
             if resp.status != HTTP_OK:
-                _LOGGER.error(
-                    "Failed to set preset mode for %s: status=%s",
-                    device_id,
-                    resp.status,
-                )
-                raise FenixTFTApiError(f"Failed to set preset mode: {resp.status}")
+                msg = f"Failed to set preset mode: {resp.status}"
+                _LOGGER.error(msg)
+                raise FenixTFTApiError(msg)
             return await resp.json()
