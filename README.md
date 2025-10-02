@@ -1,3 +1,6 @@
+![GitHub release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/baracudaz/fenix_tft?include_prereleases)
+ [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+
 # FENIX TFT WiFi Home Assistant Integration
 
 This is a custom Home Assistant integration for the [FENIX TFT WiFi thermostat](https://www.fenixgroup.cz/en/products/thermostat-fenix-tft-wifi).
@@ -9,38 +12,22 @@ This is a custom Home Assistant integration for the [FENIX TFT WiFi thermostat](
 
 ## Getting started
 
-### How to acquire tokens
+### Login credentials
 
-To use this integration, you need your FENIX cloud API `access_token` and `refresh_token`.
-Tokens are necessary because user login and password APIs have not been implemented yet.
-
-#### Fenix tokens
-
-You must use a proxy tool like Proxyman on your mobile device and capture traffic to the host `https://vs2-fe-identity-prod.azurewebsites.net/`.
-
-Steps:
-1. Set Proxyman to catch all traffic.
-2. Enable SSL Proxying for the domain `https://vs2-fe-identity-prod.azurewebsites.net/`.
-3. Open the [FENIX Control application](https://apps.apple.com/ch/app/fenix-control/id1474206689?l=en-GB) on your mobile.
-4. Log in using your credentials.
-5. In Proxyman, look for a POST request to `https://vs2-fe-identity-prod.azurewebsites.net/connect/token`.
-6. The response to this request contains both `access_token` and `refresh_token`.
-
-**Note:**
-- The token is only valid for 24 hours.
-- The integration automatically renews the token so that it is not invalidated.
-- The renewed token, including the refresh token, is then stored.
+To use this integration, you only need your **FENIX account email and password**.  
 
 ### Installation
 
 #### Manual installation
 
 1. Clone this repository into your Home Assistant `custom_components` folder:
+
     ```bash
     git clone https://github.com/baracudaz/fenix_tft.git custom_components/fenix_tft
     ```
+
 2. Restart Home Assistant.
-3. Add the integration via the Home Assistant UI and provide your tokens.
+3. Add the integration via the Home Assistant and provide your **email** and **password**.
 
 #### Installation via HACS
 
@@ -49,20 +36,23 @@ Steps:
 3. Add `https://github.com/baracudaz/fenix_tft` as a custom repository and select "Integration" as the category.
 4. Install the integration from HACS.
 5. Restart Home Assistant.
-6. Add the integration via the Home Assistant UI and provide your tokens.
+6. Add the integration via the Home Assistant and provide your **email** and **password**.
 
 ### Configuration
 
-- During setup, you will be prompted for your `access_token` and `refresh_token`.
-- These tokens are required for cloud API access.
+- During setup, you will be prompted for your **email** and **password** used in the [FENIX Control app](https://apps.apple.com/ch/app/fenix-control/id1474206689?l=en-GB).  
+- The integration will take care of acquiring and refreshing tokens automatically in the background.
 
 ## Inspiration
 
-- This project was inspired by [homebridge-fenix-tft-wifi](https://github.com/tomas-kulhanek/homebridge-fenix-tft-wifi).
+This project was inspired by:
+
+- [homebridge-fenix-tft-wifi](https://github.com/tomas-kulhanek/homebridge-fenix-tft-wifi)
+- [Watts Vision for Home Assistant](https://github.com/pwesters/watts_vision)
 
 ## Product information
 
-- [FENIX TFT WiFi Thermostat product page](https://www.fenixgroup.cz/en/products/thermostat-fenix-tft-wifi)
+- [FENIX TFT WiFi Thermostat product page](https://www.fenixgroup.cz/en/products/thermostat-fenix-tft-wifi)  
 - [FENIX Control app on Google Play](https://play.google.com/store/apps/details?id=cz.fenixgroup.tftwifi)
 
 ---
