@@ -77,14 +77,6 @@ class FenixTFTApi:
         self._token_expires = None
         self._sub = None
 
-    def load_from_config(self, config: dict) -> None:
-        """Load tokens and sub from config entry."""
-        self._access_token = config.get("access_token")
-        self._refresh_token = config.get("refresh_token")
-        self._token_expires = config.get("token_expires")
-        self._sub = config.get("sub")
-        _LOGGER.debug("Loaded config: sub=%s", self._sub)
-
     def _headers(self) -> dict[str, str]:
         """Return headers for API requests."""
         return {
