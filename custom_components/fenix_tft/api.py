@@ -23,6 +23,7 @@ from .const import (
     SCOPES,
     SUBSCRIPTION_KEY,
     TOKEN_URL,
+    VALID_PRESET_MODES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,7 +70,6 @@ class FenixTFTApi:
     ) -> None:
         """Initialize the API client."""
         self._session = session
-        self._session._default_timeout = aiohttp.ClientTimeout(total=10)
         self._username = username
         self._password = password
         self._access_token = None
@@ -213,23 +213,7 @@ class FenixTFTApi:
             _LOGGER.error("Missing access or refresh token")
             return False
 
-        async with self._session.get(
-            f"{API_IDENTITY}/connect/userinfo",
-            headers={"Authorization": f"Bearer {self._access_token}"},
-            timeout=10,
-        ) as userinfo_response:
-            if userinfo_response.status != HTTP_OK:
-                _LOGGER.error(
-                    "Failed to fetch userinfo: status=%s", userinfo_response.status
-                )
-                return False
-            data = await userinfo_response.json()
-            self._sub = data.get("sub")
-            if not self._sub:
-                _LOGGER.error("No 'sub' field in userinfo")
-                return False
-
-        _LOGGER.info("Login successful, sub=%s", self._sub)
+        _LOGGER.info("Login successful")
         return True
 
     async def get_userinfo(self) -> dict[str, Any]:
@@ -356,8 +340,7 @@ class FenixTFTApi:
     ) -> dict[str, Any]:
         """Set preset mode for a device."""
         await self._ensure_token()
-        valid_modes = {0, 1, 2, 4, 5, 6}
-        if preset_mode not in valid_modes:
+        if preset_mode not in VALID_PRESET_MODES:
             raise FenixTFTApiError(f"Invalid preset mode: {preset_mode}")
 
         _LOGGER.debug("Setting preset mode %s for device %s", preset_mode, device_id)

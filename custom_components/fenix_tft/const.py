@@ -15,3 +15,5 @@ SCOPES = "profile openid offline_access DataProcessing.Read DataProcessing.Write
 TOKEN_URL = f"{API_IDENTITY}/connect/token"
 HTTP_OK = 200
 HTTP_REDIRECT = 302
+# Valid preset mode values: 0=off, 1=manual, 2=program, 4=defrost, 5=boost, 6=manual
+VALID_PRESET_MODES = {0, 1, 2, 4, 5, 6}
