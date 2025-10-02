@@ -538,3 +538,67 @@ class FenixTFTApi:
 
         _LOGGER.debug("Total devices fetched: %d", len(devices))
         return devices
+
+    async def set_device_temperature(
+        self, device_id: str, temp_c: float
+    ) -> dict[str, Any]:
+        """Set target temperature for a device."""
+        await self._ensure_token()
+        raw_val = encode_temp_to_entry(temp_c, div_factor=10)
+        payload = {
+            "Id_deviceId": device_id,
+            "S1": device_id,
+            "configurationVersion": "v1.0",
+            "data": [
+                {"wattsType": "Dm", "wattsTypeValue": 6},
+                {"wattsType": "Ma", "wattsTypeValue": raw_val},
+            ],
+        }
+        url = f"{API_BASE}/iotmanagement/v1/devices/twin/properties/config/replace"
+        async with self._session.put(
+            url, headers=self._headers(), json=payload
+        ) as resp:
+            if resp.status != HTTP_OK:
+                text = await resp.text()
+                _LOGGER.error("Failed to set temperature: %s %s", resp.status, text)
+                msg = f"Failed to set temp {resp.status}"
+                raise FenixTFTApiError(msg)
+            return await resp.json()
+
+    async def set_device_preset_mode(
+        self, device_id: str, preset_mode: int
+    ) -> dict[str, Any]:
+        """Set preset mode for a device."""
+        await self._ensure_token()
+        # Valid preset mode values: 0=off, 1=manual, 2=program,
+        # 4=defrost, 5=boost, 6=manual
+        valid_modes = {0, 1, 2, 4, 5, 6}
+        if preset_mode not in valid_modes:
+            msg = f"Invalid preset mode: {preset_mode}"
+            raise FenixTFTApiError(msg)
+
+        _LOGGER.debug("Setting preset mode %s for device %s", preset_mode, device_id)
+
+        payload = {
+            "Id_deviceId": device_id,
+            "S1": device_id,
+            "configurationVersion": "v1.0",
+            "data": [
+                {"wattsType": "Dm", "wattsTypeValue": preset_mode},
+            ],
+        }
+
+        _LOGGER.debug("API payload: %s", payload)
+
+        url = f"{API_BASE}/iotmanagement/v1/devices/twin/properties/config/replace"
+        async with self._session.put(
+            url, headers=self._headers(), json=payload
+        ) as resp:
+            if resp.status != HTTP_OK:
+                text = await resp.text()
+                _LOGGER.error("Failed to set preset mode: %s %s", resp.status, text)
+                msg = f"Failed to set preset mode {resp.status}"
+                raise FenixTFTApiError(msg)
+            result = await resp.json()
+            _LOGGER.debug("API response: %s", result)
+            return result
