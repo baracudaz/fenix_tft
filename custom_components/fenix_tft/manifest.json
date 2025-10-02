@@ -1,6 +1,6 @@
 {
     "domain": "fenix_tft",
-    "name": "Fenix TFT Thermostat",
+    "name": "Fenix TFT WiFi Thermostat",
     "codeowners": [
         "@baracudaz"
     ],

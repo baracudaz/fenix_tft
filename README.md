@@ -31,7 +31,7 @@ To use this integration, you only need your **FENIX account email and password**
 
 #### Installation via HACS
 
-1. Open HACS in your Home Assistant instance.
+1. Open [HACS](https://www.hacs.xyz) in your Home Assistant instance.
 2. Go to "Integrations" and click the three dots in the top right, then select "Custom repositories".
 3. Add `https://github.com/baracudaz/fenix_tft` as a custom repository and select "Integration" as the category.
 4. Install the integration from HACS.
@@ -40,19 +40,20 @@ To use this integration, you only need your **FENIX account email and password**
 
 ### Configuration
 
-- During setup, you will be prompted for your **email** and **password** used in the [FENIX Control app](https://apps.apple.com/ch/app/fenix-control/id1474206689?l=en-GB).  
+- During setup, you will be prompted for your **email** and **password** used in the FENIX Control app.
 - The integration will take care of acquiring and refreshing tokens automatically in the background.
 
 ## Inspiration
 
 This project was inspired by:
 
-- [homebridge-fenix-tft-wifi](https://github.com/tomas-kulhanek/homebridge-fenix-tft-wifi)
 - [Watts Vision for Home Assistant](https://github.com/pwesters/watts_vision)
+- [homebridge-fenix-tft-wifi](https://github.com/tomas-kulhanek/homebridge-fenix-tft-wifi)
 
 ## Product information
 
-- [FENIX TFT WiFi Thermostat product page](https://www.fenixgroup.cz/en/products/thermostat-fenix-tft-wifi)  
+- [FENIX TFT WiFi Thermostat product page](https://www.fenixgroup.cz/en/products/thermostat-fenix-tft-wifi)
+- [FENIX Control app on Apple App Store](https://apps.apple.com/ch/app/fenix-control/id1474206689?l=en-GB).  
 - [FENIX Control app on Google Play](https://play.google.com/store/apps/details?id=cz.fenixgroup.tftwifi)
 
 ---
