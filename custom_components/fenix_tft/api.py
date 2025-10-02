@@ -138,9 +138,11 @@ class FenixTFTApi:
                 )
                 return False
             soup = BeautifulSoup(await login_page.text(), "html.parser")
-            csrf_token = soup.find("input", {"name": "__RequestVerificationToken"})[
-                "value"
-            ]
+            csrf_input = soup.find("input", {"name": "__RequestVerificationToken"})
+            if not csrf_input or not csrf_input.has_attr("value"):
+                _LOGGER.error("CSRF token not found in login page")
+                return False
+            csrf_token = csrf_input["value"]
 
         login_data = {
             "ReturnUrl": return_url,
