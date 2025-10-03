@@ -8,7 +8,7 @@ API_BASE = "https://vs2-fe-apim-prod.azure-api.net"
 API_IDENTITY = "https://vs2-fe-identity-prod.azurewebsites.net"
 CLIENT_ID = "b1760b2e-69f1-4e89-8233-5840a9accdf8"
 CLIENT_SECRET = ""  # Intentionally left blank for security reasons
-SUBSCRIPTION_KEY = "e14bfd9fa2b3477e874895cb3babe608"
+SUBSCRIPTION_KEY = ""  # Intentionally left blank for security reasons
 LOGIN_URL = f"{API_IDENTITY}/Account/Login"
 TOKEN_URL = f"{API_IDENTITY}/connect/token"
 REDIRECT_URI = "fenix://callback"
@@ -24,5 +24,5 @@ SCOPES = (
 HTTP_OK = 200
 HTTP_REDIRECT = 302
 
-# Valid preset mode values: 0=off, 1=manual, 2=program, 4=defrost, 5=boost, 6=manual
+# Valid preset mode values: 0=off, 1=holidays, 2=program, 4=defrost, 5=boost, 6=manual
 VALID_PRESET_MODES = {0, 1, 2, 4, 5, 6}
