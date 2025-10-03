@@ -5,6 +5,16 @@
 
 This is a custom Home Assistant integration for the [FENIX TFT WiFi thermostat](https://www.fenixgroup.cz/en/products/thermostat-fenix-tft-wifi).
 
+## Screenshots
+
+Here is the thermostat integration in action.
+
+<p float="left">
+  <img src="screenshots/thermostat-manual.png" width="32%" />
+  <img src="screenshots/thermostat-auto.png" width="32%" />
+  <img src="screenshots/thermostat-off.png" width="32%" />
+</p>
+
 ## Project status
 
 - **Reverse engineered API**: This integration is based on reverse engineering the FENIX cloud API. It is a work in progress and intended as a fun project for developers and advanced users.
