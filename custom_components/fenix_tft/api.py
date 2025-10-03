@@ -118,19 +118,8 @@ class FenixTFTApi:
             self._token_expires = time.time() + tokens.get("expires_in", 3600)
             _LOGGER.info("Access token refreshed")
 
-    async def login(self) -> bool:
-        """Perform OAuth2 login and obtain tokens."""
-        _LOGGER.debug("Starting login for %s", self._username)
-        code_verifier, code_challenge = generate_pkce_pair()
-        state = secrets.token_urlsafe(32)
-        nonce = secrets.token_urlsafe(32)
-        return_url = (
-            f"/connect/authorize/callback?client_id={CLIENT_ID}&response_type=code%20id_token"
-            f"&scope={urllib.parse.quote(SCOPES)}&redirect_uri={urllib.parse.quote(REDIRECT_URI)}"
-            f"&nonce={nonce}&code_challenge={code_challenge}&code_challenge_method=S256"
-            f"&state={state}&oemclient=fenix"
-        )
-
+    async def _fetch_login_page(self, return_url: str) -> str | None:
+        """Fetch login page and extract CSRF token."""
         login_params = {"ReturnUrl": return_url}
         async with self._session.get(
             LOGIN_URL, params=login_params, timeout=10
@@ -139,14 +128,16 @@ class FenixTFTApi:
                 _LOGGER.error(
                     "Failed to fetch login page: status=%s", login_page.status
                 )
-                return False
+                return None
             soup = BeautifulSoup(await login_page.text(), "html.parser")
             csrf_input = soup.find("input", {"name": "__RequestVerificationToken"})
             if not csrf_input or not csrf_input.has_attr("value"):
                 _LOGGER.error("CSRF token not found in login page")
-                return False
-            csrf_token = csrf_input["value"]
+                return None
+            return csrf_input["value"]
 
+    async def _submit_login_form(self, return_url: str, csrf_token: str) -> str | None:
+        """Submit login form and return callback path."""
         login_data = {
             "ReturnUrl": return_url,
             "Username": self._username,
@@ -161,9 +152,13 @@ class FenixTFTApi:
                 _LOGGER.error(
                     "Login did not redirect: status=%s", login_response.status
                 )
-                return False
-            callback_path = login_response.headers["Location"]
+                return None
+            return login_response.headers["Location"]
 
+    async def _handle_callback(
+        self, callback_path: str, state: str
+    ) -> tuple[str, str] | None:
+        """Handle callback and extract auth code and ID token."""
         callback_url = urllib.parse.urljoin(API_IDENTITY, callback_path)
         async with self._session.get(
             callback_url, allow_redirects=False, timeout=10
@@ -172,7 +167,7 @@ class FenixTFTApi:
                 _LOGGER.error(
                     "Callback did not redirect: status=%s", callback_response.status
                 )
-                return False
+                return None
             redirect_url = callback_response.headers["Location"]
 
         parsed = urllib.parse.urlparse(redirect_url)
@@ -180,10 +175,15 @@ class FenixTFTApi:
         auth_code = fragment.get("code", [None])[0]
         id_token = fragment.get("id_token", [None])[0]
         returned_state = fragment.get("state", [None])[0]
+
         if returned_state != state or not auth_code or not id_token:
             _LOGGER.error("Invalid redirect: state mismatch or missing code/id_token")
-            return False
+            return None
 
+        return auth_code, id_token
+
+    async def _exchange_tokens(self, auth_code: str, code_verifier: str) -> bool:
+        """Exchange authorization code for access/refresh tokens."""
         token_headers = {
             "Authorization": (
                 "Basic "
@@ -213,8 +213,39 @@ class FenixTFTApi:
             _LOGGER.error("Missing access or refresh token")
             return False
 
-        _LOGGER.info("Login successful")
         return True
+
+    async def login(self) -> bool:
+        """Perform OAuth2 login and obtain tokens."""
+        _LOGGER.debug("Starting login for %s", self._username)
+        code_verifier, code_challenge = generate_pkce_pair()
+        state = secrets.token_urlsafe(32)
+        nonce = secrets.token_urlsafe(32)
+
+        return_url = (
+            f"/connect/authorize/callback?client_id={CLIENT_ID}&response_type=code%20id_token"
+            f"&scope={urllib.parse.quote(SCOPES)}&redirect_uri={urllib.parse.quote(REDIRECT_URI)}"
+            f"&nonce={nonce}&code_challenge={code_challenge}&code_challenge_method=S256"
+            f"&state={state}&oemclient=fenix"
+        )
+
+        csrf_token = await self._fetch_login_page(return_url)
+        if not csrf_token:
+            return False
+
+        callback_path = await self._submit_login_form(return_url, csrf_token)
+        if not callback_path:
+            return False
+
+        auth_info = await self._handle_callback(callback_path, state)
+        if not auth_info:
+            return False
+        auth_code, _ = auth_info
+
+        success = await self._exchange_tokens(auth_code, code_verifier)
+        if success:
+            _LOGGER.info("Login successful")
+        return success
 
     async def get_userinfo(self) -> dict[str, Any]:
         """Fetch user info from API."""
