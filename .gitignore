@@ -4,6 +4,7 @@ __pycache__
 *.egg-info
 */build/*
 */dist/*
+Pipfile*
 
 
 # misc
@@ -17,3 +18,5 @@ coverage.xml
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
+
+custom_components/watts_vision/*

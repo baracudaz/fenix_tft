@@ -27,7 +27,7 @@ FENIX_TFT_TO_HASS_HVAC_ACTION: dict[int | None, HVACAction] = {
 # HVAC mode mappings (basic operational modes)
 HVAC_MODE_MAP = {
     0: "off",
-    1: "manual",
+    1: "holidays",
     2: "auto",
     6: "manual",
 }
