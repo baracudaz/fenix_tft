@@ -5,12 +5,36 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult  # Correct import
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .api import FenixTFTApi
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class AuthenticationError(Exception):
+    """Raised when authentication with Fenix TFT fails."""
+
+
+async def validate_input(
+    hass: HomeAssistant, user_input: dict[str, Any]
+) -> dict[str, Any]:
+    """Validate the user input."""
+    _LOGGER.debug("Validating input: username=%s", user_input["username"])
+
+    session = async_get_clientsession(hass)
+    api = FenixTFTApi(session, user_input["username"], user_input["password"])
+
+    if not await api.login():
+        _LOGGER.error("Authentication failed for username: %s", user_input["username"])
+        raise AuthenticationError
+
+    _LOGGER.debug("Authentication successful for username: %s", user_input["username"])
+
+    return user_input
 
 
 class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -24,44 +48,23 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(
-                title="Fenix TFT",
-                data={
-                    "access_token": user_input["access_token"],
-                    "refresh_token": user_input["refresh_token"],
-                },
-            )
+            try:
+                info = await validate_input(self.hass, user_input)
+                return self.async_create_entry(title=user_input["username"], data=info)
+            except AuthenticationError:
+                _LOGGER.exception("Config flow authentication error")
+                errors["base"] = "auth_failed"
+            except Exception:
+                _LOGGER.exception("Unexpected config flow error")
+                errors["base"] = "unknown"
 
-        data_schema = vol.Schema(
-            {
-                vol.Required("access_token"): str,
-                vol.Required("refresh_token"): str,
-            }
-        )
         return self.async_show_form(
-            step_id="user", data_schema=data_schema, errors=errors
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("username"): str,
+                    vol.Required("password"): str,
+                }
+            ),
+            errors=errors,
         )
-
-    @staticmethod
-    @callback
-    def async_get_options_flow(
-        config_entry: config_entries.ConfigEntry,
-    ) -> config_entries.OptionsFlow:
-        """Return the options flow handler."""
-        return FenixTFTOptionsFlowHandler(config_entry)
-
-
-class FenixTFTOptionsFlowHandler(config_entries.OptionsFlow):
-    """Options flow handler for Fenix TFT."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow handler."""
-        self.config_entry = config_entry
-
-    async def async_step_init(
-        self,
-        user_input: dict[str, Any] | None = None,  # noqa: ARG002 # not implemented yet
-    ) -> FlowResult:
-        """Handle options flow init step."""
-        # user_input is unused because options are not yet implemented
-        return self.async_create_entry(title="", data={})

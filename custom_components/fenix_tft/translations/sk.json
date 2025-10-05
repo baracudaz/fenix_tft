@@ -1,0 +1,36 @@
+{
+  "title": "Fenix",
+  "config": {
+    "error": {
+      "invalid_auth": "Email a/alebo heslo je neplatné.",
+      "unknown": "Vyskytla sa neočakávaná chyba.",
+      "username_exists": "Účet s poskytnutým emailom je už pripojený."
+    },
+    "step": {
+      "user": {
+        "data": {
+          "username": "Email",
+          "password": "Heslo"
+        },
+        "description": "Pripojte sa k Fenix API"
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_auth": "Email a/alebo heslo je neplatné.",
+      "unknown": "Vyskytla sa neočakávaná chyba.",
+      "username_exists": "Účet s poskytnutým emailom je už pripojený."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "username": "Email",
+          "password": "Heslo"
+        },
+        "title": "Fenix - Rekonfigurácia účtu",
+        "description": "Zmeňte údaje účtu a znovu sa pripojte k Fenix API"
+      }
+    }
+  }
+}

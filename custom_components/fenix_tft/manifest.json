@@ -1,6 +1,6 @@
 {
     "domain": "fenix_tft",
-    "name": "Fenix TFT Thermostat",
+    "name": "Fenix TFT WiFi Thermostat",
     "codeowners": [
         "@baracudaz"
     ],
@@ -9,5 +9,5 @@
     "iot_class": "cloud_polling",
     "issue_tracker": "https://github.com/baracudaz/fenix_tft/issues",
     "requirements": [],
-    "version": "0.1.0"
+    "version": "0.2.0"
 }
