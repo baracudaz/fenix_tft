@@ -15,14 +15,10 @@ from .const import (
     API_BASE,
     API_IDENTITY,
     CLIENT_ID,
-    CLIENT_SECRET,
     HTTP_OK,
     HTTP_REDIRECT,
-    LOGIN_URL,
     REDIRECT_URI,
     SCOPES,
-    SUBSCRIPTION_KEY,
-    TOKEN_URL,
     VALID_PRESET_MODES,
 )
 
@@ -81,7 +77,6 @@ class FenixTFTApi:
         """Return headers for API requests."""
         return {
             "Authorization": f"Bearer {self._access_token}",
-            "ocp-apim-subscription-key": SUBSCRIPTION_KEY,
             "Accept": "application/json",
         }
 
@@ -118,26 +113,64 @@ class FenixTFTApi:
             self._token_expires = time.time() + tokens.get("expires_in", 3600)
             _LOGGER.info("Access token refreshed")
 
-    async def _fetch_login_page(self, return_url: str) -> str | None:
-        """Fetch login page and extract CSRF token."""
-        login_params = {"ReturnUrl": return_url}
+    async def login(self) -> bool:
+        """Perform OAuth2 login and obtain tokens in a linear flow."""
+        _LOGGER.debug("Starting login for %s", self._username)
+
+        # Step 1: Generate PKCE pair, state, and nonce
+        code_verifier, code_challenge = generate_pkce_pair()
+        state = secrets.token_urlsafe(32)
+        nonce = secrets.token_urlsafe(32)
+
+        # Step 2: Start authorization request
+        auth_params = {
+            "client_id": CLIENT_ID,
+            "response_type": "code id_token",
+            "scope": SCOPES,
+            "redirect_uri": REDIRECT_URI,
+            "nonce": nonce,
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+            "state": state,
+            "oemclient": "fenix",
+        }
+        auth_url = (
+            f"{API_IDENTITY}/connect/authorize?{urllib.parse.urlencode(auth_params)}"
+        )
         async with self._session.get(
-            LOGIN_URL, params=login_params, timeout=10
-        ) as login_page:
+            auth_url, allow_redirects=False, timeout=10
+        ) as resp:
+            if resp.status != HTTP_REDIRECT:
+                _LOGGER.error("Expected redirect to login page, got: %s", resp.status)
+                return False
+            login_path = resp.headers.get("Location")
+            if not login_path:
+                _LOGGER.error("No Location header in redirect")
+                return False
+            login_url = urllib.parse.urljoin(API_IDENTITY, login_path)
+
+        # Step 3: Get login page and extract CSRF token and ReturnUrl
+        async with self._session.get(login_url, timeout=10) as login_page:
             if login_page.status != HTTP_OK:
                 _LOGGER.error(
                     "Failed to fetch login page: status=%s", login_page.status
                 )
-                return None
+                return False
             soup = BeautifulSoup(await login_page.text(), "html.parser")
             csrf_input = soup.find("input", {"name": "__RequestVerificationToken"})
-            if not csrf_input or not csrf_input.has_attr("value"):
-                _LOGGER.error("CSRF token not found in login page")
-                return None
-            return csrf_input["value"]
+            return_url_input = soup.find("input", {"name": "ReturnUrl"})
+            if (
+                not csrf_input
+                or not csrf_input.has_attr("value")
+                or not return_url_input
+                or not return_url_input.has_attr("value")
+            ):
+                _LOGGER.error("CSRF token or ReturnUrl not found in login page")
+                return False
+            csrf_token = csrf_input["value"]
+            return_url = return_url_input["value"]
 
-    async def _submit_login_form(self, return_url: str, csrf_token: str) -> str | None:
-        """Submit login form and return callback path."""
+        # Step 4: Submit login form
         login_data = {
             "ReturnUrl": return_url,
             "Username": self._username,
@@ -146,19 +179,19 @@ class FenixTFTApi:
             "__RequestVerificationToken": csrf_token,
         }
         async with self._session.post(
-            LOGIN_URL, data=login_data, allow_redirects=False, timeout=10
+            login_url, data=login_data, allow_redirects=False, timeout=10
         ) as login_response:
             if login_response.status != HTTP_REDIRECT:
                 _LOGGER.error(
                     "Login did not redirect: status=%s", login_response.status
                 )
-                return None
-            return login_response.headers["Location"]
+                return False
+            callback_path = login_response.headers.get("Location")
+            if not callback_path:
+                _LOGGER.error("No Location header in login redirect")
+                return False
 
-    async def _handle_callback(
-        self, callback_path: str, state: str
-    ) -> tuple[str, str] | None:
-        """Handle callback and extract auth code and ID token."""
+        # Step 5: Follow redirect to callback
         callback_url = urllib.parse.urljoin(API_IDENTITY, callback_path)
         async with self._session.get(
             callback_url, allow_redirects=False, timeout=10
@@ -167,39 +200,38 @@ class FenixTFTApi:
                 _LOGGER.error(
                     "Callback did not redirect: status=%s", callback_response.status
                 )
-                return None
-            redirect_url = callback_response.headers["Location"]
+                return False
+            redirect_url = callback_response.headers.get("Location")
+            if not redirect_url:
+                _LOGGER.error("No Location header in callback redirect")
+                return False
 
+        # Step 6: Parse auth code and verify state
         parsed = urllib.parse.urlparse(redirect_url)
         fragment = urllib.parse.parse_qs(parsed.fragment)
         auth_code = fragment.get("code", [None])[0]
         id_token = fragment.get("id_token", [None])[0]
         returned_state = fragment.get("state", [None])[0]
-
         if returned_state != state or not auth_code or not id_token:
             _LOGGER.error("Invalid redirect: state mismatch or missing code/id_token")
-            return None
+            return False
 
-        return auth_code, id_token
-
-    async def _exchange_tokens(self, auth_code: str, code_verifier: str) -> bool:
-        """Exchange authorization code for access/refresh tokens."""
+        # Step 7: Exchange code for tokens
         token_headers = {
-            "Authorization": (
-                "Basic "
-                f"{base64.b64encode(f'{CLIENT_ID}:{CLIENT_SECRET}'.encode()).decode()}"
-            ),
             "Content-Type": "application/x-www-form-urlencoded",
-            "ocp-apim-subscription-key": SUBSCRIPTION_KEY,
         }
         token_data = {
             "grant_type": "authorization_code",
             "code": auth_code,
             "redirect_uri": REDIRECT_URI,
             "code_verifier": code_verifier,
+            "client_id": CLIENT_ID,
         }
         async with self._session.post(
-            TOKEN_URL, headers=token_headers, data=token_data, timeout=10
+            f"{API_IDENTITY}/connect/token",
+            headers=token_headers,
+            data=token_data,
+            timeout=10,
         ) as token_response:
             if token_response.status != HTTP_OK:
                 _LOGGER.error("Token request failed: status=%s", token_response.status)
@@ -209,43 +241,13 @@ class FenixTFTApi:
             self._refresh_token = tokens.get("refresh_token")
             self._token_expires = time.time() + tokens.get("expires_in", 3600)
 
+        # Step 8: Verify tokens
         if not self._access_token or not self._refresh_token:
             _LOGGER.error("Missing access or refresh token")
             return False
 
+        _LOGGER.info("Login successful")
         return True
-
-    async def login(self) -> bool:
-        """Perform OAuth2 login and obtain tokens."""
-        _LOGGER.debug("Starting login for %s", self._username)
-        code_verifier, code_challenge = generate_pkce_pair()
-        state = secrets.token_urlsafe(32)
-        nonce = secrets.token_urlsafe(32)
-
-        return_url = (
-            f"/connect/authorize/callback?client_id={CLIENT_ID}&response_type=code%20id_token"
-            f"&scope={urllib.parse.quote(SCOPES)}&redirect_uri={urllib.parse.quote(REDIRECT_URI)}"
-            f"&nonce={nonce}&code_challenge={code_challenge}&code_challenge_method=S256"
-            f"&state={state}&oemclient=fenix"
-        )
-
-        csrf_token = await self._fetch_login_page(return_url)
-        if not csrf_token:
-            return False
-
-        callback_path = await self._submit_login_form(return_url, csrf_token)
-        if not callback_path:
-            return False
-
-        auth_info = await self._handle_callback(callback_path, state)
-        if not auth_info:
-            return False
-        auth_code, _ = auth_info
-
-        success = await self._exchange_tokens(auth_code, code_verifier)
-        if success:
-            _LOGGER.info("Login successful")
-        return success
 
     async def get_userinfo(self) -> dict[str, Any]:
         """Fetch user info from API."""
