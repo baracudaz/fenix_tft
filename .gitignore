@@ -16,7 +16,7 @@ coverage.xml
 
 
 # Home Assistant configuration
-config/*
+config*
 !config/configuration.yaml
 
 custom_components/watts_vision/*

@@ -72,21 +72,31 @@ class FenixTFTApi:
         self._refresh_token: str | None = None
         self._token_expires: float | None = None
         self._sub: str | None = None
+        self._login_in_progress = False
 
     def _headers(self) -> dict[str, str]:
-        """Return headers for API requests."""
+        """Return standard headers with bearer token."""
         return {
             "Authorization": f"Bearer {self._access_token}",
             "Accept": "application/json",
         }
 
     async def _ensure_token(self) -> None:
-        """Ensure access token is valid, login if tokens are empty."""
+        """Ensure access token is valid, or refresh/login as needed."""
+        if self._login_in_progress:
+            _LOGGER.debug("Login already in progress, skipping nested attempt")
+            return
+
         if not self._access_token or not self._refresh_token:
             _LOGGER.debug("No tokens, initiating login")
-            if not await self.login():
-                msg = "Login failed"
-                raise FenixTFTApiError(msg)
+            self._login_in_progress = True
+            try:
+                success = await self.login()
+                if not success:
+                    msg = "Login failed"
+                    raise FenixTFTApiError(msg)
+            finally:
+                self._login_in_progress = False
             return
 
         if self._token_expires and time.time() < self._token_expires - 60:
@@ -134,6 +144,7 @@ class FenixTFTApi:
         auth_url = (
             f"{API_IDENTITY}/connect/authorize?{urllib.parse.urlencode(auth_params)}"
         )
+
         async with self._session.get(
             auth_url, allow_redirects=False, timeout=10
         ) as resp:
@@ -150,23 +161,34 @@ class FenixTFTApi:
 
     async def _fetch_login_page(self, login_url: str) -> tuple[str | None, str | None]:
         """Fetch login page and extract CSRF token and ReturnUrl."""
+        if not login_url.startswith("http"):
+            _LOGGER.debug(
+                "Login URL is non-HTTP (%s), skipping login page fetch", login_url
+            )
+            return None, None
+
         async with self._session.get(login_url, timeout=10) as login_page:
             if login_page.status != HTTP_OK:
                 _LOGGER.error(
                     "Failed to fetch login page: status=%s", login_page.status
                 )
                 return None, None
+
             soup = BeautifulSoup(await login_page.text(), "html.parser")
             csrf_input = soup.find("input", {"name": "__RequestVerificationToken"})
             return_url_input = soup.find("input", {"name": "ReturnUrl"})
+
             if not (
                 csrf_input
                 and csrf_input.get("value")
                 and return_url_input
                 and return_url_input.get("value")
             ):
-                _LOGGER.error("Missing CSRF token or ReturnUrl in login page")
+                _LOGGER.debug(
+                    "No CSRF token/ReturnUrl found - possibly cached session redirect"
+                )
                 return None, None
+
             return csrf_input["value"], return_url_input["value"]
 
     async def _submit_login_form(
@@ -195,29 +217,30 @@ class FenixTFTApi:
         self, callback_url: str, state: str
     ) -> tuple[str | None, str | None]:
         """Handle callback redirect and extract auth code and ID token."""
-        async with self._session.get(
-            callback_url, allow_redirects=False, timeout=10
-        ) as resp:
-            redirect_url = resp.headers.get("Location")
-            if resp.status != HTTP_REDIRECT or not redirect_url:
-                _LOGGER.error(
-                    "Callback failed: status=%s, location=%s", resp.status, redirect_url
-                )
-                return None, None
-            parsed = urllib.parse.urlparse(redirect_url)
-            fragment = urllib.parse.parse_qs(parsed.fragment)
-            auth_code = fragment.get("code", [None])[0]
-            id_token = fragment.get("id_token", [None])[0]
-            returned_state = fragment.get("state", [None])[0]
-            if not (returned_state == state and auth_code and id_token):
-                _LOGGER.error(
-                    "Invalid redirect: state mismatch=%s, code=%s, id_token=%s",
-                    returned_state != state,
-                    auth_code is None,
-                    id_token is None,
-                )
-                return None, None
-            return auth_code, id_token
+        if callback_url.startswith("fenix://"):
+            parsed = urllib.parse.urlparse(callback_url)
+        else:
+            async with self._session.get(
+                callback_url, allow_redirects=False, timeout=10
+            ) as resp:
+                redirect_url = resp.headers.get("Location", callback_url)
+                parsed = urllib.parse.urlparse(redirect_url)
+
+        fragment = urllib.parse.parse_qs(parsed.fragment)
+        auth_code = fragment.get("code", [None])[0]
+        id_token = fragment.get("id_token", [None])[0]
+        returned_state = fragment.get("state", [None])[0]
+
+        if not (returned_state == state and auth_code and id_token):
+            _LOGGER.error(
+                "Invalid redirect: state mismatch=%s, code=%s, id_token=%s",
+                returned_state != state,
+                auth_code is None,
+                id_token is None,
+            )
+            return None, None
+
+        return auth_code, id_token
 
     async def _exchange_tokens(self, auth_code: str, code_verifier: str) -> bool:
         """Exchange authorization code for access and refresh tokens."""
@@ -236,66 +259,57 @@ class FenixTFTApi:
             timeout=10,
         ) as resp:
             if resp.status != HTTP_OK:
-                _LOGGER.error("Token request failed: status=%s", resp.status)
-                return False
+                msg = f"Token request failed: {resp.status}"
+                raise FenixTFTApiError(msg)
             tokens = await resp.json()
             self._access_token = tokens.get("access_token")
             self._refresh_token = tokens.get("refresh_token")
             if not (self._access_token and self._refresh_token):
-                _LOGGER.error("Missing access or refresh token")
-                return False
+                msg = "Missing access or refresh token"
+                raise FenixTFTApiError(msg)
             self._token_expires = time.time() + tokens.get("expires_in", 3600)
         return True
 
     async def login(self) -> bool:
-        """Perform OAuth2 login and obtain tokens in a linear flow."""
+        """Perform OAuth2 login and obtain tokens."""
         _LOGGER.debug("Starting login for %s", self._username)
         success = False
-
         try:
-            # Step 1: Start authorization
             login_url, code_verifier, state, nonce = await self._start_authorization()
             if not all([login_url, code_verifier, state, nonce]):
                 return False
 
-            # Step 2: Fetch login page
             csrf_token, return_url = await self._fetch_login_page(login_url)
-            if not (csrf_token and return_url):
-                return False
 
-            # Step 3: Submit login form
-            callback_url = await self._submit_login_form(
-                login_url, return_url, csrf_token
-            )
-            if not callback_url:
-                return False
+            if not csrf_token and not return_url and login_url.startswith("fenix://"):
+                _LOGGER.debug("Detected direct fenix:// callback after cached session")
+                callback_url = login_url
+            else:
+                callback_url = await self._submit_login_form(
+                    login_url, return_url, csrf_token
+                )
+                if not callback_url:
+                    return False
 
-            # Step 4: Handle callback
             auth_code, id_token = await self._handle_callback(callback_url, state)
             if not (auth_code and id_token):
                 return False
 
-            # Step 5: Exchange tokens
             success = await self._exchange_tokens(auth_code, code_verifier)
             if success:
                 _LOGGER.info("Login successful")
-
         except Exception:
             _LOGGER.exception("Login failed with exception")
             success = False
-
         return success
 
     async def get_userinfo(self) -> dict[str, Any]:
-        """Fetch user info from API."""
+        """Retrieve user info from identity endpoint."""
         await self._ensure_token()
         url = f"{API_IDENTITY}/connect/userinfo"
-        async with self._session.get(
-            url, headers={"Authorization": f"Bearer {self._access_token}"}, timeout=10
-        ) as resp:
+        async with self._session.get(url, headers=self._headers(), timeout=10) as resp:
             if resp.status != HTTP_OK:
                 msg = f"Userinfo failed: {resp.status}"
-                _LOGGER.error(msg)
                 raise FenixTFTApiError(msg)
             data = await resp.json()
             self._sub = data.get("sub")
@@ -305,19 +319,18 @@ class FenixTFTApi:
             return data
 
     async def get_installations(self) -> list[dict[str, Any]]:
-        """Fetch installations for the user."""
+        """Return all installations associated with the user."""
         if not self._sub:
             await self.get_userinfo()
         url = f"{API_BASE}/businessmodule/v1/installations/admins/{self._sub}"
         async with self._session.get(url, headers=self._headers()) as resp:
             if resp.status != HTTP_OK:
                 msg = f"Installations failed: {resp.status}"
-                _LOGGER.error(msg)
                 raise FenixTFTApiError(msg)
             return await resp.json()
 
     async def get_device_properties(self, device_id: str) -> dict[str, Any]:
-        """Fetch device properties from API."""
+        """Fetch device properties from configuration endpoint."""
         await self._ensure_token()
         url = (
             f"{API_BASE}/iotmanagement/v1/configuration/"
@@ -326,44 +339,31 @@ class FenixTFTApi:
         async with self._session.get(url, headers=self._headers()) as resp:
             if resp.status != HTTP_OK:
                 msg = f"Device props failed: {resp.status}"
-                _LOGGER.error(msg)
                 raise FenixTFTApiError(msg)
             return await resp.json()
 
     async def get_devices(self) -> list[dict[str, Any]]:
-        """Fetch all devices for the user."""
+        """Retrieve all devices with their current state."""
         _LOGGER.debug("Fetching devices")
         try:
             installations = await self.get_installations()
-            if not installations:
-                _LOGGER.warning("No installations found for user %s", self._sub)
         except FenixTFTApiError:
             _LOGGER.exception("Failed to fetch installations")
             return []
 
         devices = []
         for inst in installations:
-            inst_id = inst.get("id")
-            rooms = inst.get("rooms", [])
-            if not rooms:
-                _LOGGER.warning("No rooms in installation %s", inst_id)
-
-            for room in rooms:
+            inst_name = inst.get("Il", "Fenix TFT")
+            for room in inst.get("rooms", []):
                 room_name = room.get("Rn", "Unknown")
-                room_devices = room.get("devices", [])
-                if not room_devices:
-                    _LOGGER.warning("No devices in room %s", room_name)
-
-                for dev in room_devices:
+                for dev in room.get("devices", []):
                     dev_id = dev.get("Id_deviceId")
-                    name = dev.get("Dn", "Fenix TFT")
                     try:
                         props = await self.get_device_properties(dev_id)
                         devices.append(
                             {
                                 "id": dev_id,
-                                "name": name,
-                                "installation_id": inst_id,
+                                "name": inst_name,
                                 "room": room_name,
                                 "target_temp": decode_temp_from_entry(props.get("Ma")),
                                 "current_temp": decode_temp_from_entry(props.get("At")),
@@ -401,14 +401,13 @@ class FenixTFTApi:
         ) as resp:
             if resp.status != HTTP_OK:
                 msg = f"Failed to set temp: {resp.status}"
-                _LOGGER.error(msg)
                 raise FenixTFTApiError(msg)
             return await resp.json()
 
     async def set_device_preset_mode(
         self, device_id: str, preset_mode: int
     ) -> dict[str, Any]:
-        """Set preset mode for a device."""
+        """Set device preset mode (comfort, eco, etc.)."""
         await self._ensure_token()
         if preset_mode not in VALID_PRESET_MODES:
             msg = f"Invalid preset mode: {preset_mode}"
@@ -427,6 +426,5 @@ class FenixTFTApi:
         ) as resp:
             if resp.status != HTTP_OK:
                 msg = f"Failed to set preset mode: {resp.status}"
-                _LOGGER.error(msg)
                 raise FenixTFTApiError(msg)
             return await resp.json()
