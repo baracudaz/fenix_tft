@@ -363,8 +363,8 @@ class FenixTFTApi:
                         devices.append(
                             {
                                 "id": dev_id,
-                                "name": inst_name,
-                                "room": room_name,
+                                "name": room_name,
+                                "installation": inst_name,
                                 "target_temp": decode_temp_from_entry(props.get("Ma")),
                                 "current_temp": decode_temp_from_entry(props.get("At")),
                                 "hvac_action": props.get("Hs", {}).get("value"),

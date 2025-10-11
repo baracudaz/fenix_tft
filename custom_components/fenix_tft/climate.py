@@ -12,6 +12,8 @@ from homeassistant.components.climate.const import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 
@@ -25,21 +27,21 @@ FENIX_TFT_TO_HASS_HVAC_ACTION: dict[int | None, HVACAction] = {
 }
 
 # HVAC mode mappings (basic operational modes)
-HVAC_MODE_MAP = {
+HVAC_MODE_MAP: dict[int, str] = {
     0: "off",
     1: "holidays",
     2: "auto",
     6: "manual",
 }
-HVAC_MODE_INVERTED = {v: k for k, v in HVAC_MODE_MAP.items()}
+HVAC_MODE_INVERTED: dict[str, int] = {v: k for k, v in HVAC_MODE_MAP.items()}
 
 # Preset mode mappings (special operational modes)
-PRESET_MAP = {
+PRESET_MAP: dict[int, str] = {
     2: "program",
     4: "defrost",
     5: "boost",
 }
-PRESET_INVERTED = {v: k for k, v in PRESET_MAP.items()}
+PRESET_INVERTED: dict[str, int] = {v: k for k, v in PRESET_MAP.items()}
 
 
 async def async_setup_entry(
@@ -48,7 +50,7 @@ async def async_setup_entry(
     async_add_entities: Any,
 ) -> None:
     """Set up Fenix TFT climate entities from a config entry."""
-    data = hass.data[DOMAIN][entry.entry_id]
+    data = entry.runtime_data  # Use runtime_data, not hass.data
     coordinator = data["coordinator"]
     api = data["api"]
 
@@ -58,7 +60,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class FenixTFTClimate(ClimateEntity):
+class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
     """Representation of a Fenix TFT climate entity."""
 
     _attr_hvac_modes: ClassVar[list[HVACMode]] = [
@@ -73,43 +75,50 @@ class FenixTFTClimate(ClimateEntity):
     ]
     _attr_temperature_unit: ClassVar[str] = UnitOfTemperature.CELSIUS
     _attr_has_entity_name: bool = True
+    _attr_translation_key: str = "thermostat"
 
     def __init__(self, api: Any, device_id: str, coordinator: Any) -> None:
         """Initialize the climate entity."""
-        self._api = api
-        self._id = device_id
-        self._coordinator = coordinator
-        self._attr_hvac_mode = HVACMode.HEAT
+        super().__init__(coordinator)
+        self._api: Any = api
+        self._id: str = device_id
+        self._attr_unique_id: str = device_id
+
+        dev: dict[str, Any] | None = next(
+            (d for d in coordinator.data if d["id"] == device_id), None
+        )
+        self._attr_device_info: DeviceInfo = DeviceInfo(
+            identifiers={(DOMAIN, device_id)},
+            name=dev["name"] if dev else None,
+            manufacturer="Fenix",
+            model="TFT WiFi Thermostat",
+        )
 
     @property
     def _device(self) -> dict[str, Any] | None:
         """Return the device dict for this entity."""
-        return next((d for d in self._coordinator.data if d["id"] == self._id), None)
+        return next((d for d in self.coordinator.data if d["id"] == self._id), None)
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return super().available and self._device is not None
 
     def _get_preset_mode(self) -> str | None:
         """Get the current preset mode string from device data."""
         dev = self._device
         if not dev:
             return None
-
         raw_preset = dev.get("preset_mode")
         if raw_preset is None:
             return None
-
         return PRESET_MAP.get(raw_preset)
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | None:
         """Return the name of the climate entity."""
         dev = self._device
-        if not dev:
-            return "Unknown"
-        return f"{dev['name']} ({dev['room']})"
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID for this entity."""
-        return self._id
+        return dev.get("name") if dev else None
 
     @property
     def current_temperature(self) -> float | None:
@@ -134,7 +143,6 @@ class FenixTFTClimate(ClimateEntity):
     def preset_mode(self) -> str | None:
         """Return the current preset mode."""
         preset = self._get_preset_mode()
-        # Return None if preset is not in our supported list
         return preset if preset in self._attr_preset_modes else None
 
     @property
@@ -145,14 +153,11 @@ class FenixTFTClimate(ClimateEntity):
         hvac_mode_str = (
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
-
         if hvac_mode_str == "manual":
-            # Manual mode - full temperature and preset control
             return (
                 ClimateEntityFeature.TARGET_TEMPERATURE
                 | ClimateEntityFeature.PRESET_MODE
             )
-        # Automatic operation (or unknown)- temperature control disabled
         return ClimateEntityFeature.PRESET_MODE
 
     @property
@@ -163,69 +168,48 @@ class FenixTFTClimate(ClimateEntity):
         hvac_mode_str = (
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
-
         _LOGGER.debug(
             "Device %s preset mode: %s (%s)", self._id, raw_preset, hvac_mode_str
         )
-
         if hvac_mode_str == "off":
             return HVACMode.OFF
         if hvac_mode_str == "manual":
             return HVACMode.HEAT
-
-        # Default for program or unknown modes
         return HVACMode.AUTO
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
-        temp = kwargs.get(ATTR_TEMPERATURE)
+        temp: float | None = kwargs.get(ATTR_TEMPERATURE)
         if temp is None:
             return
         await self._api.set_device_temperature(self._id, temp)
-        await self._coordinator.async_request_refresh()
+        await self.coordinator.async_request_refresh()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by mapping to appropriate preset mode."""
         _LOGGER.debug("Setting HVAC mode to %s for device %s", hvac_mode, self._id)
-
-        # Map HVAC modes to preset mode values
         if hvac_mode == HVACMode.OFF:
-            preset_value = HVAC_MODE_INVERTED["off"]  # 0
+            preset_value = HVAC_MODE_INVERTED["off"]
         elif hvac_mode == HVACMode.AUTO:
-            preset_value = HVAC_MODE_INVERTED["auto"]  # 2
+            preset_value = HVAC_MODE_INVERTED["auto"]
         elif hvac_mode == HVACMode.HEAT:
-            preset_value = HVAC_MODE_INVERTED["manual"]  # 1
+            preset_value = HVAC_MODE_INVERTED["manual"]
         else:
             _LOGGER.warning("Unsupported HVAC mode: %s", hvac_mode)
             return
-
         try:
             await self._api.set_device_preset_mode(self._id, preset_value)
-            _LOGGER.debug(
-                "Successfully set preset mode to %s for device %s",
-                preset_value,
-                self._id,
-            )
-
-            # Optimistically update coordinator data for immediate UI response
-            self._coordinator.update_device_preset_mode(self._id, preset_value)
-
-            # Force immediate state update
-            self.async_write_ha_state()
-
-            # Note: Coordinator will automatically refresh in the background
-            # and preserve our optimistic update for 10 seconds
-
-        except Exception:
+        except Exception as err:
             _LOGGER.exception("Failed to set HVAC mode for device %s", self._id)
             raise
+        self.coordinator.update_device_preset_mode(self._id, preset_value)
+        self.async_write_ha_state()
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
         if preset_mode not in self._attr_preset_modes:
             _LOGGER.warning("Unsupported preset mode: %s", preset_mode)
             return
-
         preset_value = PRESET_INVERTED[preset_mode]
         _LOGGER.debug(
             "Setting preset mode to %s (%s) for device %s",
@@ -233,26 +217,9 @@ class FenixTFTClimate(ClimateEntity):
             preset_value,
             self._id,
         )
-
         try:
             await self._api.set_device_preset_mode(self._id, preset_value)
-            _LOGGER.debug(
-                "Successfully set preset mode to %s (%s) for device %s",
-                preset_mode,
-                preset_value,
-                self._id,
-            )
-
-            # Optimistically update coordinator data for immediate UI response
-            self._coordinator.update_device_preset_mode(self._id, preset_value)
-
-            # Force immediate state update
-            self.async_write_ha_state()
-
-            # Note: Coordinator will automatically refresh in the background
-            # and preserve our optimistic update for 10 seconds
-
-        except Exception:
+        except Exception as err:
             _LOGGER.exception(
                 "Failed to set preset mode %s (%s) for device %s",
                 preset_mode,
@@ -260,7 +227,9 @@ class FenixTFTClimate(ClimateEntity):
                 self._id,
             )
             raise
+        self.coordinator.update_device_preset_mode(self._id, preset_value)
+        self.async_write_ha_state()
 
     async def async_update(self) -> None:
         """Request latest data from coordinator."""
-        await self._coordinator.async_request_refresh()
+        await self.coordinator.async_request_refresh()
