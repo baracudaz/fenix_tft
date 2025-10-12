@@ -1,6 +1,7 @@
 """Constants for the fenix_tft custom component."""
 
-from typing import Final, Sequence, Set
+from collections.abc import Sequence
+from typing import Final
 
 DOMAIN: Final[str] = "fenix_tft"
 PLATFORMS: Final[Sequence[str]] = ("climate",)
@@ -29,4 +30,4 @@ HTTP_REDIRECT: Final[int] = 302
 
 # Valid preset mode values
 # 0=off, 1=holidays, 2=program, 4=defrost, 5=boost, 6=manual
-VALID_PRESET_MODES: Final[Set[int]] = {0, 1, 2, 4, 5, 6}
+VALID_PRESET_MODES: Final[set[int]] = {0, 1, 2, 4, 5, 6}

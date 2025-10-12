@@ -364,6 +364,8 @@ class FenixTFTApi:
                             {
                                 "id": dev_id,
                                 "name": room_name,
+                                "version": props.get("Sv", {}).get("value"),
+                                "model": props.get("Ty", {}).get("value"),
                                 "installation": inst_name,
                                 "target_temp": decode_temp_from_entry(props.get("Ma")),
                                 "current_temp": decode_temp_from_entry(props.get("At")),

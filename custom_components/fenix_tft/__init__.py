@@ -1,7 +1,6 @@
 """Fenix TFT Home Assistant integration package."""
 
 import logging
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
@@ -9,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FenixTFTApi
-from .const import DOMAIN, PLATFORMS
+from .const import PLATFORMS
 from .coordinator import FenixTFTCoordinator
 
 _LOGGER = logging.getLogger(__name__)
