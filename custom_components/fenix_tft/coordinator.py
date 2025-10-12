@@ -2,6 +2,7 @@
 
 import logging
 from datetime import timedelta
+from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -12,8 +13,7 @@ from .const import DOMAIN, SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
-# Time to keep optimistic updates before allowing server data to override
-OPTIMISTIC_UPDATE_DURATION = 10  # seconds
+OPTIMISTIC_UPDATE_DURATION: Final[int] = 10  # seconds
 
 
 def _predict_hvac_action(preset_mode: int) -> int:
@@ -26,15 +26,16 @@ def _predict_hvac_action(preset_mode: int) -> int:
     - preset_mode 2 (program): hvac_action should be 0 (IDLE) or 1 (HEATING)
     - For active modes, we predict IDLE as a safe default
     """
-    if preset_mode == 0:  # off
+    if preset_mode == 0:
         return 2  # OFF
-    # For manual/program modes, predict IDLE - the actual heating state
-    # will be updated by the server based on temperature differential
     return 0  # IDLE
 
 
-class FenixTFTCoordinator(DataUpdateCoordinator):
+class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     """Data update coordinator for Fenix TFT."""
+
+    api: FenixTFTApi
+    _optimistic_updates: dict[str, tuple[int, int, float]]
 
     def __init__(
         self, hass: HomeAssistant, api: FenixTFTApi, config_entry: ConfigEntry
@@ -48,30 +49,27 @@ class FenixTFTCoordinator(DataUpdateCoordinator):
             config_entry=config_entry,
         )
         self.api = api
-        self._optimistic_updates = {}  # Track recent optimistic updates
+        self._optimistic_updates: dict[str, tuple[int, int, float]] = {}
 
-    async def _async_update_data(self) -> list[dict]:
+    async def _async_update_data(self) -> list[dict[str, Any]]:
         """Fetch data from Fenix TFT API."""
         try:
-            fresh_data = await self.api.get_devices()
+            fresh_data: list[dict[str, Any]] = await self.api.get_devices()
         except Exception as err:
             msg = f"Error fetching Fenix TFT data: {err}"
             raise UpdateFailed(msg) from err
 
-        # Preserve optimistic updates for recently changed devices
-        current_time = self.hass.loop.time()
-        expired_updates = []
+        current_time: float = self.hass.loop.time()
+        expired_updates: list[str] = []
 
         for device_id, (
             preset_mode,
             hvac_action,
             timestamp,
         ) in self._optimistic_updates.items():
-            # Keep optimistic updates to allow API to catch up
             if current_time - timestamp > OPTIMISTIC_UPDATE_DURATION:
                 expired_updates.append(device_id)
             else:
-                # Apply optimistic update to fresh data
                 for device in fresh_data:
                     if device.get("id") == device_id:
                         _LOGGER.debug(
@@ -85,7 +83,6 @@ class FenixTFTCoordinator(DataUpdateCoordinator):
                         device["hvac_action"] = hvac_action
                         break
 
-        # Clean up expired optimistic updates
         for device_id in expired_updates:
             del self._optimistic_updates[device_id]
 
@@ -96,18 +93,14 @@ class FenixTFTCoordinator(DataUpdateCoordinator):
         if not self.data:
             return
 
-        # Predict hvac_action based on preset_mode
-        predicted_hvac_action = _predict_hvac_action(preset_mode)
-
-        # Store optimistic update with timestamp to prevent race conditions
-        current_time = self.hass.loop.time()
+        predicted_hvac_action: int = _predict_hvac_action(preset_mode)
+        current_time: float = self.hass.loop.time()
         self._optimistic_updates[device_id] = (
             preset_mode,
             predicted_hvac_action,
             current_time,
         )
 
-        # Find and update the specific device in current data
         for device in self.data:
             if device.get("id") == device_id:
                 device["preset_mode"] = preset_mode
