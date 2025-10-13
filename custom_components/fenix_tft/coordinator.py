@@ -36,9 +36,7 @@ def _predict_hvac_action(preset_mode: int) -> int:
     - PRESET_MODE_PROGRAM: hvac_action should be HVAC_ACTION_IDLE or HVAC_ACTION_HEATING
     - For active modes, we predict IDLE as a safe default
     """
-    if preset_mode == PRESET_MODE_OFF:
-        return HVAC_ACTION_OFF
-    return HVAC_ACTION_IDLE
+    return HVAC_ACTION_OFF if preset_mode == PRESET_MODE_OFF else HVAC_ACTION_IDLE
 
 
 class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
