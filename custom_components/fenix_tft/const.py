@@ -5,7 +5,11 @@ from typing import Final
 
 DOMAIN: Final[str] = "fenix_tft"
 PLATFORMS: Final[Sequence[str]] = ("climate",)
-SCAN_INTERVAL: Final[int] = 60  # seconds
+
+# Default scan interval (seconds)
+SCAN_INTERVAL: Final[int] = 60
+# Optimistic update duration (seconds)
+OPTIMISTIC_UPDATE_DURATION: Final[int] = 10
 
 # HVAC action constants
 HVAC_ACTION_HEATING: Final[int] = 1

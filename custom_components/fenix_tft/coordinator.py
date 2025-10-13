@@ -2,7 +2,7 @@
 
 import logging
 from datetime import timedelta
-from typing import Any, Final
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -14,14 +14,13 @@ from .const import (
     ERROR_BACKOFF_SECONDS,
     FAST_POLL_SECONDS,
     HVAC_ACTION_HEATING,
+    OPTIMISTIC_UPDATE_DURATION,
     SCAN_INTERVAL,
     SLOW_POLL_SECONDS,
     STARTUP_FAST_PERIOD,
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-OPTIMISTIC_UPDATE_DURATION: Final[int] = 10  # seconds
 
 
 def _predict_hvac_action(preset_mode: int) -> int:
