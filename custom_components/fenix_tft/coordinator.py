@@ -60,8 +60,8 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             hass,
             logger=_LOGGER,
             name=DOMAIN,
-            # Start fast; will adapt post-refresh
-            update_interval=timedelta(seconds=min(SCAN_INTERVAL, FAST_POLL_SECONDS)),
+            # Start with FAST_POLL_SECONDS for fast startup; will adapt post-refresh
+            update_interval=timedelta(seconds=FAST_POLL_SECONDS),
             config_entry=config_entry,
         )
         self.api = api
