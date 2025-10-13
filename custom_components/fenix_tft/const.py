@@ -6,15 +6,12 @@ from typing import Final
 DOMAIN: Final[str] = "fenix_tft"
 PLATFORMS: Final[Sequence[str]] = ("climate",)
 
-# Polling configuration
-SCAN_INTERVAL: Final[int] = 60  # Default scan interval (seconds)
-OPTIMISTIC_UPDATE_DURATION: Final[int] = 10  # Optimistic update duration (seconds)
-
 # Adaptive polling configuration (not user-configurable per HA guidelines)
 FAST_POLL_SECONDS: Final[int] = 30  # Active heating / startup period
 SLOW_POLL_SECONDS: Final[int] = 180  # All devices idle/off
 STARTUP_FAST_PERIOD: Final[int] = 300  # Seconds after coordinator init
 ERROR_BACKOFF_SECONDS: Final[int] = 300  # Temporary backoff interval after errors
+OPTIMISTIC_UPDATE_DURATION: Final[int] = 10  # Optimistic update duration (seconds)
 
 # API endpoints
 API_BASE: Final[str] = "https://vs2-fe-apim-prod.azure-api.net"

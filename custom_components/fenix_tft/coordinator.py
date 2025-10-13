@@ -18,7 +18,6 @@ from .const import (
     HVAC_ACTION_OFF,
     OPTIMISTIC_UPDATE_DURATION,
     PRESET_MODE_OFF,
-    SCAN_INTERVAL,
     SLOW_POLL_SECONDS,
     STARTUP_FAST_PERIOD,
 )
@@ -78,6 +77,13 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             self._set_update_interval(ERROR_BACKOFF_SECONDS)
             msg = f"Error fetching Fenix TFT data: {err}"
             raise UpdateFailed(msg) from err
+
+        # Clear error backoff if it has expired or after a successful fetch
+        if (
+            self._error_backoff_until
+            and self.hass.loop.time() >= self._error_backoff_until
+        ):
+            self._error_backoff_until = None
 
         current_time: float = self.hass.loop.time()
         expired_updates: list[str] = []
@@ -145,8 +151,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         2. Poll fast during initial startup period.
         3. Poll fast if any device is actively heating.
         4. Otherwise poll slow.
-        Interval bounded between FAST_POLL_SECONDS and
-        max(SCAN_INTERVAL, SLOW_POLL_SECONDS).
+        Interval bounded between FAST_POLL_SECONDS and SLOW_POLL_SECONDS.
         """
         now = self.hass.loop.time()
         if self._error_backoff_until and now < self._error_backoff_until:
@@ -158,10 +163,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             dev.get("hvac_action") == HVAC_ACTION_HEATING for dev in devices
         )
 
-        if in_startup or any_heating:
-            desired = FAST_POLL_SECONDS
-        else:
-            desired = max(SCAN_INTERVAL, SLOW_POLL_SECONDS)
+        desired = FAST_POLL_SECONDS if in_startup or any_heating else SLOW_POLL_SECONDS
 
         # Only apply if changed to limit churn.
         current = (
