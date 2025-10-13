@@ -24,7 +24,6 @@ _LOGGER = logging.getLogger(__name__)
 OPTIMISTIC_UPDATE_DURATION: Final[int] = 10  # seconds
 
 
-
 def _predict_hvac_action(preset_mode: int) -> int:
     """
     Predict hvac_action based on preset_mode.
@@ -155,7 +154,9 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             return
 
         in_startup = (now - self._startup_time) < STARTUP_FAST_PERIOD
-        any_heating = any(dev.get("hvac_action") == HVAC_ACTION_HEATING for dev in devices)
+        any_heating = any(
+            dev.get("hvac_action") == HVAC_ACTION_HEATING for dev in devices
+        )
 
         if in_startup or any_heating:
             desired = FAST_POLL_SECONDS
