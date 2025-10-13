@@ -11,10 +11,15 @@ SCAN_INTERVAL: Final[int] = 60
 # Optimistic update duration (seconds)
 OPTIMISTIC_UPDATE_DURATION: Final[int] = 10
 
+# Preset mode constants
+PRESET_MODE_OFF: Final[int] = 0
+PRESET_MODE_MANUAL: Final[int] = 1
+PRESET_MODE_PROGRAM: Final[int] = 2
+
 # HVAC action constants
+HVAC_ACTION_IDLE: Final[int] = 0
 HVAC_ACTION_HEATING: Final[int] = 1
 HVAC_ACTION_OFF: Final[int] = 2
-HVAC_ACTION_IDLE: Final[int] = 0
 
 # Adaptive polling configuration (not user-configurable per HA guidelines)
 FAST_POLL_SECONDS: Final[int] = 30  # Active heating / startup period

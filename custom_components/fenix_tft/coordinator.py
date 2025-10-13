@@ -14,7 +14,10 @@ from .const import (
     ERROR_BACKOFF_SECONDS,
     FAST_POLL_SECONDS,
     HVAC_ACTION_HEATING,
+    HVAC_ACTION_IDLE,
+    HVAC_ACTION_OFF,
     OPTIMISTIC_UPDATE_DURATION,
+    PRESET_MODE_OFF,
     SCAN_INTERVAL,
     SLOW_POLL_SECONDS,
     STARTUP_FAST_PERIOD,
@@ -28,14 +31,14 @@ def _predict_hvac_action(preset_mode: int) -> int:
     Predict hvac_action based on preset_mode.
 
     Based on typical thermostat behavior:
-    - preset_mode 0 (off): hvac_action should be 2 (OFF)
-    - preset_mode 1 (manual): hvac_action should be 0 (IDLE) or 1 (HEATING)
-    - preset_mode 2 (program): hvac_action should be 0 (IDLE) or 1 (HEATING)
+    - PRESET_MODE_OFF: hvac_action should be HVAC_ACTION_OFF
+    - PRESET_MODE_MANUAL: hvac_action should be HVAC_ACTION_IDLE or HVAC_ACTION_HEATING
+    - PRESET_MODE_PROGRAM: hvac_action should be HVAC_ACTION_IDLE or HVAC_ACTION_HEATING
     - For active modes, we predict IDLE as a safe default
     """
-    if preset_mode == 0:
-        return 2  # OFF
-    return 0  # IDLE
+    if preset_mode == PRESET_MODE_OFF:
+        return HVAC_ACTION_OFF
+    return HVAC_ACTION_IDLE
 
 
 class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
