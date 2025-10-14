@@ -5,7 +5,13 @@ from typing import Final
 
 DOMAIN: Final[str] = "fenix_tft"
 PLATFORMS: Final[Sequence[str]] = ("climate",)
-SCAN_INTERVAL: Final[int] = 60  # seconds
+
+# Adaptive polling configuration (not user-configurable per HA guidelines)
+FAST_POLL_SECONDS: Final[int] = 30  # Active heating / startup period
+SLOW_POLL_SECONDS: Final[int] = 180  # All devices idle/off
+STARTUP_FAST_PERIOD: Final[int] = 300  # Seconds after coordinator init
+ERROR_BACKOFF_SECONDS: Final[int] = 300  # Temporary backoff interval after errors
+OPTIMISTIC_UPDATE_DURATION: Final[int] = 10  # Optimistic update duration (seconds)
 
 # API endpoints
 API_BASE: Final[str] = "https://vs2-fe-apim-prod.azure-api.net"
@@ -31,3 +37,13 @@ HTTP_REDIRECT: Final[int] = 302
 # Valid preset mode values
 # 0=off, 1=holidays, 2=program, 4=defrost, 5=boost, 6=manual
 VALID_PRESET_MODES: Final[set[int]] = {0, 1, 2, 4, 5, 6}
+
+# Preset mode constants
+PRESET_MODE_OFF: Final[int] = 0
+PRESET_MODE_MANUAL: Final[int] = 1
+PRESET_MODE_PROGRAM: Final[int] = 2
+
+# HVAC action constants
+HVAC_ACTION_IDLE: Final[int] = 0
+HVAC_ACTION_HEATING: Final[int] = 1
+HVAC_ACTION_OFF: Final[int] = 2
