@@ -6,8 +6,12 @@
     ],
     "config_flow": true,
     "documentation": "https://github.com/baracudaz/fenix_tft",
+    "integration_type": "device",
     "iot_class": "cloud_polling",
     "issue_tracker": "https://github.com/baracudaz/fenix_tft/issues",
-    "requirements": [],
-    "version": "0.5.0"
+    "requirements": [
+        "aiohttp>=3.8.0",
+        "beautifulsoup4>=4.11.0"
+    ],
+    "version": "0.6.0"
 }

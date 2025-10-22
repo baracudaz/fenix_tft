@@ -1,5 +1,5 @@
 {
-  "title": "Fenix",
+  "title": "Fenix TFT WiFi Thermostat",
   "config": {
     "error": {
       "invalid_auth": "Email and/or password invalid.",
@@ -13,6 +13,13 @@
           "password": "Password"
         },
         "description": "Connect to the Fenix API"
+      },
+      "reauth_confirm": {
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        },
+        "description": "Reauthenticate with the Fenix API"
       }
     }
   },
@@ -30,6 +37,13 @@
         },
         "title": "Fenix - Account reconfiguration",
         "description": "Reconfigure account details and reconnect to the Fenix API"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "thermostat": {
+        "name": "Thermostat"
       }
     }
   }

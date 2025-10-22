@@ -30,10 +30,14 @@ async def validate_input(
     api = FenixTFTApi(session, user_input[CONF_USERNAME], user_input[CONF_PASSWORD])
 
     if not await api.login():
-        _LOGGER.error("Authentication failed for username: %s", user_input[CONF_USERNAME])
+        _LOGGER.error(
+            "Authentication failed for username: %s", user_input[CONF_USERNAME]
+        )
         raise AuthenticationError
 
-    _LOGGER.debug("Authentication successful for username: %s", user_input[CONF_USERNAME])
+    _LOGGER.debug(
+        "Authentication successful for username: %s", user_input[CONF_USERNAME]
+    )
 
     return user_input
 
@@ -55,19 +59,58 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Optionally, set unique_id based on username or API user id
                 await self.async_set_unique_id(user_input[CONF_USERNAME])
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(title=user_input[CONF_USERNAME], data=info)
+                return self.async_create_entry(
+                    title=user_input[CONF_USERNAME], data=info
+                )
             except AuthenticationError:
                 _LOGGER.exception("Config flow authentication error")
-                errors["base"] = "auth_failed"  # Add to strings.json
+                errors["base"] = "invalid_auth"
             except Exception:
                 _LOGGER.exception("Unexpected config flow error")
-                errors["base"] = "unknown"  # Add to strings.json
+                errors["base"] = "unknown"
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_USERNAME): str,
+                    vol.Required(CONF_PASSWORD): str,
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_reauth(self, _: dict[str, Any]) -> FlowResult:
+        """Handle reauthentication flow."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle reauthentication confirmation."""
+        reauth_entry = self._get_reauth_entry()
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            try:
+                await validate_input(self.hass, user_input)
+                return self.async_update_reload_and_abort(
+                    reauth_entry,
+                    data_updates=user_input,
+                )
+            except AuthenticationError:
+                errors["base"] = "invalid_auth"
+            except Exception:
+                _LOGGER.exception("Unexpected reauthentication error")
+                errors["base"] = "unknown"
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_USERNAME, default=reauth_entry.data[CONF_USERNAME]
+                    ): str,
                     vol.Required(CONF_PASSWORD): str,
                 }
             ),

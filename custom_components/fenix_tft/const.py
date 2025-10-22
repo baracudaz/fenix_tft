@@ -34,6 +34,9 @@ SCOPES: Final[str] = (
 HTTP_OK: Final[int] = 200
 HTTP_REDIRECT: Final[int] = 302
 
+# API timeout configuration
+API_TIMEOUT_SECONDS: Final[int] = 10
+
 # Valid preset mode values
 # 0=off, 1=holidays, 2=program, 4=defrost, 5=boost, 6=manual
 VALID_PRESET_MODES: Final[set[int]] = {0, 1, 2, 4, 5, 6}
