@@ -9,15 +9,18 @@ from homeassistant.components.climate.const import (
     HVACAction,
     HVACMode,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from . import FenixTFTConfigEntry
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+# Configure parallel updates for climate platform - serialize to prevent API overwhelm
+PARALLEL_UPDATES = 1
 
 # Map Fenix TFT API hvac_action values to Home Assistant HVAC actions
 FENIX_TFT_TO_HASS_HVAC_ACTION: dict[int | None, HVACAction] = {
@@ -47,7 +50,7 @@ PRESET_INVERTED: dict[str, int] = {v: k for k, v in PRESET_MAP.items()}
 
 async def async_setup_entry(
     _: HomeAssistant,
-    entry: ConfigEntry,
+    entry: FenixTFTConfigEntry,
     async_add_entities: Any,
 ) -> None:
     """Set up Fenix TFT climate entities from a config entry."""
@@ -219,10 +222,14 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
         if temp is None:
             return
 
-        # Send temperature change to device via API
-        await self._api.set_device_temperature(self._id, temp)
-        # Request fresh data from coordinator to update UI
-        await self.coordinator.async_request_refresh()
+        try:
+            # Send temperature change to device via API
+            await self._api.set_device_temperature(self._id, temp)
+            # Request fresh data from coordinator to update UI
+            await self.coordinator.async_request_refresh()
+        except Exception:
+            _LOGGER.exception("Failed to set temperature for device %s", self._id)
+            raise
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by mapping to appropriate device preset mode."""

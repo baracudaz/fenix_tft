@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 from .const import (
     API_BASE,
     API_IDENTITY,
+    API_TIMEOUT_SECONDS,
     CLIENT_ID,
     HTTP_OK,
     HTTP_REDIRECT,
@@ -48,7 +49,7 @@ def encode_temp_to_entry(temp_c: float, div_factor: int = 10) -> float:
 
 
 def generate_pkce_pair() -> tuple[str, str]:
-    """Generate PKCE code verifier and challenge."""
+    """Generate PKCE code verifier and challenge for OAuth2 security."""
     code_verifier = secrets.token_urlsafe(96)[:128]
     code_challenge = (
         base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("ascii")).digest())
@@ -109,7 +110,9 @@ class FenixTFTApi:
             "refresh_token": self._refresh_token,
             "client_id": CLIENT_ID,
         }
-        async with self._session.post(url, data=data, timeout=10) as resp:
+        async with self._session.post(
+            url, data=data, timeout=API_TIMEOUT_SECONDS
+        ) as resp:
             if resp.status != HTTP_OK:
                 msg = f"Token refresh failed: {resp.status}"
                 _LOGGER.error(msg)
@@ -298,7 +301,7 @@ class FenixTFTApi:
             success = await self._exchange_tokens(auth_code, code_verifier)
             if success:
                 _LOGGER.info("Login successful")
-        except Exception:
+        except (aiohttp.ClientError, FenixTFTApiError, ValueError, KeyError):
             _LOGGER.exception("Login failed with exception")
             success = False
         return success
@@ -307,7 +310,9 @@ class FenixTFTApi:
         """Retrieve user info from identity endpoint."""
         await self._ensure_token()
         url = f"{API_IDENTITY}/connect/userinfo"
-        async with self._session.get(url, headers=self._headers(), timeout=10) as resp:
+        async with self._session.get(
+            url, headers=self._headers(), timeout=API_TIMEOUT_SECONDS
+        ) as resp:
             if resp.status != HTTP_OK:
                 msg = f"Userinfo failed: {resp.status}"
                 raise FenixTFTApiError(msg)
@@ -316,6 +321,7 @@ class FenixTFTApi:
             if not self._sub:
                 msg = "No 'sub' field in userinfo"
                 raise FenixTFTApiError(msg)
+            _LOGGER.debug("Retrieved user sub: %s", self._sub)
             return data
 
     async def get_installations(self) -> list[dict[str, Any]]:
@@ -352,8 +358,12 @@ class FenixTFTApi:
             return []
 
         devices = []
+        installation_ids = []
         for inst in installations:
             inst_name = inst.get("Il", "Fenix TFT")
+            inst_id = inst.get("id")  # Get installation ID
+            installation_ids.append(inst_id)
+            _LOGGER.debug("Processing installation: %s", inst_name)
             for room in inst.get("rooms", []):
                 room_name = room.get("Rn", "Unknown")
                 for dev in room.get("devices", []):
@@ -367,6 +377,7 @@ class FenixTFTApi:
                                 "version": props.get("Sv", {}).get("value"),
                                 "model": props.get("Ty", {}).get("value"),
                                 "installation": inst_name,
+                                "installation_id": inst_id,
                                 "target_temp": decode_temp_from_entry(props.get("Ma")),
                                 "current_temp": decode_temp_from_entry(props.get("At")),
                                 "hvac_action": props.get("Hs", {}).get("value"),
@@ -378,6 +389,9 @@ class FenixTFTApi:
                             "Failed to fetch properties for device %s", dev_id
                         )
                         continue
+
+        # Update all devices after fetching
+        await self.update_all_devices(devices)
 
         _LOGGER.debug("Fetched %d devices", len(devices))
         return devices
@@ -428,5 +442,37 @@ class FenixTFTApi:
         ) as resp:
             if resp.status != HTTP_OK:
                 msg = f"Failed to set preset mode: {resp.status}"
+                raise FenixTFTApiError(msg)
+            return await resp.json()
+
+    async def update_all_devices(self, devices: list[dict[str, Any]]) -> None:
+        """Update all devices by triggering updates for each installation."""
+        _LOGGER.debug("Updating all devices")
+        # Trigger updates for each unique installation
+        installation_ids = {
+            device.get("installation_id")
+            for device in devices
+            if device.get("installation_id")
+        }
+        for installation_id in installation_ids:
+            await self.trigger_device_updates(installation_id)
+
+        return devices
+
+    async def trigger_device_updates(self, installation_id: str) -> dict[str, Any]:
+        """Trigger device updates for a specific installation."""
+        await self._ensure_token()
+        payload = {
+            "A1": self._sub,
+            "In": installation_id,
+        }
+        url = f"{API_BASE}/iotmanagement/v1/devices/userconnected"
+
+        _LOGGER.debug("Triggering device updates for installation: %s", installation_id)
+        async with self._session.put(
+            url, headers=self._headers(), json=payload
+        ) as resp:
+            if resp.status != HTTP_OK:
+                msg = f"Failed to trigger device updates: {resp.status}"
                 raise FenixTFTApiError(msg)
             return await resp.json()
