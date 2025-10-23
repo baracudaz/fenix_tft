@@ -149,7 +149,7 @@ class FenixTFTApi:
         )
 
         async with self._session.get(
-            auth_url, allow_redirects=False, timeout=10
+            auth_url, allow_redirects=False, timeout=API_TIMEOUT_SECONDS
         ) as resp:
             login_path = resp.headers.get("Location")
             if resp.status != HTTP_REDIRECT or not login_path:
@@ -170,7 +170,9 @@ class FenixTFTApi:
             )
             return None, None
 
-        async with self._session.get(login_url, timeout=10) as login_page:
+        async with self._session.get(
+            login_url, timeout=API_TIMEOUT_SECONDS
+        ) as login_page:
             if login_page.status != HTTP_OK:
                 _LOGGER.error(
                     "Failed to fetch login page: status=%s", login_page.status
@@ -206,7 +208,10 @@ class FenixTFTApi:
             "__RequestVerificationToken": csrf_token,
         }
         async with self._session.post(
-            login_url, data=login_data, allow_redirects=False, timeout=10
+            login_url,
+            data=login_data,
+            allow_redirects=False,
+            timeout=API_TIMEOUT_SECONDS,
         ) as resp:
             callback_path = resp.headers.get("Location")
             if resp.status != HTTP_REDIRECT or not callback_path:
@@ -224,7 +229,9 @@ class FenixTFTApi:
             parsed = urllib.parse.urlparse(callback_url)
         else:
             async with self._session.get(
-                callback_url, allow_redirects=False, timeout=10
+                callback_url,
+                allow_redirects=False,
+                timeout=API_TIMEOUT_SECONDS,
             ) as resp:
                 redirect_url = resp.headers.get("Location", callback_url)
                 parsed = urllib.parse.urlparse(redirect_url)
@@ -259,7 +266,7 @@ class FenixTFTApi:
             f"{API_IDENTITY}/connect/token",
             headers=token_headers,
             data=token_data,
-            timeout=10,
+            timeout=API_TIMEOUT_SECONDS,
         ) as resp:
             if resp.status != HTTP_OK:
                 msg = f"Token request failed: {resp.status}"
