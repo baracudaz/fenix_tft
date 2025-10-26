@@ -1,5 +1,5 @@
 {
-  "title": "Fenix",
+  "title": "Fenix TFT WiFi Thermostat",
   "config": {
     "error": {
       "invalid_auth": "E-mail a/nebo heslo je neplatné.",
@@ -13,6 +13,13 @@
           "password": "Heslo"
         },
         "description": "Připojte se k Fenix API"
+      },
+      "reauth_confirm": {
+        "data": {
+          "username": "E-mail",
+          "password": "Heslo"
+        },
+        "description": "Znovu se ověřte u Fenix API"
       }
     }
   },
@@ -30,6 +37,13 @@
         },
         "title": "Fenix - Rekonfigurace účtu",
         "description": "Změňte údaje účtu a znovu se připojte k Fenix API"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "thermostat": {
+        "name": "Termostat"
       }
     }
   }
