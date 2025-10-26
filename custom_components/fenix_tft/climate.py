@@ -205,8 +205,15 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
         hvac_mode_str = (
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
+        if self._attr_device_info:
+            if isinstance(self._attr_device_info, dict):
+                dev_name = self._attr_device_info.get("name")
+            else:
+                dev_name = getattr(self._attr_device_info, "name", None)
+        else:
+            dev_name = None
         _LOGGER.debug(
-            "Device %s preset mode: %s (%s)", self._id, raw_preset, hvac_mode_str
+            "Device %s (%s) preset mode: %s (%s)", self._id, dev_name, raw_preset, hvac_mode_str
         )
 
         # Map device modes to Home Assistant HVAC modes
