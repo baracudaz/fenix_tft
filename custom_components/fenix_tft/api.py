@@ -365,11 +365,9 @@ class FenixTFTApi:
             return []
 
         devices = []
-        installation_ids = []
         for inst in installations:
             inst_name = inst.get("Il", "Fenix TFT")
             inst_id = inst.get("id")  # Get installation ID
-            installation_ids.append(inst_id)
             _LOGGER.debug("Processing installation: %s", inst_name)
             for room in inst.get("rooms", []):
                 room_name = room.get("Rn", "Unknown")
@@ -452,7 +450,9 @@ class FenixTFTApi:
                 raise FenixTFTApiError(msg)
             return await resp.json()
 
-    async def update_all_devices(self, devices: list[dict[str, Any]]) -> None:
+    async def update_all_devices(
+        self, devices: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Update all devices by triggering updates for each installation."""
         _LOGGER.debug("Updating all devices")
         # Trigger updates for each unique installation

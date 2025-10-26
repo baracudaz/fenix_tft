@@ -3,6 +3,7 @@
 import logging
 from typing import Any, ClassVar
 
+import aiohttp
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
     ClimateEntityFeature,
@@ -15,6 +16,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import FenixTFTConfigEntry
+from .api import FenixTFTApiError
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -235,7 +237,7 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
             await self._api.set_device_temperature(self._id, temp)
             # Request fresh data from coordinator to update UI
             await self.coordinator.async_request_refresh()
-        except Exception:
+        except (aiohttp.ClientError, FenixTFTApiError):
             _LOGGER.exception("Failed to set temperature for device %s", self._id)
             raise
 
@@ -257,7 +259,7 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
         try:
             # Send mode change to device
             await self._api.set_device_preset_mode(self._id, preset_value)
-        except Exception:
+        except (aiohttp.ClientError, FenixTFTApiError):
             _LOGGER.exception("Failed to set HVAC mode for device %s", self._id)
             raise
 
@@ -284,7 +286,7 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
         try:
             # Send preset mode change to device
             await self._api.set_device_preset_mode(self._id, preset_value)
-        except Exception:
+        except (aiohttp.ClientError, FenixTFTApiError):
             _LOGGER.exception(
                 "Failed to set preset mode %s (%s) for device %s",
                 preset_mode,
