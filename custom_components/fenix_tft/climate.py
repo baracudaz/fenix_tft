@@ -3,6 +3,7 @@
 import logging
 from typing import Any, ClassVar
 
+import aiohttp
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
     ClimateEntityFeature,
@@ -15,6 +16,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import FenixTFTConfigEntry
+from .api import FenixTFTApiError
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -147,10 +149,7 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
         if not dev:
             return None
         raw_preset = dev.get("preset_mode")
-        if raw_preset is None:
-            return None
-        # Convert numeric preset mode to string using mapping
-        return PRESET_MAP.get(raw_preset)
+        return None if raw_preset is None else PRESET_MAP.get(raw_preset)
 
     @property
     def current_temperature(self) -> float | None:
@@ -205,8 +204,19 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
         hvac_mode_str = (
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
+        if self._attr_device_info:
+            if isinstance(self._attr_device_info, dict):
+                dev_name = self._attr_device_info.get("name")
+            else:
+                dev_name = getattr(self._attr_device_info, "name", None)
+        else:
+            dev_name = None
         _LOGGER.debug(
-            "Device %s preset mode: %s (%s)", self._id, raw_preset, hvac_mode_str
+            "Device %s (%s) preset mode: %s (%s)",
+            self._id,
+            dev_name,
+            raw_preset,
+            hvac_mode_str,
         )
 
         # Map device modes to Home Assistant HVAC modes
@@ -227,7 +237,7 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
             await self._api.set_device_temperature(self._id, temp)
             # Request fresh data from coordinator to update UI
             await self.coordinator.async_request_refresh()
-        except Exception:
+        except (aiohttp.ClientError, FenixTFTApiError):
             _LOGGER.exception("Failed to set temperature for device %s", self._id)
             raise
 
@@ -249,7 +259,7 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
         try:
             # Send mode change to device
             await self._api.set_device_preset_mode(self._id, preset_value)
-        except Exception:
+        except (aiohttp.ClientError, FenixTFTApiError):
             _LOGGER.exception("Failed to set HVAC mode for device %s", self._id)
             raise
 
@@ -276,7 +286,7 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
         try:
             # Send preset mode change to device
             await self._api.set_device_preset_mode(self._id, preset_value)
-        except Exception:
+        except (aiohttp.ClientError, FenixTFTApiError):
             _LOGGER.exception(
                 "Failed to set preset mode %s (%s) for device %s",
                 preset_mode,
