@@ -147,10 +147,7 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
         if not dev:
             return None
         raw_preset = dev.get("preset_mode")
-        if raw_preset is None:
-            return None
-        # Convert numeric preset mode to string using mapping
-        return PRESET_MAP.get(raw_preset)
+        return None if raw_preset is None else PRESET_MAP.get(raw_preset)
 
     @property
     def current_temperature(self) -> float | None:
@@ -213,7 +210,11 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
         else:
             dev_name = None
         _LOGGER.debug(
-            "Device %s (%s) preset mode: %s (%s)", self._id, dev_name, raw_preset, hvac_mode_str
+            "Device %s (%s) preset mode: %s (%s)",
+            self._id,
+            dev_name,
+            raw_preset,
+            hvac_mode_str,
         )
 
         # Map device modes to Home Assistant HVAC modes
