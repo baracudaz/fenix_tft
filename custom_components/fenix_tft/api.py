@@ -451,9 +451,7 @@ class FenixTFTApi:
                 raise FenixTFTApiError(msg)
             return await resp.json()
 
-    async def update_all_devices(
-        self, devices: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    async def update_all_devices(self, devices: list[dict[str, Any]]) -> None:
         """Update all devices by triggering updates for each installation."""
         _LOGGER.debug("Updating all devices")
         # Trigger updates for each unique installation
@@ -464,8 +462,6 @@ class FenixTFTApi:
         }
         for installation_id in installation_ids:
             await self.trigger_device_updates(installation_id)
-
-        return devices
 
     async def trigger_device_updates(self, installation_id: str) -> dict[str, Any]:
         """Trigger device updates for a specific installation."""
