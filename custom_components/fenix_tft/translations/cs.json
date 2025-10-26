@@ -1,22 +1,22 @@
 {
-  "title": "Fenix TFT WiFi Thermostat",
+  "title": "Fenix TFT WiFi Termostat",
   "config": {
     "error": {
-      "invalid_auth": "E-mail a/nebo heslo je neplatné.",
+      "invalid_auth": "Email a/nebo heslo je neplatné.",
       "unknown": "Došlo k neočekávané chybě.",
       "username_exists": "Účet s poskytnutým e-mailem je již připojen."
     },
     "step": {
       "user": {
         "data": {
-          "username": "E-mail",
+          "username": "Email",
           "password": "Heslo"
         },
         "description": "Připojte se k Fenix API"
       },
       "reauth_confirm": {
         "data": {
-          "username": "E-mail",
+          "username": "Email",
           "password": "Heslo"
         },
         "description": "Znovu se ověřte u Fenix API"
@@ -25,14 +25,14 @@
   },
   "options": {
     "error": {
-      "invalid_auth": "E-mail a/nebo heslo je neplatné.",
+      "invalid_auth": "Email a/nebo heslo je neplatné.",
       "unknown": "Došlo k neočekávané chybě.",
       "username_exists": "Účet s poskytnutým e-mailem je již připojen."
     },
     "step": {
       "init": {
         "data": {
-          "username": "E-mail",
+          "username": "Email",
           "password": "Heslo"
         },
         "title": "Fenix - Rekonfigurace účtu",
