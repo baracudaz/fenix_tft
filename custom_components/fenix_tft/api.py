@@ -365,6 +365,7 @@ class FenixTFTApi:
             return []
 
         devices = []
+        installation_ids = []
         for inst in installations:
             inst_name = inst.get("Il", "Fenix TFT")
             inst_id = inst.get("id")  # Get installation ID
