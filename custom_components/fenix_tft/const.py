@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import Final
 
 DOMAIN: Final[str] = "fenix_tft"
-PLATFORMS: Final[Sequence[str]] = ("climate",)
+PLATFORMS: Final[Sequence[str]] = ("climate", "sensor")
 
 POLLING_INTERVAL: Final[int] = 60  # Polling interval in seconds
 OPTIMISTIC_UPDATE_DURATION: Final[int] = 10  # Optimistic update duration (seconds)

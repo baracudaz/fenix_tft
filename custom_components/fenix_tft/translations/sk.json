@@ -45,6 +45,11 @@
       "thermostat": {
         "name": "Termostat"
       }
+    },
+    "sensor": {
+      "floor_temperature": {
+        "name": "Teplota podlahy"
+      }
     }
   }
 }
