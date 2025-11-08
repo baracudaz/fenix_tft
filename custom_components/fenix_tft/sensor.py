@@ -11,7 +11,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, HVAC_ACTION_HEATING, HVAC_ACTION_IDLE, HVAC_ACTION_OFF
+from .const import DOMAIN, HVAC_ACTION_HEATING, HVAC_ACTION_IDLE
 from .coordinator import FenixTFTCoordinator
 
 if TYPE_CHECKING:
@@ -21,6 +21,19 @@ if TYPE_CHECKING:
     from . import FenixTFTConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _get_device_name(dev: dict[str, Any] | None) -> str:
+    """Build device name from installation and room names."""
+    if not dev:
+        return "Fenix TFT"
+
+    installation = dev.get("installation", "")
+    room = dev.get("name", "")
+
+    if installation and room:
+        return f"{installation} {room}"
+    return installation or room or "Fenix TFT"
 
 
 async def async_setup_entry(
@@ -85,19 +98,7 @@ class FenixFloorTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity)
 
         # Find device data from coordinator
         dev = self._device
-
-        # Build device name from installation and room names
-        installation = dev.get("installation") if dev else ""
-        room = dev.get("name") if dev else ""
-
-        if installation and room:
-            device_name = f"{installation} {room}"
-        elif installation:
-            device_name = installation
-        elif room:
-            device_name = room
-        else:
-            device_name = "Fenix TFT"
+        device_name = _get_device_name(dev)
 
         # Register device info - this should match the climate entity's device
         self._attr_device_info = DeviceInfo(
@@ -155,19 +156,7 @@ class FenixAmbientTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntit
 
         # Find device data from coordinator
         dev = self._device
-
-        # Build device name from installation and room names
-        installation = dev.get("installation") if dev else ""
-        room = dev.get("name") if dev else ""
-
-        if installation and room:
-            device_name = f"{installation} {room}"
-        elif installation:
-            device_name = installation
-        elif room:
-            device_name = room
-        else:
-            device_name = "Fenix TFT"
+        device_name = _get_device_name(dev)
 
         # Register device info - this should match the climate entity's device
         self._attr_device_info = DeviceInfo(
@@ -227,7 +216,7 @@ class FenixTargetTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity
 
         # Find device data from coordinator for device info
         dev = self._device
-        device_name = self._get_device_name(dev)
+        device_name = _get_device_name(dev)
 
         # Register device info - matches other entities
         self._attr_device_info = DeviceInfo(
@@ -239,22 +228,6 @@ class FenixTargetTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity
             hw_version=dev.get("type") if dev else None,
             serial_number=dev.get("id") if dev else None,
         )
-
-    def _get_device_name(self, dev: dict[str, Any] | None) -> str:
-        """Build device name from installation and room names."""
-        if not dev:
-            return "Fenix TFT"
-
-        installation = dev.get("installation", "")
-        room = dev.get("name", "")
-
-        if installation and room:
-            return f"{installation} {room}"
-        if installation:
-            return installation
-        if room:
-            return room
-        return "Fenix TFT"
 
     @property
     def _device(self) -> dict[str, Any] | None:
@@ -300,7 +273,7 @@ class FenixTempDifferenceSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEn
 
         # Find device data from coordinator for device info
         dev = self._device
-        device_name = self._get_device_name(dev)
+        device_name = _get_device_name(dev)
 
         # Register device info - matches other entities
         self._attr_device_info = DeviceInfo(
@@ -312,22 +285,6 @@ class FenixTempDifferenceSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEn
             hw_version=dev.get("type") if dev else None,
             serial_number=dev.get("id") if dev else None,
         )
-
-    def _get_device_name(self, dev: dict[str, Any] | None) -> str:
-        """Build device name from installation and room names."""
-        if not dev:
-            return "Fenix TFT"
-
-        installation = dev.get("installation", "")
-        room = dev.get("name", "")
-
-        if installation and room:
-            return f"{installation} {room}"
-        if installation:
-            return installation
-        if room:
-            return room
-        return "Fenix TFT"
 
     @property
     def _device(self) -> dict[str, Any] | None:
@@ -385,7 +342,7 @@ class FenixHvacStateSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity)
 
         # Find device data from coordinator for device info
         dev = self._device
-        device_name = self._get_device_name(dev)
+        device_name = _get_device_name(dev)
 
         # Register device info - matches other entities
         self._attr_device_info = DeviceInfo(
@@ -397,22 +354,6 @@ class FenixHvacStateSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity)
             hw_version=dev.get("type") if dev else None,
             serial_number=dev.get("id") if dev else None,
         )
-
-    def _get_device_name(self, dev: dict[str, Any] | None) -> str:
-        """Build device name from installation and room names."""
-        if not dev:
-            return "Fenix TFT"
-
-        installation = dev.get("installation", "")
-        room = dev.get("name", "")
-
-        if installation and room:
-            return f"{installation} {room}"
-        if installation:
-            return installation
-        if room:
-            return room
-        return "Fenix TFT"
 
     @property
     def _device(self) -> dict[str, Any] | None:
@@ -468,7 +409,7 @@ class FenixFloorAirDifferenceSensor(
 
         # Find device data from coordinator for device info
         dev = self._device
-        device_name = self._get_device_name(dev)
+        device_name = _get_device_name(dev)
 
         # Register device info - matches other entities
         self._attr_device_info = DeviceInfo(
@@ -480,22 +421,6 @@ class FenixFloorAirDifferenceSensor(
             hw_version=dev.get("type") if dev else None,
             serial_number=dev.get("id") if dev else None,
         )
-
-    def _get_device_name(self, dev: dict[str, Any] | None) -> str:
-        """Build device name from installation and room names."""
-        if not dev:
-            return "Fenix TFT"
-
-        installation = dev.get("installation", "")
-        room = dev.get("name", "")
-
-        if installation and room:
-            return f"{installation} {room}"
-        if installation:
-            return installation
-        if room:
-            return room
-        return "Fenix TFT"
 
     @property
     def _device(self) -> dict[str, Any] | None:
@@ -551,7 +476,7 @@ class FenixConnectivitySensor(CoordinatorEntity[FenixTFTCoordinator], SensorEnti
 
         # Find device data from coordinator for device info
         dev = self._device
-        device_name = self._get_device_name(dev)
+        device_name = _get_device_name(dev)
 
         # Register device info - matches other entities
         self._attr_device_info = DeviceInfo(
@@ -563,22 +488,6 @@ class FenixConnectivitySensor(CoordinatorEntity[FenixTFTCoordinator], SensorEnti
             hw_version=dev.get("type") if dev else None,
             serial_number=dev.get("id") if dev else None,
         )
-
-    def _get_device_name(self, dev: dict[str, Any] | None) -> str:
-        """Build device name from installation and room names."""
-        if not dev:
-            return "Fenix TFT"
-
-        installation = dev.get("installation", "")
-        room = dev.get("name", "")
-
-        if installation and room:
-            return f"{installation} {room}"
-        if installation:
-            return installation
-        if room:
-            return room
-        return "Fenix TFT"
 
     @property
     def _device(self) -> dict[str, Any] | None:
