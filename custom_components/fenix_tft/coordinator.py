@@ -11,15 +11,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import FenixTFTApi
 from .const import (
     DOMAIN,
-    ERROR_BACKOFF_SECONDS,
-    FAST_POLL_SECONDS,
-    HVAC_ACTION_HEATING,
     HVAC_ACTION_IDLE,
     HVAC_ACTION_OFF,
     OPTIMISTIC_UPDATE_DURATION,
+    POLLING_INTERVAL,
     PRESET_MODE_OFF,
-    SLOW_POLL_SECONDS,
-    STARTUP_FAST_PERIOD,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,43 +43,24 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     def __init__(
         self, hass: HomeAssistant, api: FenixTFTApi, config_entry: ConfigEntry
     ) -> None:
-        """
-        Initialize the Fenix TFT coordinator.
-
-        The initial update interval is set to the faster polling cadence. It
-        will be adaptively increased/decreased after each successful refresh.
-        """
+        """Initialize the Fenix TFT coordinator with fixed polling interval."""
         super().__init__(
             hass,
             logger=_LOGGER,
             name=DOMAIN,
-            # Start with FAST_POLL_SECONDS for fast startup; will adapt post-refresh
-            update_interval=timedelta(seconds=FAST_POLL_SECONDS),
+            update_interval=timedelta(seconds=POLLING_INTERVAL),
             config_entry=config_entry,
         )
         self.api = api
         self._optimistic_updates: dict[str, tuple[int, int, float]] = {}
-        self._startup_time: float = hass.loop.time()
-        self._error_backoff_until: float | None = None
 
     async def _async_update_data(self) -> list[dict[str, Any]]:
         """Fetch data from Fenix TFT API."""
         try:
             fresh_data: list[dict[str, Any]] = await self.api.get_devices()
         except Exception as err:  # Broad allowed: external I/O layer
-            # Enter temporary backoff window - we do not expose user setting but
-            # reduce load automatically after repeated failures.
-            self._error_backoff_until = self.hass.loop.time() + ERROR_BACKOFF_SECONDS
-            self._set_update_interval(ERROR_BACKOFF_SECONDS)
             msg = f"Error fetching Fenix TFT data: {err}"
             raise UpdateFailed(msg) from err
-
-        # Clear error backoff if it has expired or after a successful fetch
-        if (
-            self._error_backoff_until
-            and self.hass.loop.time() >= self._error_backoff_until
-        ):
-            self._error_backoff_until = None
 
         current_time: float = self.hass.loop.time()
         expired_updates: list[str] = []
@@ -109,9 +86,6 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
 
         for device_id in expired_updates:
             del self._optimistic_updates[device_id]
-
-        # Decide new interval based on device activity / startup / backoff
-        self._adapt_polling_interval(fresh_data)
         return fresh_data
 
     def update_device_preset_mode(self, device_id: str, preset_mode: int) -> None:
@@ -139,40 +113,4 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 )
                 break
 
-    # ---------------------------------------------------------------------
-    # Adaptive polling helpers
-    # ---------------------------------------------------------------------
-    def _adapt_polling_interval(self, devices: list[dict[str, Any]]) -> None:
-        """
-        Adapt polling interval based on runtime conditions.
-
-        Rules (in order):
-        1. Remain in backoff interval while error backoff active.
-        2. Poll fast during initial startup period.
-        3. Poll fast if any device is actively heating.
-        4. Otherwise poll slow.
-        Interval bounded between FAST_POLL_SECONDS and SLOW_POLL_SECONDS.
-        """
-        now = self.hass.loop.time()
-        if self._error_backoff_until and now < self._error_backoff_until:
-            # Still in backoff; do not change interval here.
-            return
-
-        in_startup = (now - self._startup_time) < STARTUP_FAST_PERIOD
-        any_heating = any(
-            dev.get("hvac_action") == HVAC_ACTION_HEATING for dev in devices
-        )
-
-        desired = FAST_POLL_SECONDS if in_startup or any_heating else SLOW_POLL_SECONDS
-
-        # Only apply if changed to limit churn.
-        current = (
-            int(self.update_interval.total_seconds()) if self.update_interval else None
-        )
-        if current != desired:
-            self._set_update_interval(desired)
-
-    def _set_update_interval(self, seconds: int) -> None:
-        """Set new update interval and log change."""
-        self.update_interval = timedelta(seconds=seconds)
-        _LOGGER.debug("Adaptive polling interval set to %s seconds", seconds)
+    # Adaptive polling removed: fixed update_interval is used.

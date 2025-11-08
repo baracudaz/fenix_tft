@@ -370,7 +370,6 @@ class FenixTFTApi:
             inst_id = inst.get("id")  # Get installation ID
             _LOGGER.debug("Processing installation: %s", inst_name)
             for room in inst.get("rooms", []):
-                room_name = room.get("Rn", "Unknown")
                 for dev in room.get("devices", []):
                     dev_id = dev.get("Id_deviceId")
                     try:
@@ -378,13 +377,16 @@ class FenixTFTApi:
                         devices.append(
                             {
                                 "id": dev_id,
-                                "name": room_name,
-                                "version": props.get("Sv", {}).get("value"),
-                                "model": props.get("Ty", {}).get("value"),
+                                "name": props.get("Rn", {}).get(
+                                    "value", "Unnamed Device"
+                                ),
+                                "software": props.get("Sv", {}).get("value"),
+                                "type": props.get("Ty", {}).get("value"),
                                 "installation": inst_name,
                                 "installation_id": inst_id,
                                 "target_temp": decode_temp_from_entry(props.get("Ma")),
                                 "current_temp": decode_temp_from_entry(props.get("At")),
+                                "floor_temp": decode_temp_from_entry(props.get("bo")),
                                 "hvac_action": props.get("Hs", {}).get("value"),
                                 "preset_mode": props.get("Cm", {}).get("value"),
                             }

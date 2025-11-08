@@ -45,6 +45,29 @@
       "thermostat": {
         "name": "Thermostat"
       }
+    },
+    "sensor": {
+      "floor_temperature": {
+        "name": "Floor temperature"
+      },
+      "ambient_temperature": {
+        "name": "Ambient temperature"
+      },
+      "target_temperature": {
+        "name": "Target temperature"
+      },
+      "temperature_difference": {
+        "name": "Temperature difference"
+      },
+      "hvac_state": {
+        "name": "HVAC state"
+      },
+      "floor_air_difference": {
+        "name": "Floor-air difference"
+      },
+      "connectivity_status": {
+        "name": "Connectivity"
+      }
     }
   }
 }
