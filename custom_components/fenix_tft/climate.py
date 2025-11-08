@@ -121,8 +121,8 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
             name=device_name,  # Display name in device registry
             manufacturer="Fenix",
             model="TFT WiFi Thermostat",
-            sw_version=dev.get("version") if dev else None,
-            hw_version=dev.get("model") if dev else None,
+            sw_version=dev.get("software") if dev else None,
+            hw_version=dev.get("type") if dev else None,
             serial_number=dev.get("id") if dev else None,
         )
 
