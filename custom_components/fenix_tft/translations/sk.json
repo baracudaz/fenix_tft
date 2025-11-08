@@ -49,6 +49,24 @@
     "sensor": {
       "floor_temperature": {
         "name": "Teplota podlahy"
+      },
+      "ambient_temperature": {
+        "name": "Izbová teplota"
+      },
+      "target_temperature": {
+        "name": "Cieľová teplota"
+      },
+      "temperature_difference": {
+        "name": "Rozdiel teplôt"
+      },
+      "hvac_state": {
+        "name": "Stav kúrenia"
+      },
+      "floor_air_difference": {
+        "name": "Rozdiel podlaha-vzduch"
+      },
+      "connectivity_status": {
+        "name": "Pripojenie"
       }
     }
   }
