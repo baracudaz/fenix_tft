@@ -442,11 +442,7 @@ class FenixHvacStateSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity)
         # Map numeric HVAC action to string state
         if hvac_action == HVAC_ACTION_HEATING:
             return "heating"
-        if hvac_action == HVAC_ACTION_IDLE:
-            return "idle"
-        if hvac_action == HVAC_ACTION_OFF:
-            return "off"
-        return "off"  # Default fallback
+        return "idle" if hvac_action == HVAC_ACTION_IDLE else "off"
 
     async def async_update(self) -> None:
         """Request latest data from coordinator."""
