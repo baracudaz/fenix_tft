@@ -385,6 +385,7 @@ class FenixTFTApi:
                                 "installation_id": inst_id,
                                 "target_temp": decode_temp_from_entry(props.get("Ma")),
                                 "current_temp": decode_temp_from_entry(props.get("At")),
+                                "floor_temp": decode_temp_from_entry(props.get("bo")),
                                 "hvac_action": props.get("Hs", {}).get("value"),
                                 "preset_mode": props.get("Cm", {}).get("value"),
                             }
