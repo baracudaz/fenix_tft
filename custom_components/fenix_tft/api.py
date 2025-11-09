@@ -556,6 +556,14 @@ class FenixTFTApi:
 
         if not (room_id and installation_id and device_id):
             # Device missing required IDs for energy consumption
+            _LOGGER.warning(
+                "Device missing required IDs for energy consumption: "
+                "room_id=%r, installation_id=%r, device_id=%r, device=%r",
+                room_id,
+                installation_id,
+                device_id,
+                device,
+            )
             device["daily_energy_consumption"] = None
             return device
 
