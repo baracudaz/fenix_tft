@@ -34,9 +34,8 @@ Here is the thermostat integration in action.
 
 ### 🚧 Planned & Ideas
 
-- **Enhanced Sensors**: Defrost threshold, scheduled temperatures, device diagnostics
-- **Advanced Features**: Historical data, weather integration, energy optimization
-- **Technical**: WebSocket support, local API discovery, bulk device operations
+- **Smart Scheduling**: Holiday mode, full scheduling system, calendar integration
+- **Enhanced Diagnostics**: Additional device sensors and operational data
 
 ### 💡 Contributing
 
