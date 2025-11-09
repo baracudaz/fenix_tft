@@ -90,7 +90,7 @@ class FenixTFTApi:
             return
 
         if not self._access_token or not self._refresh_token:
-            _LOGGER.debug("No tokens, initiating login")
+            _LOGGER.debug("No tokens available, initiating login")
             self._login_in_progress = True
             try:
                 success = await self.login()
@@ -191,7 +191,7 @@ class FenixTFTApi:
                 and return_url_input.get("value")
             ):
                 _LOGGER.debug(
-                    "No CSRF token/ReturnUrl found - possibly cached session redirect"
+                    "No CSRF token/ReturnUrl found, possibly cached session redirect"
                 )
                 return None, None
 
@@ -283,7 +283,7 @@ class FenixTFTApi:
 
     async def login(self) -> bool:
         """Perform OAuth2 login and obtain tokens."""
-        _LOGGER.debug("Starting login for %s", self._username)
+        _LOGGER.debug("Starting OAuth2 login for user: %s", self._username)
         success = False
         try:
             login_url, code_verifier, state, nonce = await self._start_authorization()
@@ -293,7 +293,7 @@ class FenixTFTApi:
             csrf_token, return_url = await self._fetch_login_page(login_url)
 
             if not csrf_token and not return_url and login_url.startswith("fenix://"):
-                _LOGGER.debug("Detected direct fenix:// callback after cached session")
+                _LOGGER.debug("Detected direct fenix:// callback from cached session")
                 callback_url = login_url
             else:
                 callback_url = await self._submit_login_form(
@@ -358,7 +358,7 @@ class FenixTFTApi:
 
     async def get_devices(self) -> list[dict[str, Any]]:
         """Retrieve all devices with their current state."""
-        _LOGGER.debug("Fetching devices")
+        _LOGGER.debug("Fetching all devices")
         try:
             installations = await self.get_installations()
         except FenixTFTApiError:
@@ -369,7 +369,7 @@ class FenixTFTApi:
         for inst in installations:
             inst_name = inst.get("Il", "Fenix TFT")
             inst_id = inst.get("id")  # Get installation ID
-            _LOGGER.debug("Processing installation: %s", inst_name)
+            _LOGGER.debug("Processing installation: %s (ID: %s)", inst_name, inst_id)
             for room in inst.get("rooms", []):
                 room_id = room.get("Zn")  # Get room ID (Zn field)
                 for dev in room.get("devices", []):
@@ -400,7 +400,7 @@ class FenixTFTApi:
         # Update all devices after fetching
         await self.update_all_devices(devices)
 
-        _LOGGER.debug("Fetched %d devices", len(devices))
+        _LOGGER.debug("Successfully fetched %d devices", len(devices))
         return devices
 
     async def set_device_temperature(
@@ -436,7 +436,9 @@ class FenixTFTApi:
             msg = f"Invalid preset mode: {preset_mode}"
             raise FenixTFTApiError(msg)
 
-        _LOGGER.debug("Setting preset mode %s for device %s", preset_mode, device_id)
+        _LOGGER.debug(
+            "Setting preset mode %s for device %s", preset_mode, device_id
+        )
         payload = {
             "Id_deviceId": device_id,
             "S1": device_id,
@@ -454,7 +456,7 @@ class FenixTFTApi:
 
     async def update_all_devices(self, devices: list[dict[str, Any]]) -> None:
         """Update all devices by triggering updates for each installation."""
-        _LOGGER.debug("Updating all devices")
+        _LOGGER.debug("Triggering updates for all devices")
         # Trigger updates for each unique installation
         installation_ids = {
             device.get("installation_id")
@@ -506,7 +508,7 @@ class FenixTFTApi:
         )
 
         _LOGGER.debug(
-            "Fetching energy consumption for room %s, device %s", room_id, device_id
+            "Fetching energy consumption for device %s in room %s", device_id, room_id
         )
 
         async with self._session.get(url, headers=self._headers()) as resp:
