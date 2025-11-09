@@ -124,36 +124,6 @@ class FenixAmbientTempSensor(FenixTFTEntity, SensorEntity):
         return dev.get("current_temp") if dev else None
 
 
-class FenixCurrentTemperatureSensor(FenixTFTEntity, SensorEntity):
-    """Representation of a Fenix TFT ambient/air temperature sensor."""
-
-    _attr_translation_key = "ambient_temperature"
-    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-    _attr_device_class = SensorDeviceClass.TEMPERATURE
-
-    def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
-        """Initialize a Fenix TFT ambient temperature sensor."""
-        super().__init__(coordinator, device_id)
-        self._attr_unique_id = f"{device_id}_ambient_temperature"
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        # Requires coordinator connection and device data with current_temp
-        dev = self._device
-        return (
-            super().available
-            and dev is not None
-            and dev.get("current_temp") is not None
-        )
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the current ambient/air temperature."""
-        dev = self._device
-        return dev.get("current_temp") if dev else None
-
-
 class FenixTargetTempSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT target temperature sensor."""
 
