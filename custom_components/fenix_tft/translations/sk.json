@@ -67,6 +67,9 @@
       },
       "connectivity_status": {
         "name": "Pripojenie"
+      },
+      "daily_energy_consumption": {
+        "name": "Denná spotreba energie"
       }
     }
   }

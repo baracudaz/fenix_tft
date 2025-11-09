@@ -6,6 +6,7 @@ import logging
 import secrets
 import time
 import urllib.parse
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import aiohttp
@@ -370,27 +371,26 @@ class FenixTFTApi:
             inst_id = inst.get("id")  # Get installation ID
             _LOGGER.debug("Processing installation: %s", inst_name)
             for room in inst.get("rooms", []):
+                room_id = room.get("Zn")  # Get room ID (Zn field)
                 for dev in room.get("devices", []):
                     dev_id = dev.get("Id_deviceId")
                     try:
                         props = await self.get_device_properties(dev_id)
-                        devices.append(
-                            {
-                                "id": dev_id,
-                                "name": props.get("Rn", {}).get(
-                                    "value", "Unnamed Device"
-                                ),
-                                "software": props.get("Sv", {}).get("value"),
-                                "type": props.get("Ty", {}).get("value"),
-                                "installation": inst_name,
-                                "installation_id": inst_id,
-                                "target_temp": decode_temp_from_entry(props.get("Ma")),
-                                "current_temp": decode_temp_from_entry(props.get("At")),
-                                "floor_temp": decode_temp_from_entry(props.get("bo")),
-                                "hvac_action": props.get("Hs", {}).get("value"),
-                                "preset_mode": props.get("Cm", {}).get("value"),
-                            }
-                        )
+                        device_data = {
+                            "id": dev_id,
+                            "name": props.get("Rn", {}).get("value", "Unnamed Device"),
+                            "software": props.get("Sv", {}).get("value"),
+                            "type": props.get("Ty", {}).get("value"),
+                            "installation": inst_name,
+                            "installation_id": inst_id,
+                            "room_id": room_id,
+                            "target_temp": decode_temp_from_entry(props.get("Ma")),
+                            "current_temp": decode_temp_from_entry(props.get("At")),
+                            "floor_temp": decode_temp_from_entry(props.get("bo")),
+                            "hvac_action": props.get("Hs", {}).get("value"),
+                            "preset_mode": props.get("Cm", {}).get("value"),
+                        }
+                        devices.append(device_data)
                     except FenixTFTApiError:
                         _LOGGER.exception(
                             "Failed to fetch properties for device %s", dev_id
@@ -479,5 +479,38 @@ class FenixTFTApi:
         ) as resp:
             if resp.status != HTTP_OK:
                 msg = f"Failed to trigger device updates: {resp.status}"
+                raise FenixTFTApiError(msg)
+            return await resp.json()
+
+    async def get_room_energy_consumption(
+        self,
+        installation_id: str,
+        room_id: str,
+        device_id: str,
+        days: int = 1,
+    ) -> list[dict[str, Any]]:
+        """Get energy consumption data for a specific room/device."""
+        await self._ensure_token()
+
+        # Calculate date range (last N days)
+        end_date = datetime.now(tz=UTC)
+        start_date = end_date - timedelta(days=days)
+
+        # Format dates as required by API
+        start_str = start_date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        end_str = end_date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+        url = (
+            f"{API_BASE}/DataProcessing/v1/metricsAggregat/consommation/room/"
+            f"{installation_id}/{room_id}/{device_id}/Day/Wc/{start_str}/{end_str}"
+        )
+
+        _LOGGER.debug(
+            "Fetching energy consumption for room %s, device %s", room_id, device_id
+        )
+
+        async with self._session.get(url, headers=self._headers()) as resp:
+            if resp.status != HTTP_OK:
+                msg = f"Failed to get energy consumption: {resp.status}"
                 raise FenixTFTApiError(msg)
             return await resp.json()

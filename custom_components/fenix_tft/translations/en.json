@@ -67,6 +67,9 @@
       },
       "connectivity_status": {
         "name": "Connectivity"
+      },
+      "daily_energy_consumption": {
+        "name": "Daily Energy Consumption"
       }
     }
   }

@@ -9,6 +9,7 @@ __pycache__
 Pipfile*
 pyproject.toml
 uv.lock
+artifacts/api-captures/
 
 # misc
 .coverage
