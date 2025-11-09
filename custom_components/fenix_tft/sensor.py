@@ -102,7 +102,7 @@ class FenixFloorTempSensor(FenixTFTEntity, SensorEntity):
     def native_value(self) -> float | None:
         """Return the current floor temperature."""
         dev = self._device
-        return dev.get("Tc") if dev else None
+        return dev.get("floor_temp") if dev else None
 
 
 class FenixAmbientTempSensor(FenixTFTEntity, SensorEntity):
@@ -111,6 +111,7 @@ class FenixAmbientTempSensor(FenixTFTEntity, SensorEntity):
     _attr_translation_key = "ambient_temperature"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT ambient temperature sensor."""
