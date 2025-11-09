@@ -436,9 +436,7 @@ class FenixTFTApi:
             msg = f"Invalid preset mode: {preset_mode}"
             raise FenixTFTApiError(msg)
 
-        _LOGGER.debug(
-            "Setting preset mode %s for device %s", preset_mode, device_id
-        )
+        _LOGGER.debug("Setting preset mode %s for device %s", preset_mode, device_id)
         payload = {
             "Id_deviceId": device_id,
             "S1": device_id,
