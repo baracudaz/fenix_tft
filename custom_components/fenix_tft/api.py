@@ -1,5 +1,6 @@
 """API client for Fenix TFT cloud integration."""
 
+import asyncio
 import base64
 import hashlib
 import logging
@@ -25,6 +26,15 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# URL template for energy consumption endpoint
+ENERGY_CONSUMPTION_URL_TEMPLATE = (
+    "{base_url}/DataProcessing/v1/metricsAggregat/consommation/room/"
+    "{installation_id}/{room_id}/{device_id}/Day/Wc/{start_date}/{end_date}"
+)
+
+# Maximum concurrent energy data requests to avoid API rate limiting
+MAX_CONCURRENT_ENERGY_REQUESTS = 5
 
 
 class FenixTFTApiError(Exception):
@@ -58,6 +68,29 @@ def generate_pkce_pair() -> tuple[str, str]:
         .rstrip("=")
     )
     return code_verifier, code_challenge
+
+
+def _format_api_date(date: datetime) -> str:
+    """Format datetime for API consumption endpoints."""
+    return date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def _build_energy_consumption_url(
+    installation_id: str,
+    room_id: str,
+    device_id: str,
+    start_date: datetime,
+    end_date: datetime,
+) -> str:
+    """Build URL for energy consumption API endpoint."""
+    return ENERGY_CONSUMPTION_URL_TEMPLATE.format(
+        base_url=API_BASE,
+        installation_id=installation_id,
+        room_id=room_id,
+        device_id=device_id,
+        start_date=_format_api_date(start_date),
+        end_date=_format_api_date(end_date),
+    )
 
 
 class FenixTFTApi:
@@ -496,13 +529,9 @@ class FenixTFTApi:
         end_date = datetime.now(tz=UTC)
         start_date = end_date - timedelta(days=days)
 
-        # Format dates as required by API
-        start_str = start_date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-        end_str = end_date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-
-        url = (
-            f"{API_BASE}/DataProcessing/v1/metricsAggregat/consommation/room/"
-            f"{installation_id}/{room_id}/{device_id}/Day/Wc/{start_str}/{end_str}"
+        # Build URL using helper function
+        url = _build_energy_consumption_url(
+            installation_id, room_id, device_id, start_date, end_date
         )
 
         _LOGGER.debug(
@@ -515,42 +544,69 @@ class FenixTFTApi:
                 raise FenixTFTApiError(msg)
             return await resp.json()
 
+    async def _fetch_device_energy_data(
+        self,
+        semaphore: asyncio.Semaphore,
+        device: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Fetch energy data for a single device with semaphore control."""
+        room_id = device.get("room_id")
+        installation_id = device.get("installation_id")
+        device_id = device.get("id")
+
+        if not (room_id and installation_id and device_id):
+            # Device missing required IDs for energy consumption
+            device["daily_energy_consumption"] = None
+            return device
+
+        async with semaphore:  # Limit concurrent requests
+            try:
+                energy_data = await self.get_room_energy_consumption(
+                    installation_id, room_id, device_id
+                )
+
+                # Process the energy data - use processedDataWithAggregator
+                if energy_data and isinstance(energy_data, list):
+                    total_consumption = 0
+                    for item in energy_data:
+                        if isinstance(item, dict):
+                            consumption_value = item.get(
+                                "processedDataWithAggregator", 0
+                            )
+                            total_consumption += consumption_value
+                    device["daily_energy_consumption"] = total_consumption
+                else:
+                    device["daily_energy_consumption"] = 0
+            except FenixTFTApiError as err:
+                _LOGGER.debug(
+                    "Failed to fetch energy data for device %s: %s", device_id, err
+                )
+                # Don't fail the entire update if energy data fails
+                device["daily_energy_consumption"] = None
+
+        return device
+
     async def fetch_devices_with_energy_data(self) -> list[dict[str, Any]]:
         """Retrieve all devices with their current state and energy consumption data."""
         devices = await self.get_devices()
 
-        # Add energy consumption data to devices that have required IDs
-        for device in devices:
-            room_id = device.get("room_id")
-            installation_id = device.get("installation_id")
-            device_id = device.get("id")
+        # Create semaphore to limit concurrent energy data requests
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_ENERGY_REQUESTS)
 
-            if room_id and installation_id and device_id:
-                try:
-                    energy_data = await self.get_room_energy_consumption(
-                        installation_id, room_id, device_id
-                    )
+        # Fetch energy data for all devices concurrently
+        energy_tasks = [
+            self._fetch_device_energy_data(semaphore, device) for device in devices
+        ]
 
-                    # Process the energy data - use processedDataWithAggregator
-                    if energy_data and isinstance(energy_data, list):
-                        total_consumption = 0
-                        for item in energy_data:
-                            if isinstance(item, dict):
-                                consumption_value = item.get(
-                                    "processedDataWithAggregator", 0
-                                )
-                                total_consumption += consumption_value
-                        device["daily_energy_consumption"] = total_consumption
-                    else:
-                        device["daily_energy_consumption"] = 0
-                except FenixTFTApiError as err:
-                    _LOGGER.debug(
-                        "Failed to fetch energy data for device %s: %s", device_id, err
-                    )
-                    # Don't fail the entire update if energy data fails
-                    device["daily_energy_consumption"] = None
-            else:
-                # Device missing required IDs for energy consumption
-                device["daily_energy_consumption"] = None
+        # Wait for all energy data fetches to complete
+        updated_devices = await asyncio.gather(*energy_tasks, return_exceptions=True)
 
-        return devices
+        # Filter out any exceptions and return valid devices
+        result_devices = []
+        for device in updated_devices:
+            if isinstance(device, Exception):
+                _LOGGER.warning("Energy data fetch failed: %s", device)
+                continue
+            result_devices.append(device)
+
+        return result_devices
