@@ -141,14 +141,61 @@ class FenixFloorTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity)
     def native_value(self) -> float | None:
         """Return the current floor temperature."""
         dev = self._device
-        return dev.get("floor_temp") if dev else None
-
-    async def async_update(self) -> None:
-        """Request latest data from coordinator (called by Home Assistant)."""
-        await self.coordinator.async_request_refresh()
+        return dev.get("Tc") if dev else None
 
 
 class FenixAmbientTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity):
+    """Representation of a Fenix TFT ambient/air temperature sensor."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "ambient_temperature"
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+
+    def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
+        """Initialize a Fenix TFT ambient temperature sensor."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._attr_unique_id = f"{device_id}_ambient_temperature"
+
+        # Find device data from coordinator
+        dev = self._device
+        device_name = _get_device_name(dev)
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device_id)},
+            name=device_name,
+            manufacturer="Fenix",
+            model="TFT WiFi Thermostat",
+            sw_version=dev.get("software") if dev else None,
+            hw_version=dev.get("type") if dev else None,
+            serial_number=dev.get("id") if dev else None,
+        )
+
+    @property
+    def _device(self) -> dict[str, Any] | None:
+        """Return the device dict for this entity from coordinator data."""
+        return next(
+            (d for d in self.coordinator.data if d["id"] == self._device_id),
+            None,
+        )
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        dev = self._device
+        return super().available and dev is not None
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current ambient/air temperature."""
+        dev = self._device
+        return dev.get("current_temp") if dev else None
+
+
+class FenixCurrentTemperatureSensor(
+    CoordinatorEntity[FenixTFTCoordinator], SensorEntity
+):
     """Representation of a Fenix TFT ambient/air temperature sensor."""
 
     _attr_has_entity_name = True
@@ -201,10 +248,6 @@ class FenixAmbientTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntit
         """Return the current ambient/air temperature."""
         dev = self._device
         return dev.get("current_temp") if dev else None
-
-    async def async_update(self) -> None:
-        """Request latest data from coordinator (called by Home Assistant)."""
-        await self.coordinator.async_request_refresh()
 
 
 class FenixTargetTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity):
@@ -259,10 +302,6 @@ class FenixTargetTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity
         """Return the target temperature."""
         dev = self._device
         return dev.get("target_temp") if dev else None
-
-    async def async_update(self) -> None:
-        """Request latest data from coordinator."""
-        await self.coordinator.async_request_refresh()
 
 
 class FenixTempDifferenceSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity):
@@ -329,10 +368,6 @@ class FenixTempDifferenceSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEn
             return round(target - current, 1)
         return None
 
-    async def async_update(self) -> None:
-        """Request latest data from coordinator."""
-        await self.coordinator.async_request_refresh()
-
 
 class FenixHvacStateSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity):
     """Representation of a Fenix TFT HVAC state sensor."""
@@ -394,10 +429,6 @@ class FenixHvacStateSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity)
         if hvac_action == HVAC_ACTION_HEATING:
             return "heating"
         return "idle" if hvac_action == HVAC_ACTION_IDLE else "off"
-
-    async def async_update(self) -> None:
-        """Request latest data from coordinator."""
-        await self.coordinator.async_request_refresh()
 
 
 class FenixFloorAirDifferenceSensor(
@@ -466,10 +497,6 @@ class FenixFloorAirDifferenceSensor(
             return round(floor_temp - current_temp, 1)
         return None
 
-    async def async_update(self) -> None:
-        """Request latest data from coordinator."""
-        await self.coordinator.async_request_refresh()
-
 
 class FenixConnectivitySensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity):
     """Representation of a Fenix TFT connectivity sensor."""
@@ -519,10 +546,6 @@ class FenixConnectivitySensor(CoordinatorEntity[FenixTFTCoordinator], SensorEnti
 
         # If device data is present and coordinator is available, device is connected
         return "connected" if dev is not None and super().available else "disconnected"
-
-    async def async_update(self) -> None:
-        """Request latest data from coordinator."""
-        await self.coordinator.async_request_refresh()
 
 
 class FenixEnergyConsumptionSensor(
@@ -580,7 +603,3 @@ class FenixEnergyConsumptionSensor(
         # This would be populated by the coordinator with energy data
         dev = self._device
         return dev.get("daily_energy_consumption") if dev else None
-
-    async def async_update(self) -> None:
-        """Request latest data from coordinator."""
-        await self.coordinator.async_request_refresh()

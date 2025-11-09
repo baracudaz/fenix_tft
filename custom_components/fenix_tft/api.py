@@ -514,3 +514,43 @@ class FenixTFTApi:
                 msg = f"Failed to get energy consumption: {resp.status}"
                 raise FenixTFTApiError(msg)
             return await resp.json()
+
+    async def fetch_devices_with_energy_data(self) -> list[dict[str, Any]]:
+        """Retrieve all devices with their current state and energy consumption data."""
+        devices = await self.get_devices()
+
+        # Add energy consumption data to devices that have required IDs
+        for device in devices:
+            room_id = device.get("room_id")
+            installation_id = device.get("installation_id")
+            device_id = device.get("id")
+
+            if room_id and installation_id and device_id:
+                try:
+                    energy_data = await self.get_room_energy_consumption(
+                        installation_id, room_id, device_id
+                    )
+
+                    # Process the energy data - use processedDataWithAggregator
+                    if energy_data and isinstance(energy_data, list):
+                        total_consumption = 0
+                        for item in energy_data:
+                            if isinstance(item, dict):
+                                consumption_value = item.get(
+                                    "processedDataWithAggregator", 0
+                                )
+                                total_consumption += consumption_value
+                        device["daily_energy_consumption"] = total_consumption
+                    else:
+                        device["daily_energy_consumption"] = 0
+                except FenixTFTApiError as err:
+                    _LOGGER.debug(
+                        "Failed to fetch energy data for device %s: %s", device_id, err
+                    )
+                    # Don't fail the entire update if energy data fails
+                    device["daily_energy_consumption"] = None
+            else:
+                # Device missing required IDs for energy consumption
+                device["daily_energy_consumption"] = None
+
+        return devices
