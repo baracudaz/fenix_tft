@@ -3,37 +3,27 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
-from homeassistant.const import UnitOfTemperature
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
+from homeassistant.const import UnitOfEnergy, UnitOfTemperature
 from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, HVAC_ACTION_HEATING, HVAC_ACTION_IDLE
-from .coordinator import FenixTFTCoordinator
+from .const import HVAC_ACTION_HEATING, HVAC_ACTION_IDLE
+from .entity import FenixTFTEntity
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from . import FenixTFTConfigEntry
+    from .coordinator import FenixTFTCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _get_device_name(dev: dict[str, Any] | None) -> str:
-    """Build device name from installation and room names."""
-    if not dev:
-        return "Fenix TFT"
-
-    installation = dev.get("installation", "")
-    room = dev.get("name", "")
-
-    if installation and room:
-        return f"{installation} {room}"
-    return installation or room or "Fenix TFT"
 
 
 async def async_setup_entry(
@@ -78,46 +68,26 @@ async def async_setup_entry(
         # Create connectivity sensor (always available)
         entities.append(FenixConnectivitySensor(coordinator, device_id))
 
+        # Create energy consumption sensor if room_id and installation_id are available
+        if dev.get("room_id") is not None and dev.get("installation_id") is not None:
+            entities.append(FenixEnergyConsumptionSensor(coordinator, device_id))
+
     if entities:
         async_add_entities(entities)
 
 
-class FenixFloorTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity):
+class FenixFloorTempSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT floor temperature sensor."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "floor_temperature"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT floor temperature sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
+        super().__init__(coordinator, device_id)
         self._attr_unique_id = f"{device_id}_floor_temperature"
-
-        # Find device data from coordinator
-        dev = self._device
-        device_name = _get_device_name(dev)
-
-        # Register device info - this should match the climate entity's device
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device_name,
-            manufacturer="Fenix",
-            model="TFT WiFi Thermostat",
-            sw_version=dev.get("software") if dev else None,
-            hw_version=dev.get("type") if dev else None,
-            serial_number=dev.get("id") if dev else None,
-        )
-
-    @property
-    def _device(self) -> dict[str, Any] | None:
-        """Return the device dict for this entity from coordinator data."""
-        return next(
-            (d for d in self.coordinator.data if d["id"] == self._device_id),
-            None,
-        )
 
     @property
     def available(self) -> bool:
@@ -134,15 +104,10 @@ class FenixFloorTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity)
         dev = self._device
         return dev.get("floor_temp") if dev else None
 
-    async def async_update(self) -> None:
-        """Request latest data from coordinator (called by Home Assistant)."""
-        await self.coordinator.async_request_refresh()
 
-
-class FenixAmbientTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity):
+class FenixAmbientTempSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT ambient/air temperature sensor."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "ambient_temperature"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
@@ -150,43 +115,8 @@ class FenixAmbientTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntit
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT ambient temperature sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
+        super().__init__(coordinator, device_id)
         self._attr_unique_id = f"{device_id}_ambient_temperature"
-
-        # Find device data from coordinator
-        dev = self._device
-        device_name = _get_device_name(dev)
-
-        # Register device info - this should match the climate entity's device
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device_name,
-            manufacturer="Fenix",
-            model="TFT WiFi Thermostat",
-            sw_version=dev.get("software") if dev else None,
-            hw_version=dev.get("type") if dev else None,
-            serial_number=dev.get("id") if dev else None,
-        )
-
-    @property
-    def _device(self) -> dict[str, Any] | None:
-        """Return the device dict for this entity from coordinator data."""
-        return next(
-            (d for d in self.coordinator.data if d["id"] == self._device_id),
-            None,
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        # Requires coordinator connection and device data with current_temp
-        dev = self._device
-        return (
-            super().available
-            and dev is not None
-            and dev.get("current_temp") is not None
-        )
 
     @property
     def native_value(self) -> float | None:
@@ -194,48 +124,20 @@ class FenixAmbientTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntit
         dev = self._device
         return dev.get("current_temp") if dev else None
 
-    async def async_update(self) -> None:
-        """Request latest data from coordinator (called by Home Assistant)."""
-        await self.coordinator.async_request_refresh()
 
-
-class FenixTargetTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity):
+class FenixTargetTempSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT target temperature sensor."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "target_temperature"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT target temperature sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
+        super().__init__(coordinator, device_id)
         self._attr_unique_id = f"{device_id}_target_temperature"
-
-        # Find device data from coordinator for device info
-        dev = self._device
-        device_name = _get_device_name(dev)
-
-        # Register device info - matches other entities
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device_name,
-            manufacturer="Fenix",
-            model="TFT WiFi Thermostat",
-            sw_version=dev.get("software") if dev else None,
-            hw_version=dev.get("type") if dev else None,
-            serial_number=dev.get("id") if dev else None,
-        )
-
-    @property
-    def _device(self) -> dict[str, Any] | None:
-        """Return the device dict for this entity from coordinator data."""
-        return next(
-            (d for d in self.coordinator.data if d["id"] == self._device_id),
-            None,
-        )
 
     @property
     def available(self) -> bool:
@@ -251,48 +153,20 @@ class FenixTargetTempSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity
         dev = self._device
         return dev.get("target_temp") if dev else None
 
-    async def async_update(self) -> None:
-        """Request latest data from coordinator."""
-        await self.coordinator.async_request_refresh()
 
-
-class FenixTempDifferenceSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity):
+class FenixTempDifferenceSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT temperature difference sensor."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "temperature_difference"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT temperature difference sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
+        super().__init__(coordinator, device_id)
         self._attr_unique_id = f"{device_id}_temperature_difference"
-
-        # Find device data from coordinator for device info
-        dev = self._device
-        device_name = _get_device_name(dev)
-
-        # Register device info - matches other entities
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device_name,
-            manufacturer="Fenix",
-            model="TFT WiFi Thermostat",
-            sw_version=dev.get("software") if dev else None,
-            hw_version=dev.get("type") if dev else None,
-            serial_number=dev.get("id") if dev else None,
-        )
-
-    @property
-    def _device(self) -> dict[str, Any] | None:
-        """Return the device dict for this entity from coordinator data."""
-        return next(
-            (d for d in self.coordinator.data if d["id"] == self._device_id),
-            None,
-        )
 
     @property
     def available(self) -> bool:
@@ -319,15 +193,10 @@ class FenixTempDifferenceSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEn
             return round(target - current, 1)
         return None
 
-    async def async_update(self) -> None:
-        """Request latest data from coordinator."""
-        await self.coordinator.async_request_refresh()
 
-
-class FenixHvacStateSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity):
+class FenixHvacStateSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT HVAC state sensor."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "hvac_state"
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -336,32 +205,8 @@ class FenixHvacStateSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity)
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT HVAC state sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
+        super().__init__(coordinator, device_id)
         self._attr_unique_id = f"{device_id}_hvac_state"
-
-        # Find device data from coordinator for device info
-        dev = self._device
-        device_name = _get_device_name(dev)
-
-        # Register device info - matches other entities
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device_name,
-            manufacturer="Fenix",
-            model="TFT WiFi Thermostat",
-            sw_version=dev.get("software") if dev else None,
-            hw_version=dev.get("type") if dev else None,
-            serial_number=dev.get("id") if dev else None,
-        )
-
-    @property
-    def _device(self) -> dict[str, Any] | None:
-        """Return the device dict for this entity from coordinator data."""
-        return next(
-            (d for d in self.coordinator.data if d["id"] == self._device_id),
-            None,
-        )
 
     @property
     def available(self) -> bool:
@@ -385,50 +230,20 @@ class FenixHvacStateSensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity)
             return "heating"
         return "idle" if hvac_action == HVAC_ACTION_IDLE else "off"
 
-    async def async_update(self) -> None:
-        """Request latest data from coordinator."""
-        await self.coordinator.async_request_refresh()
 
-
-class FenixFloorAirDifferenceSensor(
-    CoordinatorEntity[FenixTFTCoordinator], SensorEntity
-):
+class FenixFloorAirDifferenceSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT floor-air temperature difference sensor."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "floor_air_difference"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT floor-air difference sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
+        super().__init__(coordinator, device_id)
         self._attr_unique_id = f"{device_id}_floor_air_difference"
-
-        # Find device data from coordinator for device info
-        dev = self._device
-        device_name = _get_device_name(dev)
-
-        # Register device info - matches other entities
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device_name,
-            manufacturer="Fenix",
-            model="TFT WiFi Thermostat",
-            sw_version=dev.get("software") if dev else None,
-            hw_version=dev.get("type") if dev else None,
-            serial_number=dev.get("id") if dev else None,
-        )
-
-    @property
-    def _device(self) -> dict[str, Any] | None:
-        """Return the device dict for this entity from coordinator data."""
-        return next(
-            (d for d in self.coordinator.data if d["id"] == self._device_id),
-            None,
-        )
 
     @property
     def available(self) -> bool:
@@ -455,47 +270,17 @@ class FenixFloorAirDifferenceSensor(
             return round(floor_temp - current_temp, 1)
         return None
 
-    async def async_update(self) -> None:
-        """Request latest data from coordinator."""
-        await self.coordinator.async_request_refresh()
 
+class FenixConnectivitySensor(FenixTFTEntity, SensorEntity):
+    """Representation of a Fenix TFT connectivity sensor."""
 
-class FenixConnectivitySensor(CoordinatorEntity[FenixTFTCoordinator], SensorEntity):
-    """Representation of a Fenix TFT connectivity status sensor."""
-
-    _attr_has_entity_name = True
     _attr_translation_key = "connectivity_status"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT connectivity sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
+        super().__init__(coordinator, device_id)
         self._attr_unique_id = f"{device_id}_connectivity_status"
-
-        # Find device data from coordinator for device info
-        dev = self._device
-        device_name = _get_device_name(dev)
-
-        # Register device info - matches other entities
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device_name,
-            manufacturer="Fenix",
-            model="TFT WiFi Thermostat",
-            sw_version=dev.get("software") if dev else None,
-            hw_version=dev.get("type") if dev else None,
-            serial_number=dev.get("id") if dev else None,
-        )
-
-    @property
-    def _device(self) -> dict[str, Any] | None:
-        """Return the device dict for this entity from coordinator data."""
-        return next(
-            (d for d in self.coordinator.data if d["id"] == self._device_id),
-            None,
-        )
 
     @property
     def available(self) -> bool:
@@ -510,6 +295,34 @@ class FenixConnectivitySensor(CoordinatorEntity[FenixTFTCoordinator], SensorEnti
         # If device data is present and coordinator is available, device is connected
         return "connected" if dev is not None and super().available else "disconnected"
 
-    async def async_update(self) -> None:
-        """Request latest data from coordinator."""
-        await self.coordinator.async_request_refresh()
+
+class FenixEnergyConsumptionSensor(FenixTFTEntity, SensorEntity):
+    """Representation of a Fenix TFT daily energy consumption sensor."""
+
+    _attr_translation_key = "daily_energy_consumption"
+    _attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+
+    def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
+        """Initialize a Fenix TFT energy consumption sensor."""
+        super().__init__(coordinator, device_id)
+        self._attr_unique_id = f"{device_id}_daily_energy_consumption"
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        dev = self._device
+        return (
+            super().available
+            and dev is not None
+            and dev.get("room_id") is not None
+            and dev.get("installation_id") is not None
+        )
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the daily energy consumption."""
+        # This would be populated by the coordinator with energy data
+        dev = self._device
+        return dev.get("daily_energy_consumption") if dev else None

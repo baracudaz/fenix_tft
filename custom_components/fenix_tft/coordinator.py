@@ -57,7 +57,9 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     async def _async_update_data(self) -> list[dict[str, Any]]:
         """Fetch data from Fenix TFT API."""
         try:
-            fresh_data: list[dict[str, Any]] = await self.api.get_devices()
+            fresh_data: list[
+                dict[str, Any]
+            ] = await self.api.fetch_devices_with_energy_data()
         except Exception as err:  # Broad allowed: external I/O layer
             msg = f"Error fetching Fenix TFT data: {err}"
             raise UpdateFailed(msg) from err

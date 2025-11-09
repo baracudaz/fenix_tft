@@ -12,12 +12,10 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import FenixTFTConfigEntry
 from .api import FenixTFTApiError
-from .const import DOMAIN
+from .entity import FenixTFTEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,7 +66,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
+class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     """Representation of a Fenix TFT climate entity."""
 
     # Define supported HVAC modes for this thermostat
@@ -86,62 +84,19 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
     ]
 
     _attr_temperature_unit: ClassVar[str] = UnitOfTemperature.CELSIUS
-    _attr_has_entity_name: bool = True  # Use modern entity naming
     _attr_translation_key: str = "thermostat"  # Translation key for entity name
 
     def __init__(self, api: Any, device_id: str, coordinator: Any) -> None:
         """Initialize a Fenix TFT climate entity."""
-        super().__init__(coordinator)
+        super().__init__(coordinator, device_id)
         self._api = api
-        self._id = device_id
         self._attr_unique_id = device_id
-
-        # Find device data from coordinator
-        dev = next((d for d in coordinator.data if d["id"] == device_id), None)
-
-        # Build device name from installation and room names
-        # This creates names like "Victory Port Kúpelňa" for better identification
-        installation = (
-            dev.get("installation") if dev and dev.get("installation") else ""
-        )
-        room = dev.get("name") if dev and dev.get("name") else ""
-
-        if installation and room:
-            device_name = f"{installation} {room}"  # "Victory Port Kúpelňa"
-        elif installation:
-            device_name = installation  # Just installation name
-        elif room:
-            device_name = room  # Just room name
-        else:
-            device_name = "Fenix TFT"  # Fallback name
-
-        # Register device info for Home Assistant device registry
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_id)},  # Unique device identifier
-            name=device_name,  # Display name in device registry
-            manufacturer="Fenix",
-            model="TFT WiFi Thermostat",
-            sw_version=dev.get("software") if dev else None,
-            hw_version=dev.get("type") if dev else None,
-            serial_number=dev.get("id") if dev else None,
-        )
 
         # Set entity name to None - this tells Home Assistant to use the device
         # name for both the entity display name and entity ID generation
         # Result: Entity name = "Victory Port Kúpelňa",
         # Entity ID = "climate.victory_port_kupelna"
         self._attr_name = None
-
-    @property
-    def _device(self) -> dict[str, Any] | None:
-        """Return the device dict for this entity from coordinator data."""
-        return next((d for d in self.coordinator.data if d["id"] == self._id), None)
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        # Requires coordinator connection and device data
-        return super().available and self._device is not None
 
     def _get_preset_mode(self) -> str | None:
         """Get the current preset mode string from device data."""
@@ -213,7 +168,7 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
             dev_name = None
         _LOGGER.debug(
             "Device %s (%s) preset mode: %s (%s)",
-            self._id,
+            self._device_id,
             dev_name,
             raw_preset,
             hvac_mode_str,
@@ -234,16 +189,20 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
 
         try:
             # Send temperature change to device via API
-            await self._api.set_device_temperature(self._id, temp)
+            await self._api.set_device_temperature(self._device_id, temp)
             # Request fresh data from coordinator to update UI
             await self.coordinator.async_request_refresh()
         except (aiohttp.ClientError, FenixTFTApiError):
-            _LOGGER.exception("Failed to set temperature for device %s", self._id)
+            _LOGGER.exception(
+                "Failed to set temperature for device %s", self._device_id
+            )
             raise
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by mapping to appropriate device preset mode."""
-        _LOGGER.debug("Setting HVAC mode to %s for device %s", hvac_mode, self._id)
+        _LOGGER.debug(
+            "Setting HVAC mode to %s for device %s", hvac_mode, self._device_id
+        )
 
         # Map Home Assistant HVAC mode to device preset mode value
         if hvac_mode == HVACMode.OFF:
@@ -258,13 +217,13 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
 
         try:
             # Send mode change to device
-            await self._api.set_device_preset_mode(self._id, preset_value)
+            await self._api.set_device_preset_mode(self._device_id, preset_value)
         except (aiohttp.ClientError, FenixTFTApiError):
-            _LOGGER.exception("Failed to set HVAC mode for device %s", self._id)
+            _LOGGER.exception("Failed to set HVAC mode for device %s", self._device_id)
             raise
 
         # Update coordinator with optimistic data for immediate UI feedback
-        self.coordinator.update_device_preset_mode(self._id, preset_value)
+        self.coordinator.update_device_preset_mode(self._device_id, preset_value)
         # Force entity state update in Home Assistant
         self.async_write_ha_state()
 
@@ -280,23 +239,23 @@ class FenixTFTClimate(CoordinatorEntity, ClimateEntity):
             "Setting preset mode to %s (%s) for device %s",
             preset_mode,
             preset_value,
-            self._id,
+            self._device_id,
         )
 
         try:
             # Send preset mode change to device
-            await self._api.set_device_preset_mode(self._id, preset_value)
+            await self._api.set_device_preset_mode(self._device_id, preset_value)
         except (aiohttp.ClientError, FenixTFTApiError):
             _LOGGER.exception(
                 "Failed to set preset mode %s (%s) for device %s",
                 preset_mode,
                 preset_value,
-                self._id,
+                self._device_id,
             )
             raise
 
         # Update coordinator with optimistic data and force state update
-        self.coordinator.update_device_preset_mode(self._id, preset_value)
+        self.coordinator.update_device_preset_mode(self._device_id, preset_value)
         self.async_write_ha_state()
 
     async def async_update(self) -> None:

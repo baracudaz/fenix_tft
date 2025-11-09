@@ -1,11 +1,13 @@
 """API client for Fenix TFT cloud integration."""
 
+import asyncio
 import base64
 import hashlib
 import logging
 import secrets
 import time
 import urllib.parse
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import aiohttp
@@ -24,6 +26,15 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# URL template for energy consumption endpoint
+ENERGY_CONSUMPTION_URL_TEMPLATE = (
+    "{base_url}/DataProcessing/v1/metricsAggregat/consommation/room/"
+    "{installation_id}/{room_id}/{device_id}/Day/Wc/{start_date}/{end_date}"
+)
+
+# Maximum concurrent energy data requests to avoid API rate limiting
+MAX_CONCURRENT_ENERGY_REQUESTS = 5
 
 
 class FenixTFTApiError(Exception):
@@ -59,6 +70,29 @@ def generate_pkce_pair() -> tuple[str, str]:
     return code_verifier, code_challenge
 
 
+def _format_api_date(date: datetime) -> str:
+    """Format datetime for API consumption endpoints."""
+    return date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def _build_energy_consumption_url(
+    installation_id: str,
+    room_id: str,
+    device_id: str,
+    start_date: datetime,
+    end_date: datetime,
+) -> str:
+    """Build URL for energy consumption API endpoint."""
+    return ENERGY_CONSUMPTION_URL_TEMPLATE.format(
+        base_url=API_BASE,
+        installation_id=installation_id,
+        room_id=room_id,
+        device_id=device_id,
+        start_date=_format_api_date(start_date),
+        end_date=_format_api_date(end_date),
+    )
+
+
 class FenixTFTApi:
     """Fenix TFT API client."""
 
@@ -89,7 +123,7 @@ class FenixTFTApi:
             return
 
         if not self._access_token or not self._refresh_token:
-            _LOGGER.debug("No tokens, initiating login")
+            _LOGGER.debug("No tokens available, initiating login")
             self._login_in_progress = True
             try:
                 success = await self.login()
@@ -190,7 +224,7 @@ class FenixTFTApi:
                 and return_url_input.get("value")
             ):
                 _LOGGER.debug(
-                    "No CSRF token/ReturnUrl found - possibly cached session redirect"
+                    "No CSRF token/ReturnUrl found, possibly cached session redirect"
                 )
                 return None, None
 
@@ -282,7 +316,7 @@ class FenixTFTApi:
 
     async def login(self) -> bool:
         """Perform OAuth2 login and obtain tokens."""
-        _LOGGER.debug("Starting login for %s", self._username)
+        _LOGGER.debug("Starting OAuth2 login for user: %s", self._username)
         success = False
         try:
             login_url, code_verifier, state, nonce = await self._start_authorization()
@@ -292,7 +326,7 @@ class FenixTFTApi:
             csrf_token, return_url = await self._fetch_login_page(login_url)
 
             if not csrf_token and not return_url and login_url.startswith("fenix://"):
-                _LOGGER.debug("Detected direct fenix:// callback after cached session")
+                _LOGGER.debug("Detected direct fenix:// callback from cached session")
                 callback_url = login_url
             else:
                 callback_url = await self._submit_login_form(
@@ -357,7 +391,7 @@ class FenixTFTApi:
 
     async def get_devices(self) -> list[dict[str, Any]]:
         """Retrieve all devices with their current state."""
-        _LOGGER.debug("Fetching devices")
+        _LOGGER.debug("Fetching all devices")
         try:
             installations = await self.get_installations()
         except FenixTFTApiError:
@@ -368,29 +402,28 @@ class FenixTFTApi:
         for inst in installations:
             inst_name = inst.get("Il", "Fenix TFT")
             inst_id = inst.get("id")  # Get installation ID
-            _LOGGER.debug("Processing installation: %s", inst_name)
+            _LOGGER.debug("Processing installation: %s (ID: %s)", inst_name, inst_id)
             for room in inst.get("rooms", []):
+                room_id = room.get("Zn")  # Get room ID (Zn field)
                 for dev in room.get("devices", []):
                     dev_id = dev.get("Id_deviceId")
                     try:
                         props = await self.get_device_properties(dev_id)
-                        devices.append(
-                            {
-                                "id": dev_id,
-                                "name": props.get("Rn", {}).get(
-                                    "value", "Unnamed Device"
-                                ),
-                                "software": props.get("Sv", {}).get("value"),
-                                "type": props.get("Ty", {}).get("value"),
-                                "installation": inst_name,
-                                "installation_id": inst_id,
-                                "target_temp": decode_temp_from_entry(props.get("Ma")),
-                                "current_temp": decode_temp_from_entry(props.get("At")),
-                                "floor_temp": decode_temp_from_entry(props.get("bo")),
-                                "hvac_action": props.get("Hs", {}).get("value"),
-                                "preset_mode": props.get("Cm", {}).get("value"),
-                            }
-                        )
+                        device_data = {
+                            "id": dev_id,
+                            "name": props.get("Rn", {}).get("value", "Unnamed Device"),
+                            "software": props.get("Sv", {}).get("value"),
+                            "type": props.get("Ty", {}).get("value"),
+                            "installation": inst_name,
+                            "installation_id": inst_id,
+                            "room_id": room_id,
+                            "target_temp": decode_temp_from_entry(props.get("Ma")),
+                            "current_temp": decode_temp_from_entry(props.get("At")),
+                            "floor_temp": decode_temp_from_entry(props.get("bo")),
+                            "hvac_action": props.get("Hs", {}).get("value"),
+                            "preset_mode": props.get("Cm", {}).get("value"),
+                        }
+                        devices.append(device_data)
                     except FenixTFTApiError:
                         _LOGGER.exception(
                             "Failed to fetch properties for device %s", dev_id
@@ -400,7 +433,7 @@ class FenixTFTApi:
         # Update all devices after fetching
         await self.update_all_devices(devices)
 
-        _LOGGER.debug("Fetched %d devices", len(devices))
+        _LOGGER.debug("Successfully fetched %d devices", len(devices))
         return devices
 
     async def set_device_temperature(
@@ -454,7 +487,7 @@ class FenixTFTApi:
 
     async def update_all_devices(self, devices: list[dict[str, Any]]) -> None:
         """Update all devices by triggering updates for each installation."""
-        _LOGGER.debug("Updating all devices")
+        _LOGGER.debug("Triggering updates for all devices")
         # Trigger updates for each unique installation
         installation_ids = {
             device.get("installation_id")
@@ -481,3 +514,107 @@ class FenixTFTApi:
                 msg = f"Failed to trigger device updates: {resp.status}"
                 raise FenixTFTApiError(msg)
             return await resp.json()
+
+    async def get_room_energy_consumption(
+        self,
+        installation_id: str,
+        room_id: str,
+        device_id: str,
+        days: int = 1,
+    ) -> list[dict[str, Any]]:
+        """Get energy consumption data for a specific room/device."""
+        await self._ensure_token()
+
+        # Calculate date range (last N days)
+        end_date = datetime.now(tz=UTC)
+        start_date = end_date - timedelta(days=days)
+
+        # Build URL using helper function
+        url = _build_energy_consumption_url(
+            installation_id, room_id, device_id, start_date, end_date
+        )
+
+        _LOGGER.debug(
+            "Fetching energy consumption for device %s in room %s", device_id, room_id
+        )
+
+        async with self._session.get(url, headers=self._headers()) as resp:
+            if resp.status != HTTP_OK:
+                msg = f"Failed to get energy consumption: {resp.status}"
+                raise FenixTFTApiError(msg)
+            return await resp.json()
+
+    async def _fetch_device_energy_data(
+        self,
+        semaphore: asyncio.Semaphore,
+        device: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Fetch energy data for a single device with semaphore control."""
+        room_id = device.get("room_id")
+        installation_id = device.get("installation_id")
+        device_id = device.get("id")
+
+        if not (room_id and installation_id and device_id):
+            # Device missing required IDs for energy consumption
+            _LOGGER.warning(
+                "Device missing required IDs for energy consumption: "
+                "room_id=%r, installation_id=%r, device_id=%r, device=%r",
+                room_id,
+                installation_id,
+                device_id,
+                device,
+            )
+            device["daily_energy_consumption"] = None
+            return device
+
+        async with semaphore:  # Limit concurrent requests
+            try:
+                energy_data = await self.get_room_energy_consumption(
+                    installation_id, room_id, device_id
+                )
+
+                # Process the energy data - use processedDataWithAggregator
+                if energy_data and isinstance(energy_data, list):
+                    total_consumption = 0
+                    for item in energy_data:
+                        if isinstance(item, dict):
+                            consumption_value = item.get(
+                                "processedDataWithAggregator", 0
+                            )
+                            total_consumption += consumption_value
+                    device["daily_energy_consumption"] = total_consumption
+                else:
+                    device["daily_energy_consumption"] = 0
+            except FenixTFTApiError as err:
+                _LOGGER.debug(
+                    "Failed to fetch energy data for device %s: %s", device_id, err
+                )
+                # Don't fail the entire update if energy data fails
+                device["daily_energy_consumption"] = None
+
+        return device
+
+    async def fetch_devices_with_energy_data(self) -> list[dict[str, Any]]:
+        """Retrieve all devices with their current state and energy consumption data."""
+        devices = await self.get_devices()
+
+        # Create semaphore to limit concurrent energy data requests
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_ENERGY_REQUESTS)
+
+        # Fetch energy data for all devices concurrently
+        energy_tasks = [
+            self._fetch_device_energy_data(semaphore, device) for device in devices
+        ]
+
+        # Wait for all energy data fetches to complete
+        updated_devices = await asyncio.gather(*energy_tasks, return_exceptions=True)
+
+        # Filter out any exceptions and return valid devices
+        result_devices = []
+        for device in updated_devices:
+            if isinstance(device, Exception):
+                _LOGGER.warning("Energy data fetch failed: %s", device)
+                continue
+            result_devices.append(device)
+
+        return result_devices

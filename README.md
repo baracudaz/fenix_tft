@@ -5,20 +5,41 @@
 
 This is a custom Home Assistant integration for the [FENIX TFT WiFi thermostat](https://www.fenixgroup.cz/en/products/thermostat-fenix-tft-wifi).
 
+**🏠 Smart Thermostat Control** • **⚡ Energy Monitoring** • **🌡️ Multi-Sensor Support** • **📊 Energy Dashboard Integration**
+
 ## Screenshots
 
 Here is the thermostat integration in action.
 
 <p float="left">
-  <img src="screenshots/thermostat-manual.png" width="32%" />
-  <img src="screenshots/thermostat-auto.png" width="32%" />
-  <img src="screenshots/thermostat-off.png" width="32%" />
+  <img src="artifacts/screenshots/thermostat-manual.png" width="32%" />
+  <img src="artifacts/screenshots/thermostat-auto.png" width="32%" />
+  <img src="artifacts/screenshots/thermostat-off.png" width="32%" />
 </p>
 
 ## Project status
 
 - **Reverse engineered API**: This integration is based on reverse engineering the FENIX cloud API. It is a work in progress and intended as a fun project for developers and advanced users.
 - **Not officially supported**: This is not an official FENIX Group product and is not affiliated with them.
+
+## Features
+
+### ✅ Current Features
+
+- **Climate Control**: Temperature control, heating modes (Off/Manual/Program), real-time monitoring
+- **Energy Monitoring**: Daily consumption tracking with Home Assistant Energy Dashboard integration
+- **Multi-Sensor Support**: Room/floor temperatures, HVAC status, connectivity monitoring
+- **Multi-Device**: Supports multiple thermostats across different rooms
+- **Translations**: English, Czech, and Slovak language support
+
+### 🚧 Planned & Ideas
+
+- **Smart Scheduling**: Holiday mode, full scheduling system, calendar integration
+- **Enhanced Diagnostics**: Additional device sensors and operational data
+
+### 💡 Contributing
+
+Help wanted with testing, translations, documentation, and feature requests!
 
 ## Getting started
 
