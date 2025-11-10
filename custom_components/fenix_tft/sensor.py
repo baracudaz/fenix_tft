@@ -302,7 +302,8 @@ class FenixEnergyConsumptionSensor(FenixTFTEntity, SensorEntity):
     _attr_translation_key = "daily_energy_consumption"
     _attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
     _attr_device_class = SensorDeviceClass.ENERGY
-    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_suggested_display_precision = 0
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT energy consumption sensor."""

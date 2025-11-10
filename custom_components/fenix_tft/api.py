@@ -526,7 +526,7 @@ class FenixTFTApi:
         await self._ensure_token()
 
         # Calculate date range (last N days)
-        end_date = datetime.now(tz=UTC)
+        end_date = datetime.now(tz=UTC).astimezone()  # convert to local time
         start_date = end_date - timedelta(days=days)
 
         # Build URL using helper function
