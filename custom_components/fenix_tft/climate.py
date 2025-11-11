@@ -33,11 +33,19 @@ FENIX_TFT_TO_HASS_HVAC_ACTION: dict[int | None, HVACAction] = {
 # Map Fenix TFT preset mode values to operational mode strings
 HVAC_MODE_MAP: dict[int, str] = {
     0: "off",  # Device is turned off
-    1: "holidays",  # Holiday mode (reduced heating)
+    1: "holiday",  # Holiday mode (centrally controlled)
     2: "auto",  # Automatic program mode
     6: "manual",  # Manual temperature control
 }
 HVAC_MODE_INVERTED: dict[str, int] = {v: k for k, v in HVAC_MODE_MAP.items()}
+
+# Holiday sub-modes that can be set via the app
+HOLIDAY_PRESET_MAP: dict[int, str] = {
+    0: "holiday_off",  # Holiday mode: off
+    1: "holiday_eco",  # Holiday mode: eco
+    4: "holiday_defrost",  # Holiday mode: defrost
+    7: "holiday_sunday",  # Holiday mode: sunday program
+}
 
 # Map special preset modes that don't fit into basic HVAC modes
 PRESET_MAP: dict[int, str] = {
@@ -74,6 +82,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         HVACMode.HEAT,  # Manual heating mode
         HVACMode.AUTO,  # Automatic/program mode
         HVACMode.OFF,  # Device off
+        HVACMode.HEAT_COOL,  # Holiday mode (read-only, set via app)
     ]
 
     # Define supported preset modes for special operations
@@ -81,6 +90,10 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         "program",  # Follow programmed schedule
         "defrost",  # Defrost cycle
         "boost",  # Boost heating
+        "holiday_off",  # Holiday mode: off
+        "holiday_eco",  # Holiday mode: eco
+        "holiday_defrost",  # Holiday mode: defrost
+        "holiday_sunday",  # Holiday mode: sunday program
     ]
 
     _attr_temperature_unit: ClassVar[str] = UnitOfTemperature.CELSIUS
@@ -142,6 +155,10 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
 
+        # In holiday mode, no controls are available (centrally managed)
+        if hvac_mode_str == "holiday":
+            return ClimateEntityFeature(0)  # No features available
+
         # Enable temperature control only in manual mode
         if hvac_mode_str == "manual":
             return (
@@ -177,6 +194,8 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         # Map device modes to Home Assistant HVAC modes
         if hvac_mode_str == "off":
             return HVACMode.OFF
+        if hvac_mode_str == "holiday":
+            return HVACMode.HEAT_COOL  # Holiday mode (centrally controlled)
         if hvac_mode_str == "manual":
             return HVACMode.HEAT  # Manual temperature control
         return HVACMode.AUTO  # Automatic/program modes
@@ -203,6 +222,14 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         _LOGGER.debug(
             "Setting HVAC mode to %s for device %s", hvac_mode, self._device_id
         )
+
+        # Prevent setting holiday mode - it's managed via the Fenix app
+        if hvac_mode == HVACMode.HEAT_COOL:
+            _LOGGER.warning(
+                "Holiday mode cannot be set from Home Assistant. "
+                "Use the Fenix Control app to manage holiday schedules."
+            )
+            return
 
         # Map Home Assistant HVAC mode to device preset mode value
         if hvac_mode == HVACMode.OFF:

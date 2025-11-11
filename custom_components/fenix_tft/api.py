@@ -618,3 +618,123 @@ class FenixTFTApi:
             result_devices.append(device)
 
         return result_devices
+
+    async def set_holiday_schedule(
+        self,
+        installation_id: str,
+        start_time: datetime,
+        end_time: datetime,
+        mode: int,
+    ) -> dict[str, Any]:
+        """
+        Set holiday schedule for an installation.
+
+        Args:
+            installation_id: The installation ID to apply holiday schedule to
+            start_time: When the holiday mode should start
+            end_time: When the holiday mode should end
+            mode: Holiday mode type:
+                1 = Off
+                2 = Eco/Reduce
+                5 = Defrost
+                8 = Sunday Schedule
+
+        """
+        await self._ensure_token()
+
+        if not self._sub:
+            await self.get_userinfo()
+
+        # Format dates as required by API (DD/MM/YYYY HH:MM:SS)
+        start_str = start_time.strftime("%d/%m/%Y %H:%M:%S")
+        end_str = end_time.strftime("%d/%m/%Y %H:%M:%S")
+
+        payload = {
+            "In": installation_id,
+            "A1": self._sub,
+            "data": [
+                {
+                    "timestamp": None,
+                    "wattsType": "H1",
+                    "wattsTypeValue": start_str,
+                },
+                {
+                    "timestamp": None,
+                    "wattsType": "H2",
+                    "wattsTypeValue": end_str,
+                },
+                {
+                    "timestamp": None,
+                    "wattsType": "H3",
+                    "wattsTypeValue": [mode, 0, 0],
+                },
+            ],
+        }
+
+        url = f"{API_BASE}/iotmanagement/v1/devices/installationcontroljob"
+
+        _LOGGER.debug(
+            "Setting holiday schedule for installation %s: %s to %s, mode %s",
+            installation_id,
+            start_str,
+            end_str,
+            mode,
+        )
+
+        async with self._session.post(
+            url, headers=self._headers(), json=payload
+        ) as resp:
+            if resp.status != HTTP_OK:
+                msg = f"Failed to set holiday schedule: {resp.status}"
+                raise FenixTFTApiError(msg)
+            return await resp.json()
+
+    async def cancel_holiday_schedule(self, installation_id: str) -> dict[str, Any]:
+        """
+        Cancel active holiday schedule for an installation.
+
+        Args:
+            installation_id: The installation ID to cancel holiday schedule for
+
+        """
+        await self._ensure_token()
+
+        if not self._sub:
+            await self.get_userinfo()
+
+        # Reset to Unix epoch to cancel
+        epoch_str = "01/01/1970 00:00:00"
+
+        payload = {
+            "In": installation_id,
+            "A1": self._sub,
+            "data": [
+                {
+                    "timestamp": None,
+                    "wattsType": "H1",
+                    "wattsTypeValue": epoch_str,
+                },
+                {
+                    "timestamp": None,
+                    "wattsType": "H2",
+                    "wattsTypeValue": epoch_str,
+                },
+                {
+                    "timestamp": None,
+                    "wattsType": "H3",
+                    "wattsTypeValue": [[0, 0, 0], 0, 0],
+                },
+            ],
+        }
+
+        url = f"{API_BASE}/iotmanagement/v1/devices/installationcontroljob"
+
+        _LOGGER.debug("Canceling holiday schedule for installation %s", installation_id)
+
+        async with self._session.post(
+            url, headers=self._headers(), json=payload
+        ) as resp:
+            if resp.status != HTTP_OK:
+                msg = f"Failed to cancel holiday schedule: {resp.status}"
+                raise FenixTFTApiError(msg)
+            return await resp.json()

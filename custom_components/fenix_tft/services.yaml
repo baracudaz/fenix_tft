@@ -1,0 +1,52 @@
+# Services for Fenix TFT integration
+
+set_holiday_schedule:
+  name: Set holiday schedule
+  description: Set a holiday schedule for all thermostats in an installation. During the holiday period, all thermostats will operate in the specified mode and cannot be controlled individually.
+  fields:
+    installation_id:
+      name: Installation ID
+      description: The ID of the installation to apply the holiday schedule to. This can be found in the device attributes of your Fenix TFT thermostats.
+      required: true
+      example: "629313e8-3578-4f76-bbd8-8e31b6ec4066"
+      selector:
+        text:
+    start_time:
+      name: Start time
+      description: When the holiday mode should begin (date and time in your local timezone).
+      required: true
+      selector:
+        datetime:
+    end_time:
+      name: End time
+      description: When the holiday mode should end and normal schedules should resume (date and time in your local timezone).
+      required: true
+      selector:
+        datetime:
+    mode:
+      name: Holiday mode
+      description: The operating mode for all thermostats during the holiday period.
+      required: true
+      selector:
+        select:
+          options:
+            - label: "Off - Thermostats turned off"
+              value: 1
+            - label: "Eco - Reduced heating (energy saving)"
+              value: 2
+            - label: "Defrost - Frost protection mode"
+              value: 5
+            - label: "Sunday - Follow Sunday schedule"
+              value: 8
+
+cancel_holiday_schedule:
+  name: Cancel holiday schedule
+  description: Cancel the active holiday schedule for an installation. All thermostats will immediately return to their normal weekly schedules.
+  fields:
+    installation_id:
+      name: Installation ID
+      description: The ID of the installation to cancel the holiday schedule for.
+      required: true
+      example: "629313e8-3578-4f76-bbd8-8e31b6ec4066"
+      selector:
+        text:
