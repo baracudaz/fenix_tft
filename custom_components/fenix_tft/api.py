@@ -29,9 +29,11 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 # URL template for energy consumption endpoint
+# Room/subscription-level energy consumption (subscription_id is a room
+# subscription identifier, no longer a physical device identifier)
 ENERGY_CONSUMPTION_URL_TEMPLATE = (
     "{base_url}/DataProcessing/v1/metricsAggregat/consommation/room/"
-    "{installation_id}/{room_id}/{sub}/Hour/Wc/{start_date}/{end_date}"
+    "{installation_id}/{room_id}/{subscription_id}/Hour/Wc/{start_date}/{end_date}"
 )
 
 # Maximum concurrent energy data requests to avoid API rate limiting
@@ -79,16 +81,16 @@ def _format_api_date(date: datetime) -> str:
 def _build_energy_consumption_url(
     installation_id: str,
     room_id: str,
-    sub: str,
+    subscription_id: str,
     start_date: datetime,
     end_date: datetime,
 ) -> str:
-    """Build URL for energy consumption API endpoint."""
+    """Build URL for room/subscription energy consumption API endpoint."""
     return ENERGY_CONSUMPTION_URL_TEMPLATE.format(
         base_url=API_BASE,
         installation_id=installation_id,
         room_id=room_id,
-        sub=sub,
+        subscription_id=subscription_id,
         start_date=_format_api_date(start_date),
         end_date=_format_api_date(end_date),
     )
@@ -520,21 +522,21 @@ class FenixTFTApi:
         self,
         installation_id: str,
         room_id: str,
-        device_id: str,
+        subscription_id: str,
     ) -> list[dict[str, Any]]:
-        """Get energy consumption data for a specific room/device."""
+        """Get energy consumption data for a specific room/subscription."""
         await self._ensure_token()
 
-        # Get current time in Home Assistant's configured local timezone
-        # dt_util.now() returns an aware datetime localized to HA's timezone,
-        # which may differ from the host system's timezone (e.g., in containers)
-        now_local = dt_util.now()
+        # Get start of today in Home Assistant's configured timezone
+        # dt_util.start_of_local_day() returns midnight in HA's configured
+        # timezone, which may differ from the host system's timezone
+        # (e.g., in containers)
+        start_local = dt_util.start_of_local_day()
 
-        # Start: midnight today in local time
-        start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        # End: 23:59:59.999 today in local time
-        end_local = now_local.replace(hour=23, minute=59, second=59, microsecond=999999)
+        # End: last moment of today in local time (23:59:59.999999)
+        end_local = dt_util.start_of_local_day() + dt_util.dt.timedelta(
+            days=1, microseconds=-1
+        )
 
         # Convert to UTC for API
         start_date = start_local.astimezone(UTC)
@@ -542,14 +544,15 @@ class FenixTFTApi:
 
         # Build URL using helper function
         url = _build_energy_consumption_url(
-            installation_id, room_id, self._sub, start_date, end_date
+            installation_id, room_id, subscription_id, start_date, end_date
         )
 
         _LOGGER.debug(
-            "Fetching energy consumption for device %s in room %s "
+            "Fetching energy consumption for subscription %s, room %s, installation %s "
             "(UTC range: %s to %s)",
-            device_id,
+            subscription_id,
             room_id,
+            installation_id,
             start_date.isoformat(),
             end_date.isoformat(),
         )
@@ -586,8 +589,9 @@ class FenixTFTApi:
 
         async with semaphore:  # Limit concurrent requests
             try:
+                # Use subscription ID (self._sub) for room-level energy data
                 energy_data = await self.get_room_energy_consumption(
-                    installation_id, room_id, device_id
+                    installation_id, room_id, self._sub
                 )
 
                 # Process the energy data - use processedDataWithAggregator
