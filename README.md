@@ -5,7 +5,7 @@
 
 This is a custom Home Assistant integration for the [FENIX TFT WiFi thermostat](https://www.fenixgroup.cz/en/products/thermostat-fenix-tft-wifi).
 
-**🏠 Smart Thermostat Control** • **⚡ Energy Monitoring** • **🌡️ Multi-Sensor Support** • **📊 Energy Dashboard Integration**
+**🏠 Smart Thermostat Control** **⚡ Energy Monitoring** **🌡️ Multi-Sensor Support** **📊 Energy Dashboard**
 
 ## Screenshots
 
@@ -30,7 +30,6 @@ Here is the thermostat integration in action.
 - **Energy Monitoring**: Daily consumption tracking with Home Assistant Energy Dashboard integration
 - **Multi-Sensor Support**: Room/floor temperatures, HVAC status, connectivity monitoring
 - **Multi-Device**: Supports multiple thermostats across different rooms
-- **Translations**: English, Czech, and Slovak language support
 
 ### 🚧 Planned & Ideas
 

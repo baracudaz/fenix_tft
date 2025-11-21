@@ -1,0 +1,76 @@
+{
+  "title": "Thermostat WiFi Fenix TFT",
+  "config": {
+    "error": {
+      "invalid_auth": "Email et/ou mot de passe invalide.",
+      "unknown": "Une exception inattendue s'est produite.",
+      "username_exists": "Un compte avec l'email fourni est déjà suivi."
+    },
+    "step": {
+      "user": {
+        "data": {
+          "username": "Email",
+          "password": "Mot de passe"
+        },
+        "description": "Connexion à l'API Fenix"
+      },
+      "reauth_confirm": {
+        "data": {
+          "username": "Email",
+          "password": "Mot de passe"
+        },
+        "description": "Réauthentification avec l'API Fenix"
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_auth": "Email et/ou mot de passe invalide.",
+      "unknown": "Une exception inattendue s'est produite.",
+      "username_exists": "Un compte avec l'email fourni est déjà suivi."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "username": "Email",
+          "password": "Mot de passe"
+        },
+        "title": "Fenix - Reconfiguration du compte",
+        "description": "Reconfigurer les détails du compte et se reconnecter à l'API Fenix"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "thermostat": {
+        "name": "Thermostat"
+      }
+    },
+    "sensor": {
+      "floor_temperature": {
+        "name": "Température du sol"
+      },
+      "ambient_temperature": {
+        "name": "Température ambiante"
+      },
+      "target_temperature": {
+        "name": "Température cible"
+      },
+      "temperature_difference": {
+        "name": "Différence de température"
+      },
+      "hvac_state": {
+        "name": "État HVAC"
+      },
+      "floor_air_difference": {
+        "name": "Différence sol-air"
+      },
+      "connectivity_status": {
+        "name": "Connectivité"
+      },
+      "daily_energy_consumption": {
+        "name": "Consommation énergétique quotidienne"
+      }
+    }
+  }
+}
