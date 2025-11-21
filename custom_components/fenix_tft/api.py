@@ -531,14 +531,10 @@ class FenixTFTApi:
         now_local = dt_util.now()
 
         # Start: midnight today in local time
-        start_local = now_local.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
 
         # End: 23:59:59.999 today in local time
-        end_local = now_local.replace(
-            hour=23, minute=59, second=59, microsecond=999999
-        )
+        end_local = now_local.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         # Convert to UTC for API
         start_date = start_local.astimezone(UTC)
