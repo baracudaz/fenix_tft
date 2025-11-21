@@ -324,6 +324,5 @@ class FenixEnergyConsumptionSensor(FenixTFTEntity, SensorEntity):
     @property
     def native_value(self) -> float | None:
         """Return the daily energy consumption."""
-        # This would be populated by the coordinator with energy data
         dev = self._device
         return dev.get("daily_energy_consumption") if dev else None

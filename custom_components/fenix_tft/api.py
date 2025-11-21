@@ -30,7 +30,7 @@ _LOGGER = logging.getLogger(__name__)
 # URL template for energy consumption endpoint
 ENERGY_CONSUMPTION_URL_TEMPLATE = (
     "{base_url}/DataProcessing/v1/metricsAggregat/consommation/room/"
-    "{installation_id}/{room_id}/{device_id}/Day/Wc/{start_date}/{end_date}"
+    "{installation_id}/{room_id}/{sub}/Hour/Wc/{start_date}/{end_date}"
 )
 
 # Maximum concurrent energy data requests to avoid API rate limiting
@@ -78,7 +78,7 @@ def _format_api_date(date: datetime) -> str:
 def _build_energy_consumption_url(
     installation_id: str,
     room_id: str,
-    device_id: str,
+    sub: str,
     start_date: datetime,
     end_date: datetime,
 ) -> str:
@@ -87,7 +87,7 @@ def _build_energy_consumption_url(
         base_url=API_BASE,
         installation_id=installation_id,
         room_id=room_id,
-        device_id=device_id,
+        sub=sub,
         start_date=_format_api_date(start_date),
         end_date=_format_api_date(end_date),
     )
@@ -520,23 +520,41 @@ class FenixTFTApi:
         installation_id: str,
         room_id: str,
         device_id: str,
-        days: int = 1,
     ) -> list[dict[str, Any]]:
         """Get energy consumption data for a specific room/device."""
         await self._ensure_token()
 
-        # Calculate date range (last N days)
-        end_date = datetime.now(tz=UTC).astimezone()  # convert to local time
-        start_date = end_date - timedelta(days=days)
+        # Get current time in local timezone
+        now_local = datetime.now().astimezone()
+
+        # Calculate start: 22:00 yesterday in local time
+        # Using replace() on a localized datetime properly handles DST
+        yesterday = now_local - timedelta(days=1)
+        start_local = yesterday.replace(hour=22, minute=0, second=0, microsecond=0)
+
+        # Calculate end: 22:59:59.999 today in local time
+        end_local = now_local.replace(hour=22, minute=59, second=59, microsecond=999999)
+
+        # Convert to UTC for API (this handles DST offset differences)
+        start_date = start_local.astimezone(UTC)
+        end_date = end_local.astimezone(UTC)
 
         # Build URL using helper function
         url = _build_energy_consumption_url(
-            installation_id, room_id, device_id, start_date, end_date
+            installation_id, room_id, self._sub, start_date, end_date
         )
 
         _LOGGER.debug(
-            "Fetching energy consumption for device %s in room %s", device_id, room_id
+            "Fetching energy consumption for device %s in room %s "
+            "(local range: %s to %s, UTC range: %s to %s)",
+            device_id,
+            room_id,
+            start_local.isoformat(),
+            end_local.isoformat(),
+            start_date.isoformat(),
+            end_date.isoformat(),
         )
+        _LOGGER.debug("Energy consumption URL: %s", url)
 
         async with self._session.get(url, headers=self._headers()) as resp:
             if resp.status != HTTP_OK:
