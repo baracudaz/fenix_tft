@@ -7,11 +7,12 @@ import logging
 import secrets
 import time
 import urllib.parse
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
 from bs4 import BeautifulSoup
+from homeassistant.util import dt as dt_util
 
 from .const import (
     API_BASE,
@@ -524,18 +525,22 @@ class FenixTFTApi:
         """Get energy consumption data for a specific room/device."""
         await self._ensure_token()
 
-        # Get current time in local timezone
-        now_local = datetime.now().astimezone()
+        # Get current time in Home Assistant's configured local timezone
+        # dt_util.now() returns an aware datetime localized to HA's timezone,
+        # which may differ from the host system's timezone (e.g., in containers)
+        now_local = dt_util.now()
 
-        # Calculate start: 22:00 yesterday in local time
-        # Using replace() on a localized datetime properly handles DST
-        yesterday = now_local - timedelta(days=1)
-        start_local = yesterday.replace(hour=22, minute=0, second=0, microsecond=0)
+        # Start: midnight today in local time
+        start_local = now_local.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
 
-        # Calculate end: 22:59:59.999 today in local time
-        end_local = now_local.replace(hour=22, minute=59, second=59, microsecond=999999)
+        # End: 23:59:59.999 today in local time
+        end_local = now_local.replace(
+            hour=23, minute=59, second=59, microsecond=999999
+        )
 
-        # Convert to UTC for API (this handles DST offset differences)
+        # Convert to UTC for API
         start_date = start_local.astimezone(UTC)
         end_date = end_local.astimezone(UTC)
 
@@ -546,11 +551,9 @@ class FenixTFTApi:
 
         _LOGGER.debug(
             "Fetching energy consumption for device %s in room %s "
-            "(local range: %s to %s, UTC range: %s to %s)",
+            "(UTC range: %s to %s)",
             device_id,
             room_id,
-            start_local.isoformat(),
-            end_local.isoformat(),
             start_date.isoformat(),
             end_date.isoformat(),
         )
