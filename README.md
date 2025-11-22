@@ -29,7 +29,7 @@ Here is the thermostat integration in action.
 - **Climate Control**: Temperature control, heating modes (Off/Manual/Program), real-time monitoring
 - **Energy Monitoring**: Daily consumption tracking with Home Assistant Energy Dashboard integration
 - **Holiday Mode**: Set and cancel holiday schedules with automatic control locking during holidays
-- **Multi-Sensor Support**: Room/floor temperatures, HVAC status, connectivity monitoring, holiday schedule tracking
+- **Multi-Sensor Support**: Room/floor temperatures, target & difference metrics, HVAC status, connectivity, energy, holiday state & end timestamp
 - **Multi-Device**: Supports multiple thermostats across different rooms
 
 ### 🚧 Planned & Ideas
@@ -135,6 +135,23 @@ automation:
 ```
 
 **Note:** Holiday schedules apply to all thermostats in an installation (all devices in your home). During an active holiday period, thermostat controls are automatically locked to prevent conflicts.
+
+## Sensors
+
+Each thermostat provides a set of sensors you can use in dashboards, automations, and energy tracking:
+
+| Sensor | Description |
+|--------|-------------|
+| `*_ambient_temperature` | Current room temperature (°C). |
+| `*_floor_temperature` | Floor probe temperature (°C). |
+| `*_target_temperature` | Target temperature (°C). |
+| `*_temperature_difference` | Target minus current temperature (°C). |
+| `*_floor_air_difference` | Floor minus ambient temperature (°C). |
+| `*_hvac_state` | Heating state: `heating`, `idle`, `off`. |
+| `*_connectivity_status` | `connected` / `disconnected`. |
+| `*_daily_energy_consumption` | Accumulated energy for today (Wh). |
+| `*_holiday_mode` | Display name of the current holiday mode or `None`. Includes rich attributes. |
+| `*_holiday_schedule_until` | Timestamp when the holiday ends (if active). |
 
 ## Inspiration
 
