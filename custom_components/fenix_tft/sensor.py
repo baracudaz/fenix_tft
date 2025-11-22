@@ -26,9 +26,10 @@ from .entity import FenixTFTEntity
 from .helpers import is_holiday_active, parse_holiday_window
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
-    from datetime import datetime
 
     from . import FenixTFTConfigEntry
     from .coordinator import FenixTFTCoordinator
