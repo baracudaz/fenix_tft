@@ -1,0 +1,90 @@
+{
+  "title": "Fenix TFT WiFi Thermostat",
+  "config": {
+    "error": {
+      "invalid_auth": "E-Mail und/oder Passwort ungültig.",
+      "unknown": "Es ist ein unerwarteter Fehler aufgetreten.",
+      "username_exists": "Ein Konto mit der angegebenen E-Mail wird bereits verfolgt."
+    },
+    "step": {
+      "user": {
+        "data": { "username": "E-Mail", "password": "Passwort" },
+        "description": "Mit der Fenix API verbinden"
+      },
+      "reauth_confirm": {
+        "data": { "username": "E-Mail", "password": "Passwort" },
+        "description": "Erneut mit der Fenix API authentifizieren"
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_auth": "E-Mail und/oder Passwort ungültig.",
+      "unknown": "Es ist ein unerwarteter Fehler aufgetreten.",
+      "username_exists": "Ein Konto mit der angegebenen E-Mail wird bereits verfolgt."
+    },
+    "step": {
+      "init": {
+        "data": { "username": "E-Mail", "password": "Passwort" },
+        "title": "Fenix - Konto-Rekonfiguration",
+        "description": "Kontodaten neu konfigurieren und erneut mit der Fenix API verbinden"
+      }
+    }
+  },
+  "entity": {
+    "climate": { "thermostat": { "name": "Thermostat" } },
+    "sensor": {
+      "floor_temperature": { "name": "Bodentemperatur" },
+      "ambient_temperature": { "name": "Raumtemperatur" },
+      "target_temperature": { "name": "Zieltemperatur" },
+      "temperature_difference": { "name": "Temperaturdifferenz" },
+      "hvac_state": { "name": "Heizungsstatus" },
+      "floor_air_difference": { "name": "Boden-Luft-Differenz" },
+      "connectivity_status": { "name": "Verbindung" },
+      "daily_energy_consumption": { "name": "Täglicher Energieverbrauch" },
+      "holiday_mode": { "name": "Urlaubsmodus" },
+      "holiday_schedule_until": { "name": "Urlaubsplan bis" }
+    }
+  },
+  "services": {
+    "set_holiday_schedule": {
+      "name": "Urlaubsplan festlegen",
+      "description": "Legt einen Urlaubsplan für alle Thermostate der Installation fest. Dies überschreibt das normale Wochenprogramm für den angegebenen Zeitraum.",
+      "fields": {
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Beliebige Thermostat-Entität aus der Installation (Urlaubsplan gilt für die gesamte Installation)."
+        },
+        "start_date": {
+          "name": "Startdatum",
+          "description": "Datum und Uhrzeit, zu der der Urlaubsplan beginnen soll."
+        },
+        "end_date": {
+          "name": "Enddatum",
+          "description": "Datum und Uhrzeit, zu der der Urlaubsplan enden und das normale Programm wieder aufgenommen werden soll."
+        },
+        "mode": {
+          "name": "Modus",
+          "description": "Heizmodus, der während der Urlaubszeit verwendet werden soll."
+        }
+      }
+    },
+    "cancel_holiday_schedule": {
+      "name": "Urlaubsplan abbrechen",
+      "description": "Bricht den aktiven oder geplanten Urlaubsplan für alle Thermostate der Installation ab und kehrt zum normalen Wochenprogramm zurück.",
+      "fields": {
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Beliebige Thermostat-Entität aus der Installation (Abbruch gilt für die gesamte Installation)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "end_date_before_start": { "message": "Das Enddatum muss nach dem Startdatum liegen." },
+    "entity_not_found": { "message": "Entität {entity_id} wurde nicht gefunden oder keiner gültigen Installation zugeordnet." },
+    "installation_id_missing": { "message": "Installations-ID fehlt für das ausgewählte Gerät." },
+    "api_error_set_holiday": { "message": "Urlaubsplan konnte nicht festgelegt werden. Bitte Verbindung prüfen und erneut versuchen." },
+    "api_error_cancel_holiday": { "message": "Urlaubsplan konnte nicht abgebrochen werden. Bitte Verbindung prüfen und erneut versuchen." }
+  }
+}

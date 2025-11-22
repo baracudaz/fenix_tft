@@ -1,0 +1,52 @@
+set_holiday_schedule:
+  name: Set holiday schedule
+  description: Set a holiday schedule for all thermostats in the installation. This will override the normal weekly program for the specified period.
+  fields:
+    entity_id:
+      name: Thermostat
+      description: Select any thermostat from the installation (holiday applies to all thermostats in that installation).
+      required: true
+      selector:
+        entity:
+          integration: fenix_tft
+          domain: climate
+    start_date:
+      name: Start date
+      description: The date and time when the holiday schedule should start.
+      required: true
+      selector:
+        datetime:
+    end_date:
+      name: End date
+      description: The date and time when the holiday schedule should end and normal programming should resume.
+      required: true
+      selector:
+        datetime:
+    mode:
+      name: Mode
+      description: The heating mode to use during the holiday period.
+      required: true
+      selector:
+        select:
+          options:
+            - label: "Off"
+              value: "off"
+            - label: "Reduce (Eco)"
+              value: "reduce"
+            - label: "Defrost"
+              value: "defrost"
+            - label: "Sunday schedule"
+              value: "sunday"
+
+cancel_holiday_schedule:
+  name: Cancel holiday schedule
+  description: Cancel the active or scheduled holiday for all thermostats in the installation, returning them to their normal weekly program.
+  fields:
+    entity_id:
+      name: Thermostat
+      description: Select any thermostat from the installation (cancellation applies to all thermostats in that installation).
+      required: true
+      selector:
+        entity:
+          integration: fenix_tft
+          domain: climate

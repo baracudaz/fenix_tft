@@ -12,12 +12,19 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from . import FenixTFTConfigEntry
 from .api import FenixTFTApiError
+from .const import (
+    HOLIDAY_LOCKED_MSG,
+    HOLIDAY_MODE_NONE,
+)
 from .entity import FenixTFTEntity
+from .helpers import is_holiday_active
 
 _LOGGER = logging.getLogger(__name__)
+
 
 # Configure parallel updates for climate platform - serialize to prevent API overwhelm
 PARALLEL_UPDATES = 1
@@ -106,6 +113,17 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         raw_preset = dev.get("preset_mode")
         return None if raw_preset is None else PRESET_MAP.get(raw_preset)
 
+    def _is_holiday_active(self) -> bool:
+        """Return True if device is currently in an active holiday schedule."""
+        dev = self._device
+        if not dev:
+            return False
+        return is_holiday_active(
+            dev.get("holiday_mode", HOLIDAY_MODE_NONE),
+            dev.get("holiday_start"),
+            dev.get("holiday_end"),
+        )
+
     @property
     def current_temperature(self) -> float | None:
         """Return the current temperature measured by the thermostat."""
@@ -137,7 +155,13 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     def supported_features(self) -> ClimateEntityFeature:
         """Return supported features based on current device mode."""
         dev = self._device
-        raw_preset = dev.get("preset_mode") if dev else None
+        if not dev:
+            return ClimateEntityFeature(0)
+        # Disable all controls if holiday is active
+        if self._is_holiday_active():
+            return ClimateEntityFeature(0)
+
+        raw_preset = dev.get("preset_mode")
         hvac_mode_str = (
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
@@ -173,16 +197,29 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             raw_preset,
             hvac_mode_str,
         )
+        # Map device modes to Home Assistant HVAC modes (holiday treated as AUTO)
+        return (
+            HVACMode.OFF
+            if hvac_mode_str == "off"
+            else HVACMode.HEAT
+            if hvac_mode_str == "manual"
+            else HVACMode.AUTO
+        )
 
-        # Map device modes to Home Assistant HVAC modes
-        if hvac_mode_str == "off":
-            return HVACMode.OFF
-        if hvac_mode_str == "manual":
-            return HVACMode.HEAT  # Manual temperature control
-        return HVACMode.AUTO  # Automatic/program modes
+    @property
+    def hvac_modes(self) -> list[HVACMode]:
+        """Return selectable HVAC modes (restricted during holiday)."""
+        return [self.hvac_mode] if self._is_holiday_active() else self._attr_hvac_modes
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature on the device."""
+        if self._is_holiday_active():
+            _LOGGER.debug(
+                "Ignoring temperature change for %s - holiday active",
+                self._device_id,
+            )
+            msg = HOLIDAY_LOCKED_MSG
+            raise HomeAssistantError(msg)
         temp: float | None = kwargs.get(ATTR_TEMPERATURE)
         if temp is None:
             return
@@ -200,6 +237,13 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by mapping to appropriate device preset mode."""
+        if self._is_holiday_active():
+            _LOGGER.debug(
+                "Ignoring HVAC mode change for %s - holiday active",
+                self._device_id,
+            )
+            msg = HOLIDAY_LOCKED_MSG
+            raise HomeAssistantError(msg)
         _LOGGER.debug(
             "Setting HVAC mode to %s for device %s", hvac_mode, self._device_id
         )
@@ -229,6 +273,13 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode for special operations."""
+        if self._is_holiday_active():
+            _LOGGER.debug(
+                "Ignoring preset mode change for %s - holiday active",
+                self._device_id,
+            )
+            msg = HOLIDAY_LOCKED_MSG
+            raise HomeAssistantError(msg)
         if preset_mode not in self._attr_preset_modes:
             _LOGGER.warning("Unsupported preset mode: %s", preset_mode)
             return

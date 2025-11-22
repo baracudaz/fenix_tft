@@ -70,7 +70,64 @@
       },
       "daily_energy_consumption": {
         "name": "Denní spotřeba energie"
+      },
+      "holiday_mode": {
+        "name": "Režim prázdnin"
+      },
+      "holiday_schedule_until": {
+        "name": "Plán prázdnin do"
       }
+    }
+  },
+  "services": {
+    "set_holiday_schedule": {
+      "name": "Nastavit plán prázdnin",
+      "description": "Nastavit plán prázdnin pro všechny termostaty v instalaci. Tím se přepíše běžný týdenní program na zadané období.",
+      "fields": {
+        "entity_id": {
+          "name": "Termostat",
+          "description": "Libovolná entita termostatu z instalace (prázdniny platí pro celou instalaci)."
+        },
+        "start_date": {
+          "name": "Datum zahájení",
+          "description": "Datum a čas, kdy má začít plán prázdnin."
+        },
+        "end_date": {
+          "name": "Datum ukončení",
+          "description": "Datum a čas, kdy má plán prázdnin skončit a obnovit se běžné programování."
+        },
+        "mode": {
+          "name": "Režim",
+          "description": "Režim vytápění, který se má použít během prázdnin."
+        }
+      }
+    },
+    "cancel_holiday_schedule": {
+      "name": "Zrušit plán prázdnin",
+      "description": "Zrušit aktivní nebo naplánované prázdniny pro všechny termostaty v instalaci a vrátit je k běžnému týdennímu programu.",
+      "fields": {
+        "entity_id": {
+          "name": "Termostat",
+          "description": "Libovolná entita termostatu z instalace (zrušení platí pro celou instalaci)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "end_date_before_start": {
+      "message": "Datum ukončení musí být po datu zahájení."
+    },
+    "entity_not_found": {
+      "message": "Entita {entity_id} nebyla nalezena nebo není přidružena k platné instalaci."
+    },
+    "installation_id_missing": {
+      "message": "ID instalace chybí pro vybrané zařízení."
+    },
+    "api_error_set_holiday": {
+      "message": "Nepodařilo se nastavit plán prázdnin. Zkontrolujte prosím připojení a zkuste to znovu."
+    },
+    "api_error_cancel_holiday": {
+      "message": "Nepodařilo se zrušit plán prázdnin. Zkontrolujte prosím připojení a zkuste to znovu."
     }
   }
 }

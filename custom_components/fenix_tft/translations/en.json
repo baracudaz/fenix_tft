@@ -70,7 +70,64 @@
       },
       "daily_energy_consumption": {
         "name": "Daily Energy Consumption"
+      },
+      "holiday_mode": {
+        "name": "Holiday Mode"
+      },
+      "holiday_schedule_until": {
+        "name": "Holiday Schedule Until"
       }
+    }
+  },
+  "services": {
+    "set_holiday_schedule": {
+      "name": "Set holiday schedule",
+      "description": "Set a holiday schedule for all thermostats in the installation. This overrides the normal weekly program for the specified period.",
+      "fields": {
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Any thermostat entity from the installation (holiday applies installation-wide)."
+        },
+        "start_date": {
+          "name": "Start date",
+          "description": "The date and time when the holiday schedule should start."
+        },
+        "end_date": {
+          "name": "End date",
+          "description": "The date and time when the holiday schedule should end and normal programming should resume."
+        },
+        "mode": {
+          "name": "Mode",
+          "description": "The heating mode to use during the holiday period."
+        }
+      }
+    },
+    "cancel_holiday_schedule": {
+      "name": "Cancel holiday schedule",
+      "description": "Cancel the active or scheduled holiday for all thermostats in the installation, returning them to their normal weekly program.",
+      "fields": {
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Any thermostat entity from the installation (cancellation applies installation-wide)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "end_date_before_start": {
+      "message": "The end date must be after the start date."
+    },
+    "entity_not_found": {
+      "message": "Entity {entity_id} not found or not associated with a valid installation."
+    },
+    "installation_id_missing": {
+      "message": "Installation ID is missing for the selected device."
+    },
+    "api_error_set_holiday": {
+      "message": "Failed to set holiday schedule. Please check your connection and try again."
+    },
+    "api_error_cancel_holiday": {
+      "message": "Failed to cancel holiday schedule. Please check your connection and try again."
     }
   }
 }

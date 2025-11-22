@@ -70,7 +70,64 @@
       },
       "daily_energy_consumption": {
         "name": "Consommation énergétique quotidienne"
+      },
+      "holiday_mode": {
+        "name": "Mode vacances"
+      },
+      "holiday_schedule_until": {
+        "name": "Calendrier de vacances jusqu'à"
       }
+    }
+  },
+  "services": {
+    "set_holiday_schedule": {
+      "name": "Définir le calendrier de vacances",
+      "description": "Définir un calendrier de vacances pour tous les thermostats de l'installation. Cela remplacera le programme hebdomadaire normal pour la période spécifiée.",
+      "fields": {
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Toute entité de thermostat de l'installation (les vacances s'appliquent à toute l'installation)."
+        },
+        "start_date": {
+          "name": "Date de début",
+          "description": "La date et l'heure auxquelles le calendrier de vacances doit commencer."
+        },
+        "end_date": {
+          "name": "Date de fin",
+          "description": "La date et l'heure auxquelles le calendrier de vacances doit se terminer et le programme normal doit reprendre."
+        },
+        "mode": {
+          "name": "Mode",
+          "description": "Le mode de chauffage à utiliser pendant la période de vacances."
+        }
+      }
+    },
+    "cancel_holiday_schedule": {
+      "name": "Annuler le calendrier de vacances",
+      "description": "Annuler les vacances actives ou programmées pour tous les thermostats de l'installation et les remettre à leur programme hebdomadaire normal.",
+      "fields": {
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Toute entité de thermostat de l'installation (l'annulation s'applique à toute l'installation)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "end_date_before_start": {
+      "message": "La date de fin doit être postérieure à la date de début."
+    },
+    "entity_not_found": {
+      "message": "L'entité {entity_id} n'a pas été trouvée ou n'est pas associée à une installation valide."
+    },
+    "installation_id_missing": {
+      "message": "L'ID d'installation est manquant pour l'appareil sélectionné."
+    },
+    "api_error_set_holiday": {
+      "message": "Impossible de définir le calendrier de vacances. Veuillez vérifier votre connexion et réessayer."
+    },
+    "api_error_cancel_holiday": {
+      "message": "Impossible d'annuler le calendrier de vacances. Veuillez vérifier votre connexion et réessayer."
     }
   }
 }
