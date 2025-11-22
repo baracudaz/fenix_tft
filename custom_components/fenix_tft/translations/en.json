@@ -70,6 +70,12 @@
       },
       "daily_energy_consumption": {
         "name": "Daily Energy Consumption"
+      },
+      "holiday_mode": {
+        "name": "Holiday Mode"
+      },
+      "holiday_schedule_until": {
+        "name": "Holiday Schedule Until"
       }
     }
   }

@@ -70,6 +70,12 @@
       },
       "daily_energy_consumption": {
         "name": "Denná spotreba energie"
+      },
+      "holiday_mode": {
+        "name": "Režim dovolenky"
+      },
+      "holiday_schedule_until": {
+        "name": "Plán dovolenky do"
       }
     }
   }

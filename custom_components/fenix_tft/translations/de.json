@@ -1,0 +1,82 @@
+{
+  "title": "Fenix TFT WiFi Thermostat",
+  "config": {
+    "error": {
+      "invalid_auth": "E-Mail und/oder Passwort ungültig.",
+      "unknown": "Es ist ein unerwarteter Fehler aufgetreten.",
+      "username_exists": "Ein Konto mit der angegebenen E-Mail wird bereits verfolgt."
+    },
+    "step": {
+      "user": {
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
+        "description": "Mit der Fenix API verbinden"
+      },
+      "reauth_confirm": {
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
+        "description": "Mit der Fenix API erneut authentifizieren"
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_auth": "E-Mail und/oder Passwort ungültig.",
+      "unknown": "Es ist ein unerwarteter Fehler aufgetreten.",
+      "username_exists": "Ein Konto mit der angegebenen E-Mail wird bereits verfolgt."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
+        "title": "Fenix - Kontokonfiguration",
+        "description": "Kontodetails neu konfigurieren und erneut mit der Fenix API verbinden"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "thermostat": {
+        "name": "Thermostat"
+      }
+    },
+    "sensor": {
+      "floor_temperature": {
+        "name": "Bodentemperatur"
+      },
+      "ambient_temperature": {
+        "name": "Raumtemperatur"
+      },
+      "target_temperature": {
+        "name": "Zieltemperatur"
+      },
+      "temperature_difference": {
+        "name": "Temperaturdifferenz"
+      },
+      "hvac_state": {
+        "name": "Heizungsstatus"
+      },
+      "floor_air_difference": {
+        "name": "Boden-Luft-Differenz"
+      },
+      "connectivity_status": {
+        "name": "Verbindung"
+      },
+      "daily_energy_consumption": {
+        "name": "Täglicher Energieverbrauch"
+      },
+      "holiday_mode": {
+        "name": "Urlaubsmodus"
+      },
+      "holiday_schedule_until": {
+        "name": "Urlaubsplan bis"
+      }
+    }
+  }
+}

@@ -423,6 +423,11 @@ class FenixTFTApi:
                             "floor_temp": decode_temp_from_entry(props.get("bo")),
                             "hvac_action": props.get("Hs", {}).get("value"),
                             "preset_mode": props.get("Cm", {}).get("value"),
+                            "holiday_start": props.get("H1", {}).get("value"),
+                            "holiday_end": props.get("H2", {}).get("value"),
+                            "holiday_mode": props.get("H3", {}).get("value", [0])[0]
+                            if props.get("H3", {}).get("value")
+                            else 0,
                         }
                         devices.append(device_data)
                     except FenixTFTApiError:
