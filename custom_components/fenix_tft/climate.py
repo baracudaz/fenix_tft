@@ -112,7 +112,12 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         return None if raw_preset is None else PRESET_MAP.get(raw_preset)
 
     def _is_holiday_active(self) -> bool:
-        """Return True if device is currently in an active holiday schedule."""
+        """
+        Return True if device is currently in an active holiday schedule.
+
+        Parse failures are treated as inactive (with warning) to avoid
+        permanently locking controls on malformed data.
+        """
         dev = self._device
         if not dev:
             return False
@@ -128,19 +133,23 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         ):
             return False
 
+        tz = dt_util.get_default_time_zone()
         try:
-            tz = dt_util.get_default_time_zone()
             start_dt = datetime.strptime(holiday_start, "%d/%m/%Y %H:%M:%S").replace(
                 tzinfo=tz
             )
             end_dt = datetime.strptime(holiday_end, "%d/%m/%Y %H:%M:%S").replace(
                 tzinfo=tz
             )
-        except (ValueError, TypeError):
-            return True  # Fallback: treat as active
-        else:
-            now = dt_util.now()
-            return start_dt <= now <= end_dt
+        except (ValueError, TypeError) as err:
+            _LOGGER.warning(
+                "Failed to parse holiday dates for %s: %s; treating as inactive",
+                self._device_id,
+                err,
+            )
+            return False
+        now = dt_util.now()
+        return start_dt <= now <= end_dt
 
     @property
     def current_temperature(self) -> float | None:

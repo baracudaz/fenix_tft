@@ -8,18 +8,12 @@
     },
     "step": {
       "user": {
-        "data": {
-          "username": "E-Mail",
-          "password": "Passwort"
-        },
+        "data": { "username": "E-Mail", "password": "Passwort" },
         "description": "Mit der Fenix API verbinden"
       },
       "reauth_confirm": {
-        "data": {
-          "username": "E-Mail",
-          "password": "Passwort"
-        },
-        "description": "Mit der Fenix API erneut authentifizieren"
+        "data": { "username": "E-Mail", "password": "Passwort" },
+        "description": "Erneut mit der Fenix API authentifizieren"
       }
     }
   },
@@ -31,103 +25,66 @@
     },
     "step": {
       "init": {
-        "data": {
-          "username": "E-Mail",
-          "password": "Passwort"
-        },
-        "title": "Fenix - Kontokonfiguration",
-        "description": "Kontodetails neu konfigurieren und erneut mit der Fenix API verbinden"
+        "data": { "username": "E-Mail", "password": "Passwort" },
+        "title": "Fenix - Konto-Rekonfiguration",
+        "description": "Kontodaten neu konfigurieren und erneut mit der Fenix API verbinden"
       }
     }
   },
   "entity": {
-    "climate": {
-      "thermostat": {
-        "name": "Thermostat"
-      }
-    },
+    "climate": { "thermostat": { "name": "Thermostat" } },
     "sensor": {
-      "floor_temperature": {
-        "name": "Bodentemperatur"
-      },
-      "ambient_temperature": {
-        "name": "Raumtemperatur"
-      },
-      "target_temperature": {
-        "name": "Zieltemperatur"
-      },
-      "temperature_difference": {
-        "name": "Temperaturdifferenz"
-      },
-      "hvac_state": {
-        "name": "Heizungsstatus"
-      },
-      "floor_air_difference": {
-        "name": "Boden-Luft-Differenz"
-      },
-      "connectivity_status": {
-        "name": "Verbindung"
-      },
-      "daily_energy_consumption": {
-        "name": "Täglicher Energieverbrauch"
-      },
-      "holiday_mode": {
-        "name": "Urlaubsmodus"
-      },
-      "holiday_schedule_until": {
-        "name": "Urlaubsplan bis"
-      }
+      "floor_temperature": { "name": "Bodentemperatur" },
+      "ambient_temperature": { "name": "Raumtemperatur" },
+      "target_temperature": { "name": "Zieltemperatur" },
+      "temperature_difference": { "name": "Temperaturdifferenz" },
+      "hvac_state": { "name": "Heizungsstatus" },
+      "floor_air_difference": { "name": "Boden-Luft-Differenz" },
+      "connectivity_status": { "name": "Verbindung" },
+      "daily_energy_consumption": { "name": "Täglicher Energieverbrauch" },
+      "holiday_mode": { "name": "Urlaubsmodus" },
+      "holiday_schedule_until": { "name": "Urlaubsplan bis" }
     }
   },
   "services": {
     "set_holiday_schedule": {
       "name": "Urlaubsplan festlegen",
-      "description": "Legen Sie einen Urlaubsplan für alle Thermostate in der Installation fest. Dadurch wird das normale Wochenprogramm für den angegebenen Zeitraum überschrieben.",
+      "description": "Legt einen Urlaubsplan für alle Thermostate der Installation fest. Dies überschreibt das normale Wochenprogramm für den angegebenen Zeitraum.",
       "fields": {
-        "device_id": {
-          "name": "Gerät",
-          "description": "Die Geräte-ID eines beliebigen Thermostats in der Installation (Urlaub gilt für alle Geräte in dieser Installation)."
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Beliebige Thermostat-Entität aus der Installation (Urlaubsplan gilt für die gesamte Installation)."
         },
         "start_date": {
           "name": "Startdatum",
-          "description": "Das Datum und die Uhrzeit, wann der Urlaubsplan beginnen soll."
+          "description": "Datum und Uhrzeit, zu der der Urlaubsplan beginnen soll."
         },
         "end_date": {
           "name": "Enddatum",
-          "description": "Das Datum und die Uhrzeit, wann der Urlaubsplan enden und die normale Programmierung wieder aufgenommen werden soll."
+          "description": "Datum und Uhrzeit, zu der der Urlaubsplan enden und das normale Programm wieder aufgenommen werden soll."
         },
         "mode": {
           "name": "Modus",
-          "description": "Der Heizmodus, der während des Urlaubs verwendet werden soll."
+          "description": "Heizmodus, der während der Urlaubszeit verwendet werden soll."
         }
       }
     },
     "cancel_holiday_schedule": {
       "name": "Urlaubsplan abbrechen",
-      "description": "Brechen Sie den aktiven oder geplanten Urlaub für alle Thermostate in der Installation ab und setzen Sie sie auf ihr normales Wochenprogramm zurück.",
+      "description": "Bricht den aktiven oder geplanten Urlaubsplan für alle Thermostate der Installation ab und kehrt zum normalen Wochenprogramm zurück.",
       "fields": {
-        "device_id": {
-          "name": "Gerät",
-          "description": "Die Geräte-ID eines beliebigen Thermostats in der Installation (Abbruch gilt für alle Geräte in dieser Installation)."
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Beliebige Thermostat-Entität aus der Installation (Abbruch gilt für die gesamte Installation)."
         }
       }
     }
   },
   "exceptions": {
-    "end_date_before_start": {
-      "message": "Das Enddatum muss nach dem Startdatum liegen."
-    },
-    "entity_not_found": {
-      "message": "Entität {entity_id} wurde nicht gefunden oder ist keiner gültigen Installation zugeordnet."
-    },
-    "installation_id_missing": {
-      "message": "Installations-ID fehlt für das ausgewählte Gerät."
-    },
-    "api_error_set_holiday": {
-      "message": "Urlaubsplan konnte nicht festgelegt werden. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut."
-    },
-    "api_error_cancel_holiday": {
-      "message": "Urlaubsplan konnte nicht abgebrochen werden. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut."
-    }
+    "end_date_before_start": { "message": "Das Enddatum muss nach dem Startdatum liegen." },
+    "entity_not_found": { "message": "Entität {entity_id} wurde nicht gefunden oder keiner gültigen Installation zugeordnet." },
+    "installation_id_missing": { "message": "Installations-ID fehlt für das ausgewählte Gerät." },
+    "api_error_set_holiday": { "message": "Urlaubsplan konnte nicht festgelegt werden. Bitte Verbindung prüfen und erneut versuchen." },
+    "api_error_cancel_holiday": { "message": "Urlaubsplan konnte nicht abgebrochen werden. Bitte Verbindung prüfen und erneut versuchen." }
   }
 }

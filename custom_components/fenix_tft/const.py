@@ -78,6 +78,9 @@ HOLIDAY_EPOCH_DATE: Final[str] = "01/01/1970 00:00:00"
 # Exception message for holiday mode lock
 HOLIDAY_LOCKED_MSG: Final[str] = "Holiday schedule active; controls locked"
 
+# Delay (seconds) to wait after holiday schedule changes before refresh
+HOLIDAY_PROPAGATION_DELAY: Final[int] = 5
+
 # Service names
 SERVICE_SET_HOLIDAY_SCHEDULE: Final[str] = "set_holiday_schedule"
 SERVICE_CANCEL_HOLIDAY_SCHEDULE: Final[str] = "cancel_holiday_schedule"

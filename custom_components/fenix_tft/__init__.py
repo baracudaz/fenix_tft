@@ -29,6 +29,7 @@ from .const import (
     HOLIDAY_MODE_OFF,
     HOLIDAY_MODE_REDUCE,
     HOLIDAY_MODE_SUNDAY,
+    HOLIDAY_PROPAGATION_DELAY,
     PLATFORMS,
     SERVICE_CANCEL_HOLIDAY_SCHEDULE,
     SERVICE_SET_HOLIDAY_SCHEDULE,
@@ -131,10 +132,20 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
         """Handle set_holiday_schedule service call."""
         entity_id = call.data[ATTR_ENTITY_ID]
         # Convert provided datetimes to local timezone expected by API
-        start_date_utc = call.data[ATTR_START_DATE]
-        end_date_utc = call.data[ATTR_END_DATE]
-        start_date = dt_util.as_local(start_date_utc)
-        end_date = dt_util.as_local(end_date_utc)
+        start_date_input = call.data[ATTR_START_DATE]
+        end_date_input = call.data[ATTR_END_DATE]
+
+        # Treat naive datetimes as local, convert aware datetimes to local
+        start_date = (
+            start_date_input
+            if start_date_input.tzinfo is None
+            else dt_util.as_local(start_date_input)
+        )
+        end_date = (
+            end_date_input
+            if end_date_input.tzinfo is None
+            else dt_util.as_local(end_date_input)
+        )
         mode_name: str = call.data[ATTR_MODE]
         # Validate dates
         if end_date <= start_date:
@@ -178,7 +189,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
 
         # Wait for backend to process the holiday schedule change
         # The Fenix backend needs time to propagate changes to devices
-        await asyncio.sleep(5)
+        await asyncio.sleep(HOLIDAY_PROPAGATION_DELAY)
 
         # Refresh coordinator to reflect changes
         coordinator = config_entry.runtime_data["coordinator"]
@@ -227,7 +238,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
 
         # Wait for backend to process the cancellation
         # The Fenix backend needs time to propagate changes to devices
-        await asyncio.sleep(5)
+        await asyncio.sleep(HOLIDAY_PROPAGATION_DELAY)
 
         # Refresh coordinator to reflect changes
         coordinator = config_entry.runtime_data["coordinator"]

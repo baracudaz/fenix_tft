@@ -84,10 +84,10 @@ Set a holiday schedule for all thermostats in the installation. This overrides t
 
 **Parameters:**
 
-- `device_id` (required): The device ID of any thermostat in the installation
+- `entity_id` (required): Any thermostat entity from the installation (schedule applies to all thermostats sharing its installation)
 - `start_date` (required): When the holiday schedule should start
 - `end_date` (required): When the holiday schedule should end
-- `mode` (required): Heating mode during holiday period
+- `mode` (required): Heating mode during the holiday period
   - `off`: Turn heating off completely
   - `reduce`: Eco/reduced temperature mode
   - `defrost`: Defrost mode (frost protection)
@@ -105,7 +105,7 @@ automation:
     action:
       - service: fenix_tft.set_holiday_schedule
         data:
-          device_id: "your_device_id"
+          entity_id: climate.your_thermostat
           start_date: "{{ now() }}"
           end_date: "{{ states('calendar.vacation').as_datetime }}"
           mode: "reduce"
@@ -117,7 +117,7 @@ Cancel the active or scheduled holiday, returning all thermostats to their norma
 
 **Parameters:**
 
-- `device_id` (required): The device ID of any thermostat in the installation
+- `entity_id` (required): Any thermostat entity from the installation (cancellation applies installation-wide)
 
 **Example automation:**
 
@@ -131,7 +131,7 @@ automation:
     action:
       - service: fenix_tft.cancel_holiday_schedule
         data:
-          device_id: "your_device_id"
+          entity_id: climate.your_thermostat
 ```
 
 **Note:** Holiday schedules apply to all thermostats in an installation (all devices in your home). During an active holiday period, thermostat controls are automatically locked to prevent conflicts.

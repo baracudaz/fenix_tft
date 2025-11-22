@@ -84,9 +84,9 @@
       "name": "Nastaviť plán dovolenky",
       "description": "Nastaviť plán dovolenky pre všetky termostaty v inštalácii. Týmto sa prepíše bežný týždenný program na zadané obdobie.",
       "fields": {
-        "device_id": {
-          "name": "Zariadenie",
-          "description": "ID zariadenia ľubovoľného termostatu v inštalácii (dovolenka platí pre všetky zariadenia v tejto inštalácii)."
+        "entity_id": {
+          "name": "Termostat",
+          "description": "Ľubovoľná entita termostatu z inštalácie (dovolenka platí pre celú inštaláciu)."
         },
         "start_date": {
           "name": "Dátum začiatku",
@@ -106,9 +106,9 @@
       "name": "Zrušiť plán dovolenky",
       "description": "Zrušiť aktívnu alebo naplánovanú dovolenku pre všetky termostaty v inštalácii a vrátiť ich k bežnému týždennému programu.",
       "fields": {
-        "device_id": {
-          "name": "Zariadenie",
-          "description": "ID zariadenia ľubovoľného termostatu v inštalácii (zrušenie platí pre všetky zariadenia v tejto inštalácii)."
+        "entity_id": {
+          "name": "Termostat",
+          "description": "Ľubovoľná entita termostatu z inštalácie (zrušenie platí pre celú inštaláciu)."
         }
       }
     }

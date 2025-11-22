@@ -363,7 +363,7 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
         """Return the holiday schedule mode."""
         dev = self._device
         if not dev:
-            return "none"
+            return HOLIDAY_MODE_DISPLAY_NAMES.get(HOLIDAY_MODE_NONE, "None")
 
         holiday_start = dev.get("holiday_start")
         holiday_end = dev.get("holiday_end")

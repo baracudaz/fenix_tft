@@ -756,7 +756,8 @@ class FenixTFTApi:
                 {
                     "timestamp": None,
                     "wattsType": "H3",
-                    "wattsTypeValue": [[0, 0, 0], 0, 0],
+                    # Reset holiday mode to none (flat list form like schedule set)
+                    "wattsTypeValue": [0, 0, 0],
                 },
             ],
         }

@@ -84,9 +84,9 @@
       "name": "Définir le calendrier de vacances",
       "description": "Définir un calendrier de vacances pour tous les thermostats de l'installation. Cela remplacera le programme hebdomadaire normal pour la période spécifiée.",
       "fields": {
-        "device_id": {
-          "name": "Appareil",
-          "description": "L'ID de l'appareil de n'importe quel thermostat dans l'installation (les vacances s'appliquent à tous les appareils de cette installation)."
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Toute entité de thermostat de l'installation (les vacances s'appliquent à toute l'installation)."
         },
         "start_date": {
           "name": "Date de début",
@@ -106,9 +106,9 @@
       "name": "Annuler le calendrier de vacances",
       "description": "Annuler les vacances actives ou programmées pour tous les thermostats de l'installation et les remettre à leur programme hebdomadaire normal.",
       "fields": {
-        "device_id": {
-          "name": "Appareil",
-          "description": "L'ID de l'appareil de n'importe quel thermostat dans l'installation (l'annulation s'applique à tous les appareils de cette installation)."
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Toute entité de thermostat de l'installation (l'annulation s'applique à toute l'installation)."
         }
       }
     }

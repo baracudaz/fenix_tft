@@ -82,11 +82,11 @@
   "services": {
     "set_holiday_schedule": {
       "name": "Set holiday schedule",
-      "description": "Set a holiday schedule for all thermostats in the installation. This will override the normal weekly program for the specified period.",
+      "description": "Set a holiday schedule for all thermostats in the installation. This overrides the normal weekly program for the specified period.",
       "fields": {
-        "device_id": {
-          "name": "Device",
-          "description": "The device ID of any thermostat in the installation (holiday applies to all devices in that installation)."
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Any thermostat entity from the installation (holiday applies installation-wide)."
         },
         "start_date": {
           "name": "Start date",
@@ -106,9 +106,9 @@
       "name": "Cancel holiday schedule",
       "description": "Cancel the active or scheduled holiday for all thermostats in the installation, returning them to their normal weekly program.",
       "fields": {
-        "device_id": {
-          "name": "Device",
-          "description": "The device ID of any thermostat in the installation (cancellation applies to all devices in that installation)."
+        "entity_id": {
+          "name": "Thermostat",
+          "description": "Any thermostat entity from the installation (cancellation applies installation-wide)."
         }
       }
     }
