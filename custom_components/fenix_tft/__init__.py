@@ -11,8 +11,10 @@ from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import ATTR_ENTITY_ID, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.util import dt as dt_util
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant, ServiceCall
@@ -74,33 +76,52 @@ def _get_installation_from_entity(
     hass: HomeAssistant, entity_id: str
 ) -> tuple[ConfigEntry | None, str | None, str | None]:
     """
-    Get config entry, installation ID, and name from entity ID.
+    Resolve installation context for a given entity.
 
-    Returns:
-        Tuple of (config_entry, installation_id, installation_name)
-        or (None, None, None) if not found
-
+    Uses the entity registry to find the entity's device, then matches that
+    device identifier against coordinator data to return the correct installation.
     """
-    # Get entity from registry to find associated device
     entity_reg = er.async_get(hass)
     entity_entry = entity_reg.async_get(entity_id)
-
     if not entity_entry:
         return None, None, None
 
-    # Find the config entry
     entry = hass.config_entries.async_get_entry(entity_entry.config_entry_id)
     if not entry or entry.state is not ConfigEntryState.LOADED:
         return None, None, None
 
-    # Get installation from coordinator data
-    coordinator = entry.runtime_data["coordinator"]
-    for device in coordinator.data:
-        # Match by device name from entity's original_name or device_id
-        if device.get("installation_id"):
-            return entry, device.get("installation_id"), device.get("installation")
+    # Get device registry entry to obtain our (DOMAIN, device_id) identifier
+    device_reg = dr.async_get(hass)
+    device_entry = (
+        device_reg.async_get(entity_entry.device_id) if entity_entry.device_id else None
+    )
+    if not device_entry:
+        return None, None, None
 
-    return None, None, None
+    # Extract device_id from identifiers
+    device_id = next(
+        (
+            identifier[1]
+            for identifier in device_entry.identifiers
+            if identifier[0] == DOMAIN
+        ),
+        None,
+    )
+    if not device_id:
+        return None, None, None
+
+    coordinator = entry.runtime_data["coordinator"]
+    matched = next(
+        (
+            d
+            for d in coordinator.data
+            if d.get("id") == device_id and d.get("installation_id")
+        ),
+        None,
+    )
+    if not matched:
+        return None, None, None
+    return entry, matched.get("installation_id"), matched.get("installation")
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG001
@@ -109,8 +130,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
     async def async_set_holiday_schedule(call: ServiceCall) -> None:
         """Handle set_holiday_schedule service call."""
         entity_id = call.data[ATTR_ENTITY_ID]
-        start_date = call.data[ATTR_START_DATE]
-        end_date = call.data[ATTR_END_DATE]
+        # Convert provided datetimes to local timezone expected by API
+        start_date_utc = call.data[ATTR_START_DATE]
+        end_date_utc = call.data[ATTR_END_DATE]
+        start_date = dt_util.as_local(start_date_utc)
+        end_date = dt_util.as_local(end_date_utc)
         mode_name: str = call.data[ATTR_MODE]
         # Validate dates
         if end_date <= start_date:

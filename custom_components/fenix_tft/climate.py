@@ -18,13 +18,11 @@ from homeassistant.util import dt as dt_util
 
 from . import FenixTFTConfigEntry
 from .api import FenixTFTApiError
-from .const import HOLIDAY_EPOCH_DATE, HOLIDAY_MODE_NONE
+from .const import HOLIDAY_EPOCH_DATE, HOLIDAY_LOCKED_MSG, HOLIDAY_MODE_NONE
 from .entity import FenixTFTEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-# Reusable error message when device controls are locked by an active holiday schedule
-HOLIDAY_LOCKED_MSG = "Holiday schedule active"
 
 # Configure parallel updates for climate platform - serialize to prevent API overwhelm
 PARALLEL_UPDATES = 1
@@ -217,21 +215,19 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             raw_preset,
             hvac_mode_str,
         )
-
-        # Map device modes to Home Assistant HVAC modes
-        if hvac_mode_str == "off":
-            return HVACMode.OFF
-        if hvac_mode_str == "manual":
-            return HVACMode.HEAT  # Manual temperature control
-        # Treat holiday mode as AUTO but lock controls elsewhere
-        return HVACMode.AUTO  # Automatic/program / holiday / other modes
+        # Map device modes to Home Assistant HVAC modes (holiday treated as AUTO)
+        return (
+            HVACMode.OFF
+            if hvac_mode_str == "off"
+            else HVACMode.HEAT
+            if hvac_mode_str == "manual"
+            else HVACMode.AUTO
+        )
 
     @property
     def hvac_modes(self) -> list[HVACMode]:
         """Return selectable HVAC modes (restricted during holiday)."""
-        if self._is_holiday_active():
-            return [self.hvac_mode]
-        return self._attr_hvac_modes
+        return [self.hvac_mode] if self._is_holiday_active() else self._attr_hvac_modes
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature on the device."""

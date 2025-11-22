@@ -376,7 +376,7 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
             or not holiday_start
             or not holiday_end
         ):
-            return "none"
+            return HOLIDAY_MODE_DISPLAY_NAMES.get(HOLIDAY_MODE_NONE, "None")
 
         # Return the user-facing holiday mode display name
         return HOLIDAY_MODE_DISPLAY_NAMES.get(holiday_mode, "None")
