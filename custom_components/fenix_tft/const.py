@@ -75,6 +75,9 @@ HOLIDAY_MODE_DISPLAY_NAMES: Final[dict[int, str]] = {
 # Unix epoch date used to indicate no holiday schedule
 HOLIDAY_EPOCH_DATE: Final[str] = "01/01/1970 00:00:00"
 
+# Holiday date string format used by API (H1/H2 values)
+HOLIDAY_DATE_FORMAT: Final[str] = "%d/%m/%Y %H:%M:%S"
+
 # Exception message for holiday mode lock
 HOLIDAY_LOCKED_MSG: Final[str] = "Holiday schedule active; controls locked"
 

@@ -77,29 +77,25 @@ def _get_installation_from_entity(
     hass: HomeAssistant, entity_id: str
 ) -> tuple[ConfigEntry | None, str | None, str | None]:
     """
-    Resolve installation context for a given entity.
+    Resolve installation context for an entity via registries.
 
-    Uses the entity registry to find the entity's device, then matches that
-    device identifier against coordinator data to return the correct installation.
+    Early returns handle missing data; uses named expressions for brevity.
     """
     entity_reg = er.async_get(hass)
-    entity_entry = entity_reg.async_get(entity_id)
-    if not entity_entry:
+    if not (entity_entry := entity_reg.async_get(entity_id)):
         return None, None, None
 
     entry = hass.config_entries.async_get_entry(entity_entry.config_entry_id)
-    if not entry or entry.state is not ConfigEntryState.LOADED:
+    if entry is None or entry.state is not ConfigEntryState.LOADED:
         return None, None, None
 
-    # Get device registry entry to obtain our (DOMAIN, device_id) identifier
     device_reg = dr.async_get(hass)
     device_entry = (
         device_reg.async_get(entity_entry.device_id) if entity_entry.device_id else None
     )
-    if not device_entry:
+    if device_entry is None:
         return None, None, None
 
-    # Extract device_id from identifiers
     device_id = next(
         (
             identifier[1]
@@ -108,7 +104,7 @@ def _get_installation_from_entity(
         ),
         None,
     )
-    if not device_id:
+    if device_id is None:
         return None, None, None
 
     coordinator = entry.runtime_data["coordinator"]
@@ -120,7 +116,7 @@ def _get_installation_from_entity(
         ),
         None,
     )
-    if not matched:
+    if matched is None:
         return None, None, None
     return entry, matched.get("installation_id"), matched.get("installation")
 

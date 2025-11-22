@@ -19,6 +19,8 @@ from .const import (
     API_IDENTITY,
     API_TIMEOUT_SECONDS,
     CLIENT_ID,
+    HOLIDAY_EPOCH_DATE,
+    HOLIDAY_MODE_NONE,
     HTTP_OK,
     HTTP_REDIRECT,
     REDIRECT_URI,
@@ -410,6 +412,12 @@ class FenixTFTApi:
                     dev_id = dev.get("Id_deviceId")
                     try:
                         props = await self.get_device_properties(dev_id)
+                        h3_val = props.get("H3", {}).get("value")
+                        holiday_mode = (
+                            h3_val[0]
+                            if h3_val and isinstance(h3_val, list)
+                            else HOLIDAY_MODE_NONE
+                        )
                         device_data = {
                             "id": dev_id,
                             "name": props.get("Rn", {}).get("value", "Unnamed Device"),
@@ -425,9 +433,7 @@ class FenixTFTApi:
                             "preset_mode": props.get("Cm", {}).get("value"),
                             "holiday_start": props.get("H1", {}).get("value"),
                             "holiday_end": props.get("H2", {}).get("value"),
-                            "holiday_mode": props.get("H3", {}).get("value", [0])[0]
-                            if props.get("H3", {}).get("value")
-                            else 0,
+                            "holiday_mode": holiday_mode,
                         }
                         devices.append(device_data)
                     except FenixTFTApiError:
@@ -746,12 +752,12 @@ class FenixTFTApi:
                 {
                     "timestamp": None,
                     "wattsType": "H1",
-                    "wattsTypeValue": "01/01/1970 00:00:00",
+                    "wattsTypeValue": HOLIDAY_EPOCH_DATE,
                 },
                 {
                     "timestamp": None,
                     "wattsType": "H2",
-                    "wattsTypeValue": "01/01/1970 00:00:00",
+                    "wattsTypeValue": HOLIDAY_EPOCH_DATE,
                 },
                 {
                     "timestamp": None,

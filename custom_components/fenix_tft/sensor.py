@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from homeassistant.components.sensor import (
@@ -24,10 +23,12 @@ from .const import (
     HVAC_ACTION_IDLE,
 )
 from .entity import FenixTFTEntity
+from .helpers import is_holiday_active, parse_holiday_window
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from datetime import datetime
 
     from . import FenixTFTConfigEntry
     from .coordinator import FenixTFTCoordinator
@@ -81,11 +82,13 @@ async def async_setup_entry(
         if dev.get("room_id") is not None and dev.get("installation_id") is not None:
             entities.append(FenixEnergyConsumptionSensor(coordinator, device_id))
 
-        # Create holiday mode sensor (always available)
-        entities.append(FenixHolidayModeSensor(coordinator, device_id))
-
-        # Create holiday until sensor (always available)
-        entities.append(FenixHolidayUntilSensor(coordinator, device_id))
+        # Create holiday sensors (always available)
+        entities.extend(
+            (
+                FenixHolidayModeSensor(coordinator, device_id),
+                FenixHolidayUntilSensor(coordinator, device_id),
+            )
+        )
 
     if entities:
         async_add_entities(entities)
@@ -392,50 +395,23 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
         holiday_end = dev.get("holiday_end")
         holiday_mode = dev.get("holiday_mode", HOLIDAY_MODE_NONE)
 
-        # Check if holiday is active
-        is_active = False
+        # Active state and time remaining
+        is_active = is_holiday_active(holiday_mode, holiday_start, holiday_end)
         time_remaining = None
-
-        if (
-            holiday_mode != HOLIDAY_MODE_NONE
-            and HOLIDAY_EPOCH_DATE not in (holiday_start, holiday_end)
-            and holiday_start
-            and holiday_end
-        ):
-            try:
-                # Parse dates (format: "DD/MM/YYYY HH:MM:SS")
-                tz = dt_util.get_default_time_zone()
-                start_dt = datetime.strptime(
-                    holiday_start, "%d/%m/%Y %H:%M:%S"
-                ).replace(tzinfo=tz)
-                end_dt = datetime.strptime(holiday_end, "%d/%m/%Y %H:%M:%S").replace(
-                    tzinfo=tz
-                )
-
-                # Check if currently in holiday period
+        if is_active:
+            _start_dt, end_dt = parse_holiday_window(holiday_start, holiday_end)
+            if end_dt:
                 now = dt_util.now()
-                is_active = start_dt <= now <= end_dt
-
-                # Calculate time remaining if active
-                if is_active:
-                    remaining = end_dt - now
-                    days = remaining.days
-                    hours, remainder = divmod(remaining.seconds, 3600)
-                    minutes = remainder // 60
-
-                    if days > 0:
-                        time_remaining = f"{days}d {hours}h {minutes}m"
-                    elif hours > 0:
-                        time_remaining = f"{hours}h {minutes}m"
-                    else:
-                        time_remaining = f"{minutes}m"
-
-            except (ValueError, TypeError) as err:
-                _LOGGER.debug(
-                    "Failed to parse holiday dates for device %s: %s",
-                    self._device_id,
-                    err,
-                )
+                remaining = end_dt - now
+                days = remaining.days
+                hours, remainder = divmod(remaining.seconds, 3600)
+                minutes = remainder // 60
+                if days > 0:
+                    time_remaining = f"{days}d {hours}h {minutes}m"
+                elif hours > 0:
+                    time_remaining = f"{hours}h {minutes}m"
+                else:
+                    time_remaining = f"{minutes}m"
 
         return {
             "start_time": holiday_start,
@@ -471,6 +447,7 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return None
 
+        holiday_start = dev.get("holiday_start")
         holiday_end = dev.get("holiday_end")
         holiday_mode = dev.get("holiday_mode", HOLIDAY_MODE_NONE)
 
@@ -482,20 +459,8 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
         ):
             return None
 
-        try:
-            tz = dt_util.get_default_time_zone()
-            parsed = datetime.strptime(holiday_end, "%d/%m/%Y %H:%M:%S").replace(
-                tzinfo=tz
-            )
-        except (ValueError, TypeError) as err:
-            _LOGGER.debug(
-                "Failed to parse holiday end date for device %s: %s",
-                self._device_id,
-                err,
-            )
-            return None
-        else:
-            return parsed
+        _start_dt, end_dt = parse_holiday_window(holiday_start, holiday_end)
+        return end_dt
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

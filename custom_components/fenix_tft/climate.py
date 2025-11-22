@@ -1,7 +1,6 @@
 """Platform for Fenix TFT climate entities."""
 
 import logging
-from datetime import datetime
 from typing import Any, ClassVar
 
 import aiohttp
@@ -14,12 +13,15 @@ from homeassistant.components.climate.const import (
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.util import dt as dt_util
 
 from . import FenixTFTConfigEntry
 from .api import FenixTFTApiError
-from .const import HOLIDAY_EPOCH_DATE, HOLIDAY_LOCKED_MSG, HOLIDAY_MODE_NONE
+from .const import (
+    HOLIDAY_LOCKED_MSG,
+    HOLIDAY_MODE_NONE,
+)
 from .entity import FenixTFTEntity
+from .helpers import is_holiday_active
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -112,44 +114,15 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         return None if raw_preset is None else PRESET_MAP.get(raw_preset)
 
     def _is_holiday_active(self) -> bool:
-        """
-        Return True if device is currently in an active holiday schedule.
-
-        Parse failures are treated as inactive (with warning) to avoid
-        permanently locking controls on malformed data.
-        """
+        """Return True if device is currently in an active holiday schedule."""
         dev = self._device
         if not dev:
             return False
-        holiday_mode = dev.get("holiday_mode", HOLIDAY_MODE_NONE)
-        holiday_start = dev.get("holiday_start")
-        holiday_end = dev.get("holiday_end")
-
-        if (
-            holiday_mode == HOLIDAY_MODE_NONE
-            or not holiday_start
-            or not holiday_end
-            or HOLIDAY_EPOCH_DATE in (holiday_start, holiday_end)
-        ):
-            return False
-
-        tz = dt_util.get_default_time_zone()
-        try:
-            start_dt = datetime.strptime(holiday_start, "%d/%m/%Y %H:%M:%S").replace(
-                tzinfo=tz
-            )
-            end_dt = datetime.strptime(holiday_end, "%d/%m/%Y %H:%M:%S").replace(
-                tzinfo=tz
-            )
-        except (ValueError, TypeError) as err:
-            _LOGGER.warning(
-                "Failed to parse holiday dates for %s: %s; treating as inactive",
-                self._device_id,
-                err,
-            )
-            return False
-        now = dt_util.now()
-        return start_dt <= now <= end_dt
+        return is_holiday_active(
+            dev.get("holiday_mode", HOLIDAY_MODE_NONE),
+            dev.get("holiday_start"),
+            dev.get("holiday_end"),
+        )
 
     @property
     def current_temperature(self) -> float | None:
