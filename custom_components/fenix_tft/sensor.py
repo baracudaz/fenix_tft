@@ -17,6 +17,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     HOLIDAY_EPOCH_DATE,
+    HOLIDAY_MODE_DISPLAY_NAMES,
     HOLIDAY_MODE_NAMES,
     HOLIDAY_MODE_NONE,
     HVAC_ACTION_HEATING,
@@ -377,8 +378,8 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
         ):
             return "none"
 
-        # Return the holiday mode name
-        return HOLIDAY_MODE_NAMES.get(holiday_mode, "none")
+        # Return the user-facing holiday mode display name
+        return HOLIDAY_MODE_DISPLAY_NAMES.get(holiday_mode, "None")
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -440,6 +441,8 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
             "start_time": holiday_start,
             "end_time": holiday_end,
             "mode_code": holiday_mode,
+            "mode_internal": HOLIDAY_MODE_NAMES.get(holiday_mode, "none"),
+            "mode_display": HOLIDAY_MODE_DISPLAY_NAMES.get(holiday_mode, "None"),
             "is_active": is_active,
             "time_remaining": time_remaining,
         }
@@ -506,6 +509,7 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
 
         return {
             "start_time": holiday_start,
-            "mode": HOLIDAY_MODE_NAMES.get(holiday_mode, "none"),
+            "mode": HOLIDAY_MODE_DISPLAY_NAMES.get(holiday_mode, "None"),
             "mode_code": holiday_mode,
+            "mode_internal": HOLIDAY_MODE_NAMES.get(holiday_mode, "none"),
         }

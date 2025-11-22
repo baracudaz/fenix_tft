@@ -78,5 +78,56 @@
         "name": "Plán dovolenky do"
       }
     }
+  },
+  "services": {
+    "set_holiday_schedule": {
+      "name": "Nastaviť plán dovolenky",
+      "description": "Nastaviť plán dovolenky pre všetky termostaty v inštalácii. Týmto sa prepíše bežný týždenný program na zadané obdobie.",
+      "fields": {
+        "device_id": {
+          "name": "Zariadenie",
+          "description": "ID zariadenia ľubovoľného termostatu v inštalácii (dovolenka platí pre všetky zariadenia v tejto inštalácii)."
+        },
+        "start_date": {
+          "name": "Dátum začiatku",
+          "description": "Dátum a čas, kedy má začať plán dovolenky."
+        },
+        "end_date": {
+          "name": "Dátum ukončenia",
+          "description": "Dátum a čas, kedy má plán dovolenky skončiť a obnoviť sa bežné programovanie."
+        },
+        "mode": {
+          "name": "Režim",
+          "description": "Režim vykurovania, ktorý sa má použiť počas dovolenky."
+        }
+      }
+    },
+    "cancel_holiday_schedule": {
+      "name": "Zrušiť plán dovolenky",
+      "description": "Zrušiť aktívnu alebo naplánovanú dovolenku pre všetky termostaty v inštalácii a vrátiť ich k bežnému týždennému programu.",
+      "fields": {
+        "device_id": {
+          "name": "Zariadenie",
+          "description": "ID zariadenia ľubovoľného termostatu v inštalácii (zrušenie platí pre všetky zariadenia v tejto inštalácii)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "end_date_before_start": {
+      "message": "Dátum ukončenia musí byť po dátume začiatku."
+    },
+    "entity_not_found": {
+      "message": "Entita {entity_id} nebola nájdená alebo nie je priradená k platnej inštalácii."
+    },
+    "installation_id_missing": {
+      "message": "ID inštalácie chýba pre vybrané zariadenie."
+    },
+    "api_error_set_holiday": {
+      "message": "Nepodarilo sa nastaviť plán dovolenky. Skontrolujte prosím pripojenie a skúste to znovu."
+    },
+    "api_error_cancel_holiday": {
+      "message": "Nepodarilo sa zrušiť plán dovolenky. Skontrolujte prosím pripojenie a skúste to znovu."
+    }
   }
 }

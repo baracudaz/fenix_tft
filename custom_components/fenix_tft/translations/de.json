@@ -78,5 +78,56 @@
         "name": "Urlaubsplan bis"
       }
     }
+  },
+  "services": {
+    "set_holiday_schedule": {
+      "name": "Urlaubsplan festlegen",
+      "description": "Legen Sie einen Urlaubsplan für alle Thermostate in der Installation fest. Dadurch wird das normale Wochenprogramm für den angegebenen Zeitraum überschrieben.",
+      "fields": {
+        "device_id": {
+          "name": "Gerät",
+          "description": "Die Geräte-ID eines beliebigen Thermostats in der Installation (Urlaub gilt für alle Geräte in dieser Installation)."
+        },
+        "start_date": {
+          "name": "Startdatum",
+          "description": "Das Datum und die Uhrzeit, wann der Urlaubsplan beginnen soll."
+        },
+        "end_date": {
+          "name": "Enddatum",
+          "description": "Das Datum und die Uhrzeit, wann der Urlaubsplan enden und die normale Programmierung wieder aufgenommen werden soll."
+        },
+        "mode": {
+          "name": "Modus",
+          "description": "Der Heizmodus, der während des Urlaubs verwendet werden soll."
+        }
+      }
+    },
+    "cancel_holiday_schedule": {
+      "name": "Urlaubsplan abbrechen",
+      "description": "Brechen Sie den aktiven oder geplanten Urlaub für alle Thermostate in der Installation ab und setzen Sie sie auf ihr normales Wochenprogramm zurück.",
+      "fields": {
+        "device_id": {
+          "name": "Gerät",
+          "description": "Die Geräte-ID eines beliebigen Thermostats in der Installation (Abbruch gilt für alle Geräte in dieser Installation)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "end_date_before_start": {
+      "message": "Das Enddatum muss nach dem Startdatum liegen."
+    },
+    "entity_not_found": {
+      "message": "Entität {entity_id} wurde nicht gefunden oder ist keiner gültigen Installation zugeordnet."
+    },
+    "installation_id_missing": {
+      "message": "Installations-ID fehlt für das ausgewählte Gerät."
+    },
+    "api_error_set_holiday": {
+      "message": "Urlaubsplan konnte nicht festgelegt werden. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    "api_error_cancel_holiday": {
+      "message": "Urlaubsplan konnte nicht abgebrochen werden. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    }
   }
 }

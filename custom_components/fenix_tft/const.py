@@ -63,5 +63,26 @@ HOLIDAY_MODE_NAMES: Final[dict[int, str]] = {
     HOLIDAY_MODE_SUNDAY: "sunday",
 }
 
+# Holiday mode display names (user-facing)
+HOLIDAY_MODE_DISPLAY_NAMES: Final[dict[int, str]] = {
+    HOLIDAY_MODE_NONE: "None",
+    HOLIDAY_MODE_OFF: "Off",
+    HOLIDAY_MODE_REDUCE: "Reduce (Eco)",
+    HOLIDAY_MODE_DEFROST: "Defrost",
+    HOLIDAY_MODE_SUNDAY: "Sunday Schedule",
+}
+
 # Unix epoch date used to indicate no holiday schedule
 HOLIDAY_EPOCH_DATE: Final[str] = "01/01/1970 00:00:00"
+
+# Exception message for holiday mode lock
+HOLIDAY_LOCKED_MSG: Final[str] = "Holiday schedule active; controls locked"
+
+# Service names
+SERVICE_SET_HOLIDAY_SCHEDULE: Final[str] = "set_holiday_schedule"
+SERVICE_CANCEL_HOLIDAY_SCHEDULE: Final[str] = "cancel_holiday_schedule"
+
+# Service field names
+ATTR_START_DATE: Final[str] = "start_date"
+ATTR_END_DATE: Final[str] = "end_date"
+ATTR_MODE: Final[str] = "mode"
