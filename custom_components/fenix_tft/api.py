@@ -28,6 +28,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# URL template for energy consumption endpoint
 ENERGY_CONSUMPTION_URL_TEMPLATE = (
     "{base_url}/DataProcessing/v1/metricsAggregat/consommation/room/"
     "{installation_id}/{room_id}/{subscription_id}/Hour/Wc/{start_date}/{end_date}"
