@@ -50,3 +50,27 @@ cancel_holiday_schedule:
         entity:
           integration: fenix_tft
           domain: climate
+
+import_historical_statistics:
+  name: Import historical statistics
+  description: Import historical energy consumption data into Home Assistant's long-term statistics. Supports up to 365 days with intelligent dynamic aggregation (hourly for last 7 days, daily for 8-90 days ago, monthly for older data). Check persistent notifications for progress updates.
+  fields:
+    energy_entity:
+      name: Energy entity
+      description: Select the energy consumption sensor to import historical data for.
+      required: true
+      selector:
+        entity:
+          integration: fenix_tft
+          domain: sensor
+          device_class: energy
+    days_back:
+      name: Days to import
+      description: Number of days of historical data to import (1-365). Recent data uses hourly aggregation for detail, older data uses daily/monthly aggregation for efficiency.
+      required: true
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 365
+          mode: box

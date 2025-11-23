@@ -76,7 +76,7 @@ To use this integration, you only need your **FENIX account email and password**
 
 ## Services
 
-The integration provides two services for managing holiday schedules across all thermostats in an installation.
+The integration provides three services for managing holiday schedules and importing historical energy data.
 
 ### `fenix_tft.set_holiday_schedule`
 
@@ -135,6 +135,44 @@ automation:
 ```
 
 **Note:** Holiday schedules apply to all thermostats in an installation (all devices in your home). During an active holiday period, thermostat controls are automatically locked to prevent conflicts.
+
+### `fenix_tft.import_historical_statistics`
+
+Import historical energy consumption data into Home Assistant's statistics database. This service intelligently detects existing data and imports only older data to prevent duplicates.
+
+**Smart Aggregation:** The service automatically uses the optimal data granularity:
+
+- **Hourly data** for the most recent 7 days
+- **Daily data** for 8-90 days back
+- **Monthly data** for 91+ days back
+
+**Parameters:**
+
+- `energy_entity` (required): Energy sensor to import data for (e.g., `sensor.bedroom_daily_energy_consumption`)
+- `days_back` (required): Number of days of historical data to import (1-365)
+
+**Behavior:**
+
+- If no statistics exist: Imports data from today back to the specified number of days
+- If statistics exist: Detects the first recorded datapoint and imports the specified number of days BEFORE that date
+- Example: If data exists from Oct 25 and you request 30 days, it imports Sept 25 to Oct 24
+
+**Example service call:**
+
+```yaml
+service: fenix_tft.import_historical_statistics
+data:
+  energy_entity: sensor.bedroom_daily_energy_consumption
+  days_back: 30
+```
+
+**Use cases:**
+
+- Initial setup: Import historical data to populate the Energy Dashboard
+- Data gaps: Backfill missing periods after connectivity issues
+- Migration: Import data when moving from another system
+
+**Note:** Imported data appears as external statistics with the suffix `_imported` (e.g., `fenix_tft:bedroom_daily_energy_consumption_imported`) and maintains cumulative sum continuity across multiple imports.
 
 ## Sensors
 
