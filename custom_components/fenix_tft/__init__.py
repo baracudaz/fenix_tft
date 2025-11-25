@@ -49,7 +49,7 @@ from .statistics import (
 
 
 class FenixTFTRuntimeData(TypedDict):
-    """Runtime data for Fenix TFT integration."""
+    """Runtime data stored in the config entry for the Fenix TFT integration."""
 
     api: FenixTFTApi
     coordinator: FenixTFTCoordinator
