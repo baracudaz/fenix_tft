@@ -154,7 +154,7 @@ Import historical energy consumption data into Home Assistant's statistics datab
 **Behavior:**
 
 - If no statistics exist: Imports data from today back to the specified number of days
-- If statistics exist: Detects the first recorded datapoint and imports the specified number of days BEFORE that date
+- If statistics exist: Detects the first recorded data point and imports the specified number of days BEFORE that date
 - Example: If data exists from Oct 25 and you request 30 days, it imports Sept 25 to Oct 24
 
 **Example service call:**

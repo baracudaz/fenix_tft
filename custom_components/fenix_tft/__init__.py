@@ -403,6 +403,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
 
         api = config_entry.runtime_data["api"]
         subscription_id = api.subscription_id
+        if not subscription_id:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="missing_subscription_id",
+                message="Subscription ID is missing; cannot import historical data. Please re-authenticate or check your account permissions.",
+            )
 
         _LOGGER.info("Starting dynamic aggregation import for %d days", days_back)
 
@@ -435,7 +441,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                     else:
                         # Older data: use monthly aggregation
                         period = "Month"
-                        chunk_days = min(DAILY_AGGREGATION_MAX_DAYS, remaining_days)
+                        # Use a dedicated constant for monthly aggregation if needed
+                        MONTHLY_AGGREGATION_MAX_DAYS = 365  # Set to a more appropriate upper bound for monthly
+                        chunk_days = min(MONTHLY_AGGREGATION_MAX_DAYS, remaining_days)
 
                     # Calculate chunk boundaries
                     chunk_end = current_date
@@ -527,10 +535,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 title="Fenix TFT Historical Import Failed",
                 notification_id=notification_id,
             )
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="import_failed",
-            ) from err
+            raise HomeAssistantError(f"Failed to import historical data for {device_name}: {err}") from err
 
     # Register services
     hass.services.async_register(
