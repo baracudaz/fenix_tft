@@ -62,6 +62,8 @@ _LOGGER = logging.getLogger(__name__)
 # Aggregation thresholds for dynamic period selection
 HOURLY_AGGREGATION_MAX_DAYS = 7  # Use hourly for last 7 days
 DAILY_AGGREGATION_MAX_DAYS = 90  # Use daily up to 90 days back
+DAILY_AGGREGATION_CHUNK_DAYS = 30  # Max days are included in each daily API call
+MONTHLY_AGGREGATION_MAX_DAYS = 365  # Use monthly beyond 90 days back
 
 # Valid holiday modes for service
 VALID_HOLIDAY_MODES = {
@@ -407,7 +409,10 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="missing_subscription_id",
-                message="Subscription ID is missing; cannot import historical data. Please re-authenticate or check your account permissions.",
+                message=(
+                    "Subscription ID is missing; cannot import historical data. "
+                    "Please re-authenticate or check your account permissions."
+                ),
             )
 
         _LOGGER.info("Starting dynamic aggregation import for %d days", days_back)
@@ -437,12 +442,10 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                     elif days_from_now < DAILY_AGGREGATION_MAX_DAYS:
                         # Medium range: use daily aggregation
                         period = "Day"
-                        chunk_days = min(30, remaining_days)
+                        chunk_days = min(DAILY_AGGREGATION_CHUNK_DAYS, remaining_days)
                     else:
                         # Older data: use monthly aggregation
                         period = "Month"
-                        # Use a dedicated constant for monthly aggregation if needed
-                        MONTHLY_AGGREGATION_MAX_DAYS = 365  # Set to a more appropriate upper bound for monthly
                         chunk_days = min(MONTHLY_AGGREGATION_MAX_DAYS, remaining_days)
 
                     # Calculate chunk boundaries
@@ -535,7 +538,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 title="Fenix TFT Historical Import Failed",
                 notification_id=notification_id,
             )
-            raise HomeAssistantError(f"Failed to import historical data for {device_name}: {err}") from err
+            error_msg = f"Failed to import historical data for {device_name}: {err}"
+            raise HomeAssistantError(error_msg) from err
 
     # Register services
     hass.services.async_register(

@@ -194,13 +194,16 @@ def convert_energy_api_data_to_statistics(
 
             # Validate period_value is numeric
             if not isinstance(period_value, (int, float)):
-                _LOGGER.warning("Non-numeric energy value in API data: %s", period_value)
+                _LOGGER.warning(
+                    "Non-numeric energy value in API data: %s", period_value
+                )
                 continue
 
             # Clamp negative values and log
             if period_value < 0:
                 _LOGGER.warning(
-                    "Received negative energy value %s from API; clamping to 0.0 for statistics",
+                    "Received negative energy value %s from API; "
+                    "clamping to 0.0 for statistics",
                     period_value,
                 )
                 period_value = 0.0
