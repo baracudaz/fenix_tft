@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, TypedDict
 
 import voluptuous as vol
 from homeassistant.components.persistent_notification import async_create
-from homeassistant.components.recorder.statistics import async_add_external_statistics
+from homeassistant.components.recorder.statistics import async_import_statistics
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import ATTR_ENTITY_ID, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
@@ -567,13 +567,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             installation_id,
         )
 
-        # Get the statistic ID for this energy sensor
-        entity_unique_part = (
-            energy_entity_id.split(".", 1)[1]
-            if "." in energy_entity_id
-            else energy_entity_id
-        )
-        statistic_id = f"{DOMAIN}:{entity_unique_part}_imported"
+        # For sensor statistics, the statistic_id is the entity_id itself
+        statistic_id = energy_entity_id
 
         # Check if we have existing statistics
         first_stat_time = await get_first_statistic_time(hass, statistic_id)
@@ -700,16 +695,17 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                     device_name,
                 )
 
-                # Import statistics into Home Assistant
-                async_add_external_statistics(
+                # Import statistics directly to the sensor entity
+                # This makes the data appear under the sensor's entity ID
+                # instead of creating a separate external statistic
+                async_import_statistics(
                     hass, energy_metadata, all_energy_stats
                 )
 
                 _LOGGER.info(
-                    "Successfully imported %d statistics for '%s' (entity: %s, statistic_id: %s)",
+                    "Successfully imported %d statistics to sensor '%s' (statistic_id: %s)",
                     len(all_energy_stats),
                     device_name,
-                    energy_entity_id,
                     energy_metadata["statistic_id"],
                 )
             else:

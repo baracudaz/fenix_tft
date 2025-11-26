@@ -11,6 +11,7 @@ from homeassistant.components.recorder.statistics import (
     StatisticData,
     StatisticMeanType,
     StatisticMetaData,
+    async_import_statistics,
     get_last_statistics,
     statistics_during_period,
 )
@@ -120,24 +121,26 @@ def create_energy_statistic_metadata(
     """
     Create StatisticMetaData for energy consumption.
 
+    This creates metadata for importing statistics directly to the sensor entity,
+    not as external statistics. This allows the historical data to appear
+    under the sensor's own entity ID (e.g., sensor.victory_port_x) rather than
+    a separate external statistic ID.
+
     Args:
-        entity_id: Entity ID for the energy sensor
+        entity_id: Entity ID for the energy sensor (e.g., sensor.victory_port_x)
         entity_name: Human-readable entity name
 
     Returns:
-        StatisticMetaData configured for energy statistics
+        StatisticMetaData configured for sensor energy statistics
 
     """
-    # For external statistics, use domain:unique_id format
-    # Extract the unique part from entity_id (after the domain.)
-    entity_unique_part = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
     return StatisticMetaData(
         has_mean=False,
         has_sum=True,
         mean_type=StatisticMeanType.NONE,
-        name=f"{entity_name} History",
-        source=DOMAIN,
-        statistic_id=f"{DOMAIN}:{entity_unique_part}_imported",
+        name=entity_name,
+        source="recorder",  # Use recorder as source for sensor statistics
+        statistic_id=entity_id,  # Use entity ID directly for sensor statistics
         unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         unit_class="energy",
     )
