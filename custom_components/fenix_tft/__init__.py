@@ -231,6 +231,11 @@ def _calculate_import_date_range(
     """
     Calculate the date range for historical data import.
 
+    When backfilling before existing statistics, we stop just before the first
+    existing bucket to avoid overlaps and double-counting. Home Assistant uses
+    hourly statistic buckets, so we subtract one hour from the first statistic
+    timestamp to ensure imported data ends cleanly before existing data begins.
+
     Args:
         days_back: Number of days to import
         first_stat_time: Timestamp of first existing statistic (if any)
@@ -239,15 +244,14 @@ def _calculate_import_date_range(
         Tuple of (start_date, end_date, days_to_import)
 
     """
-    if first_stat_time:
-        # Import data ending at first existing datapoint
-        end_date = first_stat_time
-        start_date = end_date - dt_util.dt.timedelta(days=days_back)
-    else:
-        # No existing statistics, import from now going back
-        end_date = dt_util.now()
-        start_date = end_date - dt_util.dt.timedelta(days=days_back)
-
+    # Import data ending just before first existing datapoint (if any) to avoid overlap
+    # Subtract 1 hour to align with Home Assistant's hourly bucket boundaries
+    end_date = (
+        first_stat_time - dt_util.dt.timedelta(hours=1)
+        if first_stat_time
+        else dt_util.now()
+    )
+    start_date = end_date - dt_util.dt.timedelta(days=days_back)
     return start_date, end_date, days_back
 
 
@@ -733,8 +737,21 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 device_name,
             )
 
-        except (FenixTFTApiError, ServiceValidationError):
-            # Re-raise validation and API errors as-is
+        except (FenixTFTApiError, ServiceValidationError) as err:
+            # Surface validation and API errors via notification before re-raising
+            _LOGGER.error(
+                "Validation/API error during historical data import for '%s' (entity: %s): %s",
+                device_name,
+                energy_entity_id,
+                err,
+            )
+            error_msg = f"Failed to import historical data for {device_name}: {err}"
+            async_create(
+                hass,
+                error_msg,
+                title="Fenix TFT Historical Import Failed",
+                notification_id=notification_id,
+            )
             raise
         except Exception as err:
             _LOGGER.exception(

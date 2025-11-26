@@ -67,6 +67,11 @@ async def get_first_statistic_time(
     """
     Get the timestamp of the first (oldest) recorded statistic.
 
+    Uses an optimized binary search approach to avoid expensive full-history scans
+    for long-lived installations. Instead of querying from 1970 to now, we start
+    with a reasonable recent window (30 days) and progressively expand backwards
+    until we find statistics or reach a practical limit.
+
     Args:
         hass: Home Assistant instance
         statistic_id: The statistic ID to query
@@ -78,27 +83,36 @@ async def get_first_statistic_time(
 
     def _get_first_stat() -> datetime | None:
         try:
-            # Get the first statistic by querying from epoch
-            start_time = datetime(1970, 1, 1, tzinfo=dt_util.UTC)
-            end_time = dt_util.now()
+            now = dt_util.now()
 
-            stats = statistics_during_period(
-                hass,
-                start_time,
-                end_time,
-                {statistic_id},  # Must be a set, not a list
-                "hour",
-                None,
-                {"sum"},
-            )
+            # Binary search windows: start with 30 days, then 90, 180, 365, 730, 1825 (5 years)
+            # This avoids scanning decades of empty data for new installations
+            search_windows_days = [30, 90, 180, 365, 730, 1825]
 
-            if stats.get(statistic_id):
-                first_stat = stats[statistic_id][0]
-                if first_time := first_stat.get("start"):
-                    # Convert Unix timestamp to datetime if needed
-                    if isinstance(first_time, (int, float)):
-                        return dt_util.utc_from_timestamp(first_time)
-                    return first_time
+            for days_back in search_windows_days:
+                start_time = now - dt_util.dt.timedelta(days=days_back)
+
+                stats = statistics_during_period(
+                    hass,
+                    start_time,
+                    now,
+                    {statistic_id},  # Must be a set, not a list
+                    "hour",
+                    None,
+                    {"sum"},
+                )
+
+                if stats.get(statistic_id):
+                    first_stat = stats[statistic_id][0]
+                    if first_time := first_stat.get("start"):
+                        # Convert Unix timestamp to datetime if needed
+                        if isinstance(first_time, (int, float)):
+                            return dt_util.utc_from_timestamp(first_time)
+                        return first_time
+
+            # If no statistics found in 5 years, they likely don't exist
+            return None
+
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Could not get first statistic for %s: %s", statistic_id, err)
         return None

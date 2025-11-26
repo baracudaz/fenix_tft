@@ -138,7 +138,7 @@ automation:
 
 ### `fenix_tft.import_historical_statistics`
 
-Import historical energy consumption data into Home Assistant's statistics database. This service intelligently detects existing data and imports only older data to prevent duplicates.
+Import historical energy consumption data directly into the sensor's long-term statistics. This service intelligently detects existing data and backfills only older data to prevent duplicates and double-counting.
 
 **Smart Aggregation:** The service automatically uses the optimal data granularity:
 
@@ -154,8 +154,8 @@ Import historical energy consumption data into Home Assistant's statistics datab
 **Behavior:**
 
 - If no statistics exist: Imports data from today back to the specified number of days
-- If statistics exist: Detects the first recorded data point and imports the specified number of days BEFORE that date
-- Example: If data exists from Oct 25 and you request 30 days, it imports Sept 25 to Oct 24
+- If statistics exist: Detects the first recorded data point and imports the specified number of days BEFORE that timestamp (ending 1 hour before existing data to avoid overlap)
+- Example: If data exists from Oct 25 10:00 and you request 30 days, it imports Sept 25 09:00 to Oct 25 09:00
 
 **Example service call:**
 
@@ -172,7 +172,7 @@ data:
 - Data gaps: Backfill missing periods after connectivity issues
 - Migration: Import data when moving from another system
 
-**Note:** Imported data appears as external statistics with the suffix `_imported` (e.g., `fenix_tft:bedroom_daily_energy_consumption_imported`) and maintains cumulative sum continuity across multiple imports.
+**Note:** Imported data appears directly under the sensor's entity ID (e.g., `sensor.bedroom_daily_energy_consumption`) in the Energy Dashboard and history graphs. The service maintains cumulative sum continuity and aligns with Home Assistant's hourly statistic buckets to prevent double-counting.
 
 ## Sensors
 
