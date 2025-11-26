@@ -678,16 +678,29 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                     energy_entity_id, energy_entity_name
                 )
 
-                # Get last cumulative sum to continue from existing statistics
-                starting_sum = await get_last_statistic_sum(
-                    hass, energy_metadata["statistic_id"]
-                )
-
-                if starting_sum > 0:
+                # Determine starting sum based on import strategy
+                # When backfilling BEFORE existing data, start from 0
+                # When importing without existing data, also start from 0
+                if first_stat_time:
+                    # Backfilling: start from 0 since we're importing BEFORE existing stats
+                    starting_sum = 0.0
                     _LOGGER.debug(
-                        "Continuing from existing cumulative sum: %.2f Wh",
-                        starting_sum,
+                        "Backfilling before existing data: starting cumulative sum at 0.0 Wh"
                     )
+                else:
+                    # No existing stats: check if sensor has current state to continue from
+                    starting_sum = await get_last_statistic_sum(
+                        hass, energy_metadata["statistic_id"]
+                    )
+                    if starting_sum > 0:
+                        _LOGGER.debug(
+                            "Continuing from existing cumulative sum: %.2f Wh",
+                            starting_sum,
+                        )
+                    else:
+                        _LOGGER.debug(
+                            "No existing statistics: starting cumulative sum at 0.0 Wh"
+                        )
 
                 # Convert all data at once to maintain cumulative sum
                 all_energy_stats = convert_energy_api_data_to_statistics(
