@@ -11,15 +11,12 @@ from homeassistant.components.recorder.statistics import (
     StatisticData,
     StatisticMeanType,
     StatisticMetaData,
-    async_import_statistics,
     get_last_statistics,
     statistics_during_period,
 )
 from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
-
-from .const import DOMAIN
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant

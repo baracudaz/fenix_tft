@@ -159,6 +159,7 @@ def _get_device_context_from_entity(
 
     Raises:
         ServiceValidationError: If any required context is missing
+
     """
     entity_reg = er.async_get(hass)
     entity_entry = entity_reg.async_get(entity_id)
@@ -178,9 +179,7 @@ def _get_device_context_from_entity(
 
     device_reg = dr.async_get(hass)
     device_entry = (
-        device_reg.async_get(entity_entry.device_id)
-        if entity_entry.device_id
-        else None
+        device_reg.async_get(entity_entry.device_id) if entity_entry.device_id else None
     )
     if device_entry is None:
         raise ServiceValidationError(
@@ -238,6 +237,7 @@ def _calculate_import_date_range(
 
     Returns:
         Tuple of (start_date, end_date, days_to_import)
+
     """
     if first_stat_time:
         # Import data ending at first existing datapoint
@@ -268,6 +268,7 @@ def _determine_aggregation_period(
 
     Returns:
         Tuple of (period, chunk_days) where period is "Hour", "Day", or "Month"
+
     """
     if days_back_from_end < HOURLY_AGGREGATION_MAX_DAYS:
         # Recent data: use hourly aggregation
@@ -318,6 +319,7 @@ async def _fetch_historical_energy_data(
 
     Returns:
         List of all fetched energy data points
+
     """
     _LOGGER.info(
         "Fetching historical energy data for '%s' (installation=%s, room=%s): "
@@ -417,7 +419,7 @@ async def _fetch_historical_energy_data(
     return all_energy_data
 
 
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG001, C901, PLR0915
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG001, PLR0915
     """Set up the Fenix TFT integration and register services."""
 
     async def async_set_holiday_schedule(call: ServiceCall) -> None:
@@ -698,9 +700,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 # Import statistics directly to the sensor entity
                 # This makes the data appear under the sensor's entity ID
                 # instead of creating a separate external statistic
-                async_import_statistics(
-                    hass, energy_metadata, all_energy_stats
-                )
+                async_import_statistics(hass, energy_metadata, all_energy_stats)
 
                 _LOGGER.info(
                     "Successfully imported %d statistics to sensor '%s' (statistic_id: %s)",
