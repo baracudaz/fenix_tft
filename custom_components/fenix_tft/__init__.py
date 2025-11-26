@@ -293,7 +293,7 @@ def _determine_aggregation_period(
     return period, chunk_days
 
 
-async def _fetch_historical_energy_data(
+async def _fetch_historical_energy_data(  # noqa: PLR0913
     api: FenixTFTApi,
     installation_id: str,
     room_id: str,
@@ -379,7 +379,8 @@ async def _fetch_historical_energy_data(
             if energy_data:
                 all_energy_data.extend(energy_data)
                 _LOGGER.debug(
-                    "Successfully fetched chunk %d for '%s': %d data points (%s aggregation)",
+                    "Successfully fetched chunk %d for '%s': %d data points "
+                    "(%s aggregation)",
                     chunk_count,
                     device_name,
                     len(energy_data),
@@ -548,13 +549,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             installation_id,
         )
 
-    async def async_import_historical_statistics(call: ServiceCall) -> None:
+    async def async_import_historical_statistics(call: ServiceCall) -> None:  # noqa: PLR0915
         """Handle import_historical_statistics service call."""
         energy_entity_id = call.data[ATTR_ENERGY_ENTITY]
         days_back = call.data[ATTR_DAYS_BACK]
 
         _LOGGER.info(
-            "Historical import service called for entity '%s': requesting %d days of data",
+            "Historical import service called for entity '%s': requesting %d days "
+            "of data",
             energy_entity_id,
             days_back,
         )
@@ -566,7 +568,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
         device_name = device_data.get("name", "Unknown Device")
 
         _LOGGER.debug(
-            "Resolved device context for '%s': device_id=%s, room_id=%s, installation_id=%s",
+            "Resolved device context for '%s': device_id=%s, room_id=%s, "
+            "installation_id=%s",
             device_name,
             device_id,
             room_id,
@@ -682,13 +685,15 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 # When backfilling BEFORE existing data, start from 0
                 # When importing without existing data, also start from 0
                 if first_stat_time:
-                    # Backfilling: start from 0 since we're importing BEFORE existing stats
+                    # Backfilling: start from 0 since importing BEFORE existing stats
                     starting_sum = 0.0
                     _LOGGER.debug(
-                        "Backfilling before existing data: starting cumulative sum at 0.0 Wh"
+                        "Backfilling before existing data: starting cumulative sum "
+                        "at 0.0 Wh"
                     )
                 else:
-                    # No existing stats: check if sensor has current state to continue from
+                    # No existing stats: check if sensor has current state to
+                    # continue from
                     starting_sum = await get_last_statistic_sum(
                         hass, energy_metadata["statistic_id"]
                     )
@@ -717,12 +722,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 # Import statistics directly to the sensor entity
                 # This makes the data appear under the sensor's entity ID
                 # instead of creating a separate external statistic
-                async_import_statistics(
-                    hass, energy_metadata, all_energy_stats
-                )
+                async_import_statistics(hass, energy_metadata, all_energy_stats)
 
                 _LOGGER.info(
-                    "Successfully imported %d statistics to sensor '%s' (statistic_id: %s)",
+                    "Successfully imported %d statistics to sensor '%s' "
+                    "(statistic_id: %s)",
                     len(all_energy_stats),
                     device_name,
                     energy_metadata["statistic_id"],
@@ -752,11 +756,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
 
         except (FenixTFTApiError, ServiceValidationError) as err:
             # Surface validation and API errors via notification before re-raising
-            _LOGGER.error(
-                "Validation/API error during historical data import for '%s' (entity: %s): %s",
+            _LOGGER.exception(
+                "Validation/API error during historical data import for '%s' "
+                "(entity: %s)",
                 device_name,
                 energy_entity_id,
-                err,
             )
             error_msg = f"Failed to import historical data for {device_name}: {err}"
             async_create(

@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.statistics import (
     StatisticData,
     StatisticMeanType,
     StatisticMetaData,
-    async_import_statistics,
     get_last_statistics,
     statistics_during_period,
 )
@@ -85,8 +86,9 @@ async def get_first_statistic_time(
         try:
             now = dt_util.now()
 
-            # Binary search windows: start with 30 days, then 90, 180, 365, 730, 1825 (5 years)
-            # This avoids scanning decades of empty data for new installations
+            # Binary search windows: start with 30 days, then 90, 180, 365,
+            # 730, 1825 (5 years). This avoids scanning decades of empty data
+            # for new installations
             search_windows_days = [30, 90, 180, 365, 730, 1825]
 
             for days_back in search_windows_days:
@@ -109,9 +111,6 @@ async def get_first_statistic_time(
                         if isinstance(first_time, (int, float)):
                             return dt_util.utc_from_timestamp(first_time)
                         return first_time
-
-            # If no statistics found in 5 years, they likely don't exist
-            return None
 
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Could not get first statistic for %s: %s", statistic_id, err)
