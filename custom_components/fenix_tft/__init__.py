@@ -591,8 +591,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 device_name,
                 days_back,
                 first_stat_time.strftime("%Y-%m-%d %H:%M:%S"),
-                start_date.strftime("%Y-%m-%d"),
-                end_date.strftime("%Y-%m-%d"),
+                start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                end_date.strftime("%Y-%m-%d %H:%M:%S"),
             )
         else:
             _LOGGER.info(
@@ -600,8 +600,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 "importing %d days from present (import range: %s to %s)",
                 device_name,
                 days_back,
-                start_date.strftime("%Y-%m-%d"),
-                end_date.strftime("%Y-%m-%d"),
+                start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                end_date.strftime("%Y-%m-%d %H:%M:%S"),
             )
 
         # Create start notification
