@@ -704,9 +704,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 # Import statistics directly to the sensor entity
                 # This makes the data appear under the sensor's entity ID
                 # instead of creating a separate external statistic
-                async_import_statistics(
-                    hass, energy_metadata, all_energy_stats
-                )
+                async_import_statistics(hass, energy_metadata, all_energy_stats)
 
                 _LOGGER.info(
                     "Successfully imported %d statistics to sensor '%s' (statistic_id: %s)",
