@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, TypedDict
 
 import voluptuous as vol
 from homeassistant.components.persistent_notification import async_create
-from homeassistant.components.recorder.statistics import async_add_external_statistics
+from homeassistant.components.recorder.statistics import async_import_statistics
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import ATTR_ENTITY_ID, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
