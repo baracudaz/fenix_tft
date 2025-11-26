@@ -163,6 +163,9 @@
     },
     "import_failed": {
       "message": "Nepodařilo se importovat historické statistiky. Zkontrolujte logy pro více informací."
+    },
+    "missing_subscription_id": {
+      "message": "ID předplatného chybí; nelze importovat historická data. Prosím znovu se ověřte nebo zkontrolujte oprávnění vašeho účtu."
     }
   }
 }

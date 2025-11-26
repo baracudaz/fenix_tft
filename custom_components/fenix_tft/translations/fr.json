@@ -163,6 +163,9 @@
     },
     "import_failed": {
       "message": "Impossible d'importer les statistiques historiques. Consultez les journaux pour plus de détails."
+    },
+    "missing_subscription_id": {
+      "message": "L'ID d'abonnement est manquant ; impossible d'importer les données historiques. Veuillez vous réauthentifier ou vérifier les autorisations de votre compte."
     }
   }
 }

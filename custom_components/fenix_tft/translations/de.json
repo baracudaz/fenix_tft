@@ -106,6 +106,7 @@
     "device_data_not_found": { "message": "Gerätedaten wurden im Koordinator nicht gefunden." },
     "room_installation_missing": { "message": "Raum-ID oder Installations-ID fehlt für das ausgewählte Gerät." },
     "no_entity_selected": { "message": "Bitte wählen Sie einen Energiesensor zum Importieren von Daten aus." },
-    "import_failed": { "message": "Historische Statistiken konnten nicht importiert werden. Weitere Details finden Sie in den Protokollen." }
+    "import_failed": { "message": "Historische Statistiken konnten nicht importiert werden. Weitere Details finden Sie in den Protokollen." },
+    "missing_subscription_id": { "message": "Abonnement-ID fehlt; historische Daten können nicht importiert werden. Bitte authentifizieren Sie sich erneut oder überprüfen Sie Ihre Kontoberechtigungen." }
   }
 }

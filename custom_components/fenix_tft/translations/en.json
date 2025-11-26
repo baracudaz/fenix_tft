@@ -163,6 +163,9 @@
     },
     "import_failed": {
       "message": "Failed to import historical statistics. Check the logs for more details."
+    },
+    "missing_subscription_id": {
+      "message": "Subscription ID is missing; cannot import historical data. Please re-authenticate or check your account permissions."
     }
   }
 }
