@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, TypedDict
 
 import voluptuous as vol
 from homeassistant.components.persistent_notification import async_create
-from homeassistant.components.recorder.statistics import async_import_statistics
+from homeassistant.components.recorder.statistics import async_add_external_statistics
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import ATTR_ENTITY_ID, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
@@ -704,7 +704,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 # Import statistics directly to the sensor entity
                 # This makes the data appear under the sensor's entity ID
                 # instead of creating a separate external statistic
-                async_import_statistics(hass, energy_metadata, all_energy_stats)
+                async_import_statistics(
+                    hass, energy_metadata, all_energy_stats
+                )
 
                 _LOGGER.info(
                     "Successfully imported %d statistics to sensor '%s' (statistic_id: %s)",

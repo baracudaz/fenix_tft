@@ -11,6 +11,7 @@ from homeassistant.components.recorder.statistics import (
     StatisticData,
     StatisticMeanType,
     StatisticMetaData,
+    async_import_statistics,
     get_last_statistics,
     statistics_during_period,
 )
