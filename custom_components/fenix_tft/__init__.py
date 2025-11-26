@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
 from .api import FenixTFTApi, FenixTFTApiError
 from .const import (
+    API_RATE_LIMIT_DELAY,
     ATTR_DAYS_BACK,
     ATTR_END_DATE,
     ATTR_ENERGY_ENTITY,
@@ -145,6 +146,275 @@ def _get_installation_from_entity(
     if matched is None:
         return None, None, None
     return entry, matched.get("installation_id"), matched.get("installation")
+
+
+def _get_device_context_from_entity(
+    hass: HomeAssistant, entity_id: str
+) -> tuple[ConfigEntry, str, str, str, dict]:
+    """
+    Extract device context from entity for historical data import.
+
+    Returns:
+        Tuple of (config_entry, device_id, room_id, installation_id, device_data)
+
+    Raises:
+        ServiceValidationError: If any required context is missing
+    """
+    entity_reg = er.async_get(hass)
+    entity_entry = entity_reg.async_get(entity_id)
+    if not entity_entry:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="entity_not_found",
+            translation_placeholders={"entity_id": entity_id},
+        )
+
+    config_entry = hass.config_entries.async_get_entry(entity_entry.config_entry_id)
+    if config_entry is None or config_entry.state is not ConfigEntryState.LOADED:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="integration_not_loaded",
+        )
+
+    device_reg = dr.async_get(hass)
+    device_entry = (
+        device_reg.async_get(entity_entry.device_id)
+        if entity_entry.device_id
+        else None
+    )
+    if device_entry is None:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="device_not_found",
+        )
+
+    device_id = next(
+        (
+            identifier[1]
+            for identifier in device_entry.identifiers
+            if identifier[0] == DOMAIN
+        ),
+        None,
+    )
+    if device_id is None:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="device_id_missing",
+        )
+
+    # Get device data from coordinator
+    coordinator = config_entry.runtime_data["coordinator"]
+    device_data = next(
+        (d for d in coordinator.data if d.get("id") == device_id),
+        None,
+    )
+    if device_data is None:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="device_data_not_found",
+        )
+
+    room_id = device_data.get("room_id")
+    installation_id = device_data.get("installation_id")
+
+    if not room_id or not installation_id:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="room_installation_missing",
+        )
+
+    return config_entry, device_id, room_id, installation_id, device_data
+
+
+def _calculate_import_date_range(
+    days_back: int, first_stat_time: dt_util.dt.datetime | None
+) -> tuple[dt_util.dt.datetime, dt_util.dt.datetime, int]:
+    """
+    Calculate the date range for historical data import.
+
+    Args:
+        days_back: Number of days to import
+        first_stat_time: Timestamp of first existing statistic (if any)
+
+    Returns:
+        Tuple of (start_date, end_date, days_to_import)
+    """
+    if first_stat_time:
+        # Import data ending at first existing datapoint
+        end_date = first_stat_time
+        start_date = end_date - dt_util.dt.timedelta(days=days_back)
+    else:
+        # No existing statistics, import from now going back
+        end_date = dt_util.now()
+        start_date = end_date - dt_util.dt.timedelta(days=days_back)
+
+    return start_date, end_date, days_back
+
+
+def _determine_aggregation_period(
+    days_back_from_end: int, remaining_days: int
+) -> tuple[str, int]:
+    """
+    Determine the aggregation period and chunk size based on how far back in time.
+
+    Uses dynamic aggregation:
+    - Last 7 days: hourly aggregation for detail
+    - 8-90 days ago: daily aggregation
+    - 91+ days ago: monthly aggregation
+
+    Args:
+        days_back_from_end: Number of days back from the end date
+        remaining_days: Number of remaining days to process
+
+    Returns:
+        Tuple of (period, chunk_days) where period is "Hour", "Day", or "Month"
+    """
+    if days_back_from_end < HOURLY_AGGREGATION_MAX_DAYS:
+        # Recent data: use hourly aggregation
+        period = "Hour"
+        chunk_days = min(
+            HOURLY_AGGREGATION_MAX_DAYS - days_back_from_end,
+            remaining_days,
+        )
+    elif days_back_from_end < DAILY_AGGREGATION_MAX_DAYS:
+        # Medium range: use daily aggregation
+        period = "Day"
+        chunk_days = min(DAILY_AGGREGATION_CHUNK_DAYS, remaining_days)
+    else:
+        # Older data: use monthly aggregation
+        period = "Month"
+        chunk_days = min(MONTHLY_AGGREGATION_MAX_DAYS, remaining_days)
+
+    return period, chunk_days
+
+
+async def _fetch_historical_energy_data(
+    api: FenixTFTApi,
+    installation_id: str,
+    room_id: str,
+    subscription_id: str,
+    start_date: dt_util.dt.datetime,
+    end_date: dt_util.dt.datetime,
+    days_back: int,
+    device_name: str,
+) -> list[dict]:
+    """
+    Fetch historical energy data with dynamic aggregation.
+
+    Fetches data in chunks, using different aggregation periods based on age:
+    - Recent data: hourly
+    - Medium range: daily
+    - Older data: monthly
+
+    Args:
+        api: Fenix TFT API instance
+        installation_id: Installation ID
+        room_id: Room ID
+        subscription_id: Subscription ID
+        start_date: Start date for data fetch
+        end_date: End date for data fetch
+        days_back: Total days to import
+        device_name: Device name for logging
+
+    Returns:
+        List of all fetched energy data points
+    """
+    _LOGGER.info(
+        "Fetching historical energy data for '%s' (installation=%s, room=%s): "
+        "%d days from %s to %s",
+        device_name,
+        installation_id,
+        room_id,
+        days_back,
+        start_date.date(),
+        end_date.date(),
+    )
+
+    all_energy_data = []
+    current_date = end_date
+    remaining_days = days_back
+    chunk_count = 0
+    failed_chunks = 0
+
+    while remaining_days > 0 and current_date > start_date:
+        chunk_count += 1
+
+        # Determine period and chunk size based on how far back we are
+        days_back_from_end = (end_date - current_date).days
+        period, chunk_days = _determine_aggregation_period(
+            days_back_from_end, remaining_days
+        )
+
+        # Calculate chunk boundaries
+        chunk_end = current_date
+        chunk_start = max(
+            current_date - dt_util.dt.timedelta(days=chunk_days), start_date
+        )
+
+        _LOGGER.debug(
+            "Fetching chunk %d for '%s': period=%s, range=%s to %s (%d days)",
+            chunk_count,
+            device_name,
+            period,
+            chunk_start.date(),
+            chunk_end.date(),
+            chunk_days,
+        )
+
+        try:
+            energy_data = await api.get_room_historical_energy(
+                installation_id,
+                room_id,
+                subscription_id,
+                chunk_start,
+                chunk_end,
+                period,
+            )
+            if energy_data:
+                all_energy_data.extend(energy_data)
+                _LOGGER.debug(
+                    "Successfully fetched chunk %d for '%s': %d data points (%s aggregation)",
+                    chunk_count,
+                    device_name,
+                    len(energy_data),
+                    period,
+                )
+            else:
+                _LOGGER.debug(
+                    "No data returned for chunk %d for '%s': period %s to %s",
+                    chunk_count,
+                    device_name,
+                    chunk_start.date(),
+                    chunk_end.date(),
+                )
+        except FenixTFTApiError as err:
+            failed_chunks += 1
+            _LOGGER.warning(
+                "Failed to fetch chunk %d for '%s' (period=%s, range=%s to %s): %s",
+                chunk_count,
+                device_name,
+                period,
+                chunk_start.date(),
+                chunk_end.date(),
+                err,
+            )
+
+        # Move to next chunk
+        current_date = chunk_start
+        remaining_days -= chunk_days
+        await asyncio.sleep(API_RATE_LIMIT_DELAY)
+
+    _LOGGER.info(
+        "Completed data fetch for '%s': %d total data points from %d chunks "
+        "(%d successful, %d failed)",
+        device_name,
+        len(all_energy_data),
+        chunk_count,
+        chunk_count - failed_chunks,
+        failed_chunks,
+    )
+
+    return all_energy_data
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG001, C901, PLR0915
@@ -272,74 +542,30 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             installation_id,
         )
 
-    async def async_import_historical_statistics(call: ServiceCall) -> None:  # noqa: PLR0912, PLR0915
+    async def async_import_historical_statistics(call: ServiceCall) -> None:
         """Handle import_historical_statistics service call."""
         energy_entity_id = call.data[ATTR_ENERGY_ENTITY]
         days_back = call.data[ATTR_DAYS_BACK]
 
-        entity_id = energy_entity_id
-        entity_reg = er.async_get(hass)
-        if not (entity_entry := entity_reg.async_get(entity_id)):
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="entity_not_found",
-                translation_placeholders={"entity_id": entity_id},
-            )
-
-        config_entry = hass.config_entries.async_get_entry(entity_entry.config_entry_id)
-        if config_entry is None or config_entry.state is not ConfigEntryState.LOADED:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="integration_not_loaded",
-            )
-
-        device_reg = dr.async_get(hass)
-        device_entry = (
-            device_reg.async_get(entity_entry.device_id)
-            if entity_entry.device_id
-            else None
+        _LOGGER.info(
+            "Historical import service called for entity '%s': requesting %d days of data",
+            energy_entity_id,
+            days_back,
         )
-        if device_entry is None:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="device_not_found",
-            )
 
-        device_id = next(
-            (
-                identifier[1]
-                for identifier in device_entry.identifiers
-                if identifier[0] == DOMAIN
-            ),
-            None,
+        # Extract device context from entity
+        config_entry, device_id, room_id, installation_id, device_data = (
+            _get_device_context_from_entity(hass, energy_entity_id)
         )
-        if device_id is None:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="device_id_missing",
-            )
-
-        # Get device data from coordinator
-        coordinator = config_entry.runtime_data["coordinator"]
-        device_data = next(
-            (d for d in coordinator.data if d.get("id") == device_id),
-            None,
-        )
-        if device_data is None:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="device_data_not_found",
-            )
-
-        room_id = device_data.get("room_id")
-        installation_id = device_data.get("installation_id")
         device_name = device_data.get("name", "Unknown Device")
 
-        if not room_id or not installation_id:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="room_installation_missing",
-            )
+        _LOGGER.debug(
+            "Resolved device context for '%s': device_id=%s, room_id=%s, installation_id=%s",
+            device_name,
+            device_id,
+            room_id,
+            installation_id,
+        )
 
         # Get the statistic ID for this energy sensor
         entity_unique_part = (
@@ -353,32 +579,33 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
         first_stat_time = await get_first_statistic_time(hass, statistic_id)
 
         # Calculate date range based on existing statistics
-        if first_stat_time:
-            # Import data ending at first existing datapoint,
-            # going back days_back from there
-            _LOGGER.info(
-                "Found existing statistics for %s starting at %s. "
-                "Will import %d days before this timestamp.",
-                device_name,
-                first_stat_time,
-                days_back,
-            )
-            end_date = first_stat_time
-            start_date = end_date - dt_util.dt.timedelta(days=days_back)
-            days_to_import = days_back
-        else:
-            # No existing statistics, import from now going back
-            _LOGGER.info(
-                "No existing statistics found for %s. Will import %d days from now.",
-                device_name,
-                days_back,
-            )
-            end_date = dt_util.now()
-            start_date = end_date - dt_util.dt.timedelta(days=days_back)
-            days_to_import = days_back
+        start_date, end_date, days_to_import = _calculate_import_date_range(
+            days_back, first_stat_time
+        )
 
-        # Create notification
-        notification_id = f"fenix_import_{entity_id.replace('.', '_')}"
+        # Log import strategy
+        if first_stat_time:
+            _LOGGER.info(
+                "Import strategy for '%s': backfilling %d days before existing data "
+                "(first statistic: %s, import range: %s to %s)",
+                device_name,
+                days_back,
+                first_stat_time.strftime("%Y-%m-%d %H:%M:%S"),
+                start_date.strftime("%Y-%m-%d"),
+                end_date.strftime("%Y-%m-%d"),
+            )
+        else:
+            _LOGGER.info(
+                "Import strategy for '%s': no existing statistics found, "
+                "importing %d days from present (import range: %s to %s)",
+                device_name,
+                days_back,
+                start_date.strftime("%Y-%m-%d"),
+                end_date.strftime("%Y-%m-%d"),
+            )
+
+        # Create start notification
+        notification_id = f"fenix_import_{energy_entity_id.replace('.', '_')}"
         import_msg = (
             f"Starting historical data import for {device_name}. "
             f"Importing {days_to_import} days of energy data"
@@ -396,16 +623,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             notification_id=notification_id,
         )
 
-        _LOGGER.info(
-            "Starting historical data import for device %s (%s days, energy)%s",
-            device_name,
-            days_to_import,
-            f" before {first_stat_time}" if first_stat_time else "",
-        )
-
+        # Get API and subscription ID
         api = config_entry.runtime_data["api"]
         subscription_id = api.subscription_id
         if not subscription_id:
+            _LOGGER.error(
+                "Cannot import historical data for '%s': subscription ID is missing",
+                device_name,
+            )
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="missing_subscription_id",
@@ -415,111 +640,86 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 ),
             )
 
-        _LOGGER.info("Starting dynamic aggregation import for %d days", days_back)
+        _LOGGER.debug(
+            "Using subscription ID '%s' for historical data import",
+            subscription_id,
+        )
 
         try:
-            # Import energy data
-            if energy_entity_id:
-                _LOGGER.debug("Importing energy statistics for %s", device_name)
-                all_energy_data = []
+            # Fetch historical energy data with dynamic aggregation
+            all_energy_data = await _fetch_historical_energy_data(
+                api,
+                installation_id,
+                room_id,
+                subscription_id,
+                start_date,
+                end_date,
+                days_back,
+                device_name,
+            )
 
-                # Dynamic aggregation: work backwards from end_date
-                # Last 7 days: Hour, 8-90 days ago: Day, 91+ days ago: Month
-                current_date = end_date
-                remaining_days = days_back
+            # Process and import the data if available
+            if all_energy_data:
+                _LOGGER.info(
+                    "Processing %d raw data points for '%s' into statistics",
+                    len(all_energy_data),
+                    device_name,
+                )
 
-                while remaining_days > 0 and current_date > start_date:
-                    # Determine period and chunk size based on how far back we are
-                    days_from_now = (end_date - current_date).days
+                # Get entity friendly name from state which includes device name
+                energy_state = hass.states.get(energy_entity_id)
+                energy_entity_name = (
+                    energy_state.name
+                    if energy_state
+                    else energy_entity_id.replace("_", " ").title()
+                )
+                energy_metadata = create_energy_statistic_metadata(
+                    energy_entity_id, energy_entity_name
+                )
 
-                    if days_from_now < HOURLY_AGGREGATION_MAX_DAYS:
-                        # Recent data: use hourly aggregation
-                        period = "Hour"
-                        chunk_days = min(
-                            HOURLY_AGGREGATION_MAX_DAYS - days_from_now,
-                            remaining_days,
-                        )
-                    elif days_from_now < DAILY_AGGREGATION_MAX_DAYS:
-                        # Medium range: use daily aggregation
-                        period = "Day"
-                        chunk_days = min(DAILY_AGGREGATION_CHUNK_DAYS, remaining_days)
-                    else:
-                        # Older data: use monthly aggregation
-                        period = "Month"
-                        chunk_days = min(MONTHLY_AGGREGATION_MAX_DAYS, remaining_days)
+                # Get last cumulative sum to continue from existing statistics
+                starting_sum = await get_last_statistic_sum(
+                    hass, energy_metadata["statistic_id"]
+                )
 
-                    # Calculate chunk boundaries
-                    chunk_end = current_date
-                    chunk_start = max(
-                        current_date - dt_util.dt.timedelta(days=chunk_days), start_date
-                    )
-
+                if starting_sum > 0:
                     _LOGGER.debug(
-                        "Fetching energy (%s aggregation): %s to %s",
-                        period,
-                        chunk_start,
-                        chunk_end,
+                        "Continuing from existing cumulative sum: %.2f Wh",
+                        starting_sum,
                     )
 
-                    try:
-                        energy_data = await api.get_room_historical_energy(
-                            installation_id,
-                            room_id,
-                            subscription_id,
-                            chunk_start,
-                            chunk_end,
-                            period,
-                        )
-                        if energy_data:
-                            all_energy_data.extend(energy_data)
-                            _LOGGER.debug(
-                                "Fetched %d energy data points (%s)",
-                                len(energy_data),
-                                period,
-                            )
-                        else:
-                            _LOGGER.debug(
-                                "No energy data available for period %s to %s",
-                                chunk_start.date(),
-                                chunk_end.date(),
-                            )
-                    except FenixTFTApiError as err:
-                        _LOGGER.warning("Failed to fetch energy data chunk: %s", err)
+                # Convert all data at once to maintain cumulative sum
+                all_energy_stats = convert_energy_api_data_to_statistics(
+                    all_energy_data, starting_sum
+                )
 
-                    # Move to next chunk
-                    current_date = chunk_start
-                    remaining_days -= chunk_days
-                    await asyncio.sleep(1)  # Rate limiting
+                _LOGGER.debug(
+                    "Converted %d data points into %d statistics entries for '%s'",
+                    len(all_energy_data),
+                    len(all_energy_stats),
+                    device_name,
+                )
 
-                if all_energy_data:
-                    # Get entity friendly name from state which includes device name
-                    energy_state = hass.states.get(energy_entity_id)
-                    energy_entity_name = (
-                        energy_state.name
-                        if energy_state
-                        else energy_entity_id.replace("_", " ").title()
-                    )
-                    energy_metadata = create_energy_statistic_metadata(
-                        energy_entity_id, energy_entity_name
-                    )
+                # Import statistics into Home Assistant
+                async_add_external_statistics(
+                    hass, energy_metadata, all_energy_stats
+                )
 
-                    # Get last cumulative sum to continue from existing statistics
-                    starting_sum = await get_last_statistic_sum(
-                        hass, energy_metadata["statistic_id"]
-                    )
-
-                    # Convert all data at once to maintain cumulative sum
-                    all_energy_stats = convert_energy_api_data_to_statistics(
-                        all_energy_data, starting_sum
-                    )
-                    async_add_external_statistics(
-                        hass, energy_metadata, all_energy_stats
-                    )
-                    _LOGGER.info(
-                        "Imported %d energy statistics for %s",
-                        len(all_energy_stats),
-                        energy_entity_id,
-                    )
+                _LOGGER.info(
+                    "Successfully imported %d statistics for '%s' (entity: %s, statistic_id: %s)",
+                    len(all_energy_stats),
+                    device_name,
+                    energy_entity_id,
+                    energy_metadata["statistic_id"],
+                )
+            else:
+                _LOGGER.warning(
+                    "No data fetched for '%s' in the requested date range (%s to %s). "
+                    "The device may not have been active during this period.",
+                    device_name,
+                    start_date.strftime("%Y-%m-%d"),
+                    end_date.strftime("%Y-%m-%d"),
+                )
 
             # Success notification
             async_create(
@@ -530,15 +730,27 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 notification_id=notification_id,
             )
 
+            _LOGGER.info(
+                "Historical import completed successfully for '%s'",
+                device_name,
+            )
+
+        except (FenixTFTApiError, ServiceValidationError):
+            # Re-raise validation and API errors as-is
+            raise
         except Exception as err:
-            _LOGGER.exception("Error during historical data import")
+            _LOGGER.exception(
+                "Unexpected error during historical data import for '%s' (entity: %s)",
+                device_name,
+                energy_entity_id,
+            )
+            error_msg = f"Failed to import historical data for {device_name}: {err}"
             async_create(
                 hass,
-                f"Failed to import historical data for {device_name}: {err}",
+                error_msg,
                 title="Fenix TFT Historical Import Failed",
                 notification_id=notification_id,
             )
-            error_msg = f"Failed to import historical data for {device_name}: {err}"
             raise HomeAssistantError(error_msg) from err
 
     # Register services

@@ -96,3 +96,6 @@ ATTR_END_DATE: Final[str] = "end_date"
 ATTR_MODE: Final[str] = "mode"
 ATTR_DAYS_BACK: Final[str] = "days_back"
 ATTR_ENERGY_ENTITY: Final[str] = "energy_entity"
+
+# Historical data import configuration
+API_RATE_LIMIT_DELAY: Final[int] = 1  # Delay in seconds between API calls
