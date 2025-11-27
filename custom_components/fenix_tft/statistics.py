@@ -132,26 +132,32 @@ def create_energy_statistic_metadata(
     """
     Create StatisticMetaData for energy consumption.
 
-    This creates metadata for importing statistics directly to the sensor entity,
-    not as external statistics. This allows the historical data to appear
-    under the sensor's own entity ID (e.g., sensor.victory_port_x) rather than
-    a separate external statistic ID.
+    This creates metadata for importing statistics as external statistics,
+    not interfering with the main sensor entity. The historical data will appear
+    as a separate external statistic (e.g., fenix_tft:sensor.victory_port_x_history)
+    that can be used in the Energy Dashboard without requiring an actual entity.
 
     Args:
         entity_id: Entity ID for the energy sensor (e.g., sensor.victory_port_x)
         entity_name: Human-readable entity name
 
     Returns:
-        StatisticMetaData configured for sensor energy statistics
+        StatisticMetaData configured for external statistics
 
     """
+    # Create separate statistic_id for historical data by appending _history
+    # Remove the 'sensor.' prefix for cleaner external statistic names
+    clean_id = entity_id.replace("sensor.", "")
+    history_statistic_id = f"fenix_tft:{clean_id}_history"
+    history_entity_name = f"{entity_name} (History)"
+
     return StatisticMetaData(
         has_mean=False,
         has_sum=True,
         mean_type=StatisticMeanType.NONE,
-        name=entity_name,
-        source="recorder",  # Use recorder as source for sensor statistics
-        statistic_id=entity_id,  # Use entity ID directly for sensor statistics
+        name=history_entity_name,
+        source="fenix_tft",  # Use integration domain as source for external statistics
+        statistic_id=history_statistic_id,  # External statistic ID
         unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         unit_class="energy",
     )

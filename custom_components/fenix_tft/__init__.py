@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING, TypedDict
 
 import voluptuous as vol
 from homeassistant.components.persistent_notification import async_create
-from homeassistant.components.recorder.statistics import async_import_statistics
+from homeassistant.components.recorder.statistics import (
+    async_add_external_statistics,
+)
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import ATTR_ENTITY_ID, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
@@ -231,10 +233,9 @@ def _calculate_import_date_range(
     """
     Calculate the date range for historical data import.
 
-    When backfilling before existing statistics, we stop just before the first
-    existing bucket to avoid overlaps and double-counting. Home Assistant uses
-    hourly statistic buckets, so we subtract one hour from the first statistic
-    timestamp to ensure imported data ends cleanly before existing data begins.
+    Since energy data points are day aggregates, we align imports to midnight
+    boundaries to avoid overlaps and double-counting. Uses Home Assistant's
+    configured timezone for date calculations.
 
     Args:
         days_back: Number of days to import
@@ -244,13 +245,21 @@ def _calculate_import_date_range(
         Tuple of (start_date, end_date, days_to_import)
 
     """
-    # Import data ending just before first existing datapoint (if any) to avoid overlap
-    # Subtract 1 hour to align with Home Assistant's hourly bucket boundaries
-    end_date = (
-        first_stat_time - dt_util.dt.timedelta(hours=1)
-        if first_stat_time
-        else dt_util.now()
-    )
+    if first_stat_time:
+        # Backfilling: import data ending just before the day when existing data
+        # begins (midnight minus 1 second = 23:59:59 of previous day)
+        # This ensures we don't include any data from the day with existing stats
+        existing_day_start = dt_util.as_local(first_stat_time).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        end_date = existing_day_start - dt_util.dt.timedelta(seconds=1)
+    else:
+        # No existing data: import up to end of yesterday (midnight minus 1 second)
+        # to avoid including today's 00:00-01:00 bucket which overlaps with
+        # the sensor's current data
+        today_midnight = dt_util.start_of_local_day()
+        end_date = today_midnight - dt_util.dt.timedelta(seconds=1)
+
     start_date = end_date - dt_util.dt.timedelta(days=days_back)
     return start_date, end_date, days_back
 
@@ -576,10 +585,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             installation_id,
         )
 
-        # For sensor statistics, the statistic_id is the entity_id itself
-        statistic_id = energy_entity_id
+        # For historical data, use external statistics to avoid interfering
+        # with the main sensor entity
+        clean_id = energy_entity_id.replace("sensor.", "")
+        statistic_id = f"fenix_tft:{clean_id}_history"
 
-        # Check if we have existing statistics
+        # Check if we have existing statistics in the external statistic
         first_stat_time = await get_first_statistic_time(hass, statistic_id)
 
         # Calculate date range based on existing statistics
@@ -719,13 +730,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                     device_name,
                 )
 
-                # Import statistics directly to the sensor entity
-                # This makes the data appear under the sensor's entity ID
-                # instead of creating a separate external statistic
-                async_import_statistics(hass, energy_metadata, all_energy_stats)
+                # Import statistics as external statistics
+                # This makes the data appear as a separate external statistic (e.g.,
+                # fenix_tft:victory_port_x_history) instead of interfering with the
+                # main sensor entity's current data
+                async_add_external_statistics(hass, energy_metadata, all_energy_stats)
 
                 _LOGGER.info(
-                    "Successfully imported %d statistics to sensor '%s' "
+                    "Successfully imported %d statistics to external statistic '%s' "
                     "(statistic_id: %s)",
                     len(all_energy_stats),
                     device_name,
@@ -744,7 +756,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             async_create(
                 hass,
                 f"Successfully imported historical energy data for {device_name}. "
-                f"Data is now available in the Energy Dashboard and history graphs.",
+                f"Data is available as an external statistic ({statistic_id}) "
+                f"and can be added to the Energy Dashboard.",
                 title="Fenix TFT Historical Import Complete",
                 notification_id=notification_id,
             )

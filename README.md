@@ -138,7 +138,7 @@ automation:
 
 ### `fenix_tft.import_historical_statistics`
 
-Import historical energy consumption data directly into the sensor's long-term statistics. This service intelligently detects existing data and backfills only older data to prevent duplicates and double-counting.
+Import historical energy consumption data as external statistics. This service intelligently detects existing data and backfills only older data to prevent duplicates and double-counting. Data is imported as a separate external statistic (e.g., `fenix_tft:bedroom_daily_energy_consumption_history`) to avoid interfering with the main sensor's current data.
 
 **Smart Aggregation:** The service automatically uses the optimal data granularity:
 
@@ -172,7 +172,7 @@ data:
 - Data gaps: Backfill missing periods after connectivity issues
 - Migration: Import data when moving from another system
 
-**Note:** Imported data appears directly under the sensor's entity ID (e.g., `sensor.bedroom_daily_energy_consumption`) in the Energy Dashboard and history graphs. The service maintains cumulative sum continuity and aligns with Home Assistant's hourly statistic buckets to prevent double-counting.
+**Note:** Imported data appears as a separate external statistic (e.g., `fenix_tft:bedroom_daily_energy_consumption_history`) that can be added to the Energy Dashboard. This keeps historical imports separate from the main sensor's current data. The service maintains cumulative sum continuity and aligns with Home Assistant's hourly statistic buckets to prevent double-counting.
 
 ## Sensors
 

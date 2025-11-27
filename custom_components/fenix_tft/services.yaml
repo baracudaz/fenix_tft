@@ -53,7 +53,7 @@ cancel_holiday_schedule:
 
 import_historical_statistics:
   name: Import historical statistics
-  description: Import historical energy consumption data directly into the sensor's long-term statistics. Data will appear under the sensor entity (e.g., sensor.victory_port_x) in the Energy Dashboard and history graphs. Supports up to 365 days with intelligent dynamic aggregation (hourly for last 7 days, daily for 8-90 days ago, monthly for older data). Check persistent notifications for progress updates.
+  description: Import historical energy consumption data as external statistics. Data will appear as a separate external statistic (e.g., fenix_tft:device_name_history) to avoid interfering with the main sensor's current data. Can be added to the Energy Dashboard. Supports up to 365 days with intelligent dynamic aggregation (hourly for last 7 days, daily for 8-90 days ago, monthly for older data). Check persistent notifications for progress updates.
   fields:
     energy_entity:
       name: Energy entity
