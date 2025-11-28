@@ -418,11 +418,42 @@ class FenixTFTApi:
                     dev_id = dev.get("Id_deviceId")
                     try:
                         props = await self.get_device_properties(dev_id)
+                        # API Field Mapping:
+                        # Cm = Current preset/operating mode
+                        #      (0=Off, 1=Holidays, 2=Program, 4=Defrost, 5=Boost,
+                        #      6=Manual)
+                        # Hs = HVAC state - dual purpose field:
+                        #      - Normal mode: heating status (0=idle, 1=heating, 2=off)
+                        #      - Holiday mode (Cm=1): holiday mode type
+                        #        (1=Off, 2=Reduce/Eco, 5=Defrost, 8=Sunday)
+                        # H1 = Holiday schedule start date/time (DD/MM/YYYY HH:MM:SS)
+                        # H2 = Holiday schedule end date/time (DD/MM/YYYY HH:MM:SS)
+                        # H3 = Holiday mode array [mode, 0, 0, ...]
+                        #      Often all zeros when using manual holiday activation
+
+                        preset_mode_val = props.get("Cm", {}).get("value")
+                        hvac_state_val = props.get("Hs", {}).get("value")
+                        h1_val = props.get("H1", {}).get("value")
+                        h2_val = props.get("H2", {}).get("value")
                         h3_val = props.get("H3", {}).get("value")
+
+                        # Parse H3 array to get holiday_mode (first element if present)
                         holiday_mode = (
                             h3_val[0]
                             if h3_val and isinstance(h3_val, list)
                             else HOLIDAY_MODE_NONE
+                        )
+
+                        _LOGGER.debug(
+                            "Device %s API fields: Cm=%s, Hs=%s, H1=%s, H2=%s, "
+                            "H3=%s, parsed_holiday_mode=%s",
+                            dev_id,
+                            preset_mode_val,
+                            hvac_state_val,
+                            h1_val,
+                            h2_val,
+                            h3_val,
+                            holiday_mode,
                         )
                         device_data = {
                             "id": dev_id,
@@ -435,11 +466,12 @@ class FenixTFTApi:
                             "target_temp": decode_temp_from_entry(props.get("Ma")),
                             "current_temp": decode_temp_from_entry(props.get("At")),
                             "floor_temp": decode_temp_from_entry(props.get("bo")),
-                            "hvac_action": props.get("Hs", {}).get("value"),
-                            "preset_mode": props.get("Cm", {}).get("value"),
-                            "holiday_start": props.get("H1", {}).get("value"),
-                            "holiday_end": props.get("H2", {}).get("value"),
-                            "holiday_mode": holiday_mode,
+                            # hvac_action: Hs value (heating status OR holiday mode)
+                            "hvac_action": hvac_state_val,
+                            "preset_mode": preset_mode_val,  # Cm value
+                            "holiday_start": h1_val,  # H1 value
+                            "holiday_end": h2_val,  # H2 value
+                            "holiday_mode": holiday_mode,  # H3[0] value
                         }
                         devices.append(device_data)
                     except FenixTFTApiError:

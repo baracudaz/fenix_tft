@@ -15,7 +15,6 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    HOLIDAY_EPOCH_DATE,
     HOLIDAY_MODE_DISPLAY_NAMES,
     HOLIDAY_MODE_NAMES,
     HOLIDAY_MODE_NONE,
@@ -371,42 +370,96 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return HOLIDAY_MODE_DISPLAY_NAMES.get(HOLIDAY_MODE_NONE, "None")
 
-        preset_mode = dev.get("preset_mode")
+        # API field mapping:
+        # preset_mode = Cm field
+        #   (0=Off, 1=Holidays, 2=Program, 4=Defrost, 5=Boost, 6=Manual)
+        # holiday_mode = H3[0] field
+        #   (0=None, 1=Off, 2=Reduce/Eco, 5=Defrost, 8=Sunday)
+        # hvac_action = Hs field - dual purpose:
+        #   - Normal mode: heating status (0=idle, 1=heating, 2=off)
+        #   - Holiday mode (Cm=1): holiday mode type
+        #     (1=Off, 2=Reduce, 5=Defrost, 8=Sunday)
+        holiday_start = dev.get("holiday_start")
+        holiday_end = dev.get("holiday_end")
         holiday_mode = dev.get("holiday_mode", HOLIDAY_MODE_NONE)
+        hvac_action = dev.get("hvac_action")
+        preset_mode = dev.get("preset_mode")
 
         _LOGGER.debug(
-            "Holiday mode sensor %s: preset_mode=%s, holiday_mode=%s",
+            "Holiday mode sensor %s: preset_mode=%s, holiday_mode=%s, "
+            "hvac_action=%s, dates=%s to %s",
             self._device_id,
             preset_mode,
             holiday_mode,
+            hvac_action,
+            holiday_start,
+            holiday_end,
         )
 
-        # Check if device is in holiday preset mode
-        # This covers both manual holiday mode and scheduled holidays
-        if preset_mode != PRESET_MODE_HOLIDAYS:
+        # Check if there's an active holiday schedule based on dates
+        start_dt, end_dt = parse_holiday_window(holiday_start, holiday_end)
+        none_display = HOLIDAY_MODE_DISPLAY_NAMES.get(HOLIDAY_MODE_NONE, "None")
+
+        if not start_dt or not end_dt:
             _LOGGER.debug(
-                "Device %s not in holiday preset mode, returning None",
+                "Device %s has no valid holiday schedule dates",
                 self._device_id,
             )
-            return HOLIDAY_MODE_DISPLAY_NAMES.get(HOLIDAY_MODE_NONE, "None")
+            return none_display
 
-        # If a specific holiday mode is set, return it
+        # Check if current time is within holiday window
+        now = dt_util.now()
+        if not (start_dt <= now <= end_dt):
+            _LOGGER.debug(
+                "Device %s holiday schedule not active (now=%s, window=%s to %s)",
+                self._device_id,
+                now,
+                start_dt,
+                end_dt,
+            )
+            return none_display
+
+        # Holiday schedule is active - determine mode type
+        # Priority 1: Check H3 field (most reliable for scheduled holidays)
         if holiday_mode != HOLIDAY_MODE_NONE:
             mode_name = HOLIDAY_MODE_DISPLAY_NAMES.get(holiday_mode, "None")
             _LOGGER.debug(
-                "Device %s holiday mode: %s (%s)",
+                "Device %s holiday mode from H3: %s (%s)",
                 self._device_id,
                 mode_name,
                 holiday_mode,
             )
             return mode_name
 
-        # Device is in holiday mode but no specific mode is set
-        # Return a generic "Holiday" indicator
-        _LOGGER.debug(
-            "Device %s in holiday mode with no specific type", self._device_id
+        # Priority 2: Check hvac_action (Hs field) when Cm=1 (manual activation)
+        if (
+            preset_mode == PRESET_MODE_HOLIDAYS
+            and hvac_action is not None
+            and hvac_action in HOLIDAY_MODE_DISPLAY_NAMES
+        ):
+            mode_name = HOLIDAY_MODE_DISPLAY_NAMES.get(hvac_action)
+            _LOGGER.debug(
+                "Device %s holiday mode from hvac_action: %s (%s)",
+                self._device_id,
+                mode_name,
+                hvac_action,
+            )
+            return mode_name
+
+        # Unexpected state: active holiday schedule but no valid mode indicator
+        _LOGGER.warning(
+            "Device %s has active holiday schedule but no valid mode: "
+            "preset_mode=%s, holiday_mode=%s, hvac_action=%s",
+            self._device_id,
+            preset_mode,
+            holiday_mode,
+            hvac_action,
         )
-        return "Holiday"
+        return (
+            HOLIDAY_MODE_DISPLAY_NAMES.get(hvac_action, f"Unknown ({hvac_action})")
+            if hvac_action is not None
+            else "Unknown"
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -472,28 +525,24 @@ class FenixHolidayFromSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return None
 
-        preset_mode = dev.get("preset_mode")
         holiday_start = dev.get("holiday_start")
         holiday_end = dev.get("holiday_end")
 
         _LOGGER.debug(
-            "Holiday from sensor %s: preset_mode=%s, start=%s",
+            "Holiday from sensor %s: start=%s, end=%s",
             self._device_id,
-            preset_mode,
             holiday_start,
+            holiday_end,
         )
 
-        # No holiday if not in holiday preset mode
-        if preset_mode != PRESET_MODE_HOLIDAYS:
-            _LOGGER.debug("Device %s not in holiday mode", self._device_id)
+        # Check for valid holiday schedule dates
+        start_dt, end_dt = parse_holiday_window(holiday_start, holiday_end)
+        if not start_dt or not end_dt:
+            _LOGGER.debug(
+                "Device %s has no valid holiday schedule dates", self._device_id
+            )
             return None
 
-        # No start date if no valid dates are set
-        if not holiday_start or holiday_start == HOLIDAY_EPOCH_DATE:
-            _LOGGER.debug("Device %s has no valid holiday start date", self._device_id)
-            return None
-
-        start_dt, _end_dt = parse_holiday_window(holiday_start, holiday_end)
         _LOGGER.debug("Device %s holiday starts: %s", self._device_id, start_dt)
         return start_dt
 
@@ -538,28 +587,24 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return None
 
-        preset_mode = dev.get("preset_mode")
         holiday_start = dev.get("holiday_start")
         holiday_end = dev.get("holiday_end")
 
         _LOGGER.debug(
-            "Holiday until sensor %s: preset_mode=%s, end=%s",
+            "Holiday until sensor %s: start=%s, end=%s",
             self._device_id,
-            preset_mode,
+            holiday_start,
             holiday_end,
         )
 
-        # No holiday if not in holiday preset mode
-        if preset_mode != PRESET_MODE_HOLIDAYS:
-            _LOGGER.debug("Device %s not in holiday mode", self._device_id)
+        # Check for valid holiday schedule dates
+        start_dt, end_dt = parse_holiday_window(holiday_start, holiday_end)
+        if not start_dt or not end_dt:
+            _LOGGER.debug(
+                "Device %s has no valid holiday schedule dates", self._device_id
+            )
             return None
 
-        # No end date if no valid dates are set
-        if not holiday_end or holiday_end == HOLIDAY_EPOCH_DATE:
-            _LOGGER.debug("Device %s has no valid holiday end date", self._device_id)
-            return None
-
-        _start_dt, end_dt = parse_holiday_window(holiday_start, holiday_end)
         _LOGGER.debug("Device %s holiday ends: %s", self._device_id, end_dt)
         return end_dt
 
