@@ -434,7 +434,6 @@ class FenixTFTApi:
                     dev_id = dev.get("Id_deviceId")
                     try:
                         props = await self.get_device_properties(dev_id)
-
                         # API Field Mapping:
                         # Cm = Current preset/operating mode
                         #      (0=Off, 1=Holidays, 2=Program, 4=Defrost, 5=Boost,
@@ -461,11 +460,6 @@ class FenixTFTApi:
                             else HOLIDAY_MODE_NONE
                         )
 
-                        # Decode temperatures for logging
-                        target_temp = decode_temp_from_entry(props.get("Ma"))
-                        current_temp = decode_temp_from_entry(props.get("At"))
-                        setpoint_temp = decode_temp_from_entry(props.get("Sp"))
-
                         _LOGGER.debug(
                             "Device %s API fields: Cm=%s, Hs=%s, H1=%s, H2=%s, "
                             "H3=%s, parsed_holiday_mode=%s",
@@ -476,13 +470,6 @@ class FenixTFTApi:
                             h2_val,
                             h3_val,
                             holiday_mode,
-                        )
-                        _LOGGER.debug(
-                            "Device %s temperatures: Ma=%.1f°C, At=%.1f°C, Sp=%.1f°C",
-                            dev_id,
-                            target_temp if target_temp is not None else 0.0,
-                            current_temp if current_temp is not None else 0.0,
-                            setpoint_temp if setpoint_temp is not None else 0.0,
                         )
                         device_data = {
                             "id": dev_id,
@@ -501,9 +488,6 @@ class FenixTFTApi:
                             "holiday_start": h1_val,  # H1 value
                             "holiday_end": h2_val,  # H2 value
                             "holiday_mode": holiday_mode,  # H3[0] value
-                            "holiday_target_temp": decode_temp_from_entry(
-                                props.get("Sp")
-                            ),  # Sp value - active target when in holiday mode
                         }
                         devices.append(device_data)
                     except FenixTFTApiError:
