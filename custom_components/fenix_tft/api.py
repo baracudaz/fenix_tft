@@ -21,6 +21,7 @@ from .const import (
     CLIENT_ID,
     HOLIDAY_EPOCH_DATE,
     HOLIDAY_MODE_NONE,
+    HTTP_NO_CONTENT,
     HTTP_OK,
     HTTP_REDIRECT,
     REDIRECT_URI,
@@ -111,6 +112,11 @@ class FenixTFTApi:
         self._token_expires: float | None = None
         self._sub: str | None = None
         self._login_in_progress = False
+
+    @property
+    def subscription_id(self) -> str | None:
+        """Get the user's subscription ID."""
+        return self._sub
 
     def _headers(self) -> dict[str, str]:
         """Return standard headers with bearer token."""
@@ -570,6 +576,63 @@ class FenixTFTApi:
         async with self._session.get(url, headers=self._headers()) as resp:
             if resp.status != HTTP_OK:
                 msg = f"Failed to get energy consumption: {resp.status}"
+                raise FenixTFTApiError(msg)
+            return await resp.json()
+
+    async def get_room_historical_energy(  # noqa: PLR0913
+        self,
+        installation_id: str,
+        room_id: str,
+        subscription_id: str,
+        start_date: datetime,
+        end_date: datetime,
+        period: str = "Hour",
+    ) -> list[dict[str, Any]]:
+        """
+        Get historical energy consumption data for a specific room.
+
+        All date parameters are normalized to UTC before being sent to the API.
+        This accepts aware or naive datetimes; naive values are treated as UTC.
+
+        Args:
+            installation_id: Installation ID
+            room_id: Room ID
+            subscription_id: Subscription ID (user ID)
+            start_date: Start date (any timezone, will be converted to UTC)
+            end_date: End date (any timezone, will be converted to UTC)
+            period: Aggregation period (Hour, Day, Week, Month, Quarter, Year)
+
+        Returns:
+            List of energy consumption metrics at the specified aggregation period
+
+        """
+        # Normalize dates to UTC to ensure consistent API behavior
+        start_date = dt_util.as_utc(start_date)
+        end_date = dt_util.as_utc(end_date)
+
+        await self._ensure_token()
+
+        url = (
+            f"{API_BASE}/DataProcessing/v1/metricsAggregat/consommation/room/"
+            f"{installation_id}/{room_id}/{subscription_id}/{period}/Wc/"
+            f"{_format_api_date(start_date)}/{_format_api_date(end_date)}"
+        )
+
+        _LOGGER.debug(
+            "Fetching historical energy for room %s, installation %s "
+            "(UTC range: %s to %s)",
+            room_id,
+            installation_id,
+            start_date.isoformat(),
+            end_date.isoformat(),
+        )
+
+        async with self._session.get(url, headers=self._headers()) as resp:
+            if resp.status == HTTP_NO_CONTENT:
+                # No data available for this period
+                return []
+            if resp.status != HTTP_OK:
+                msg = f"Failed to get historical energy data: {resp.status}"
                 raise FenixTFTApiError(msg)
             return await resp.json()
 

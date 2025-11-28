@@ -78,6 +78,20 @@
           "description": "Beliebige Thermostat-Entität aus der Installation (Abbruch gilt für die gesamte Installation)."
         }
       }
+    },
+    "import_historical_statistics": {
+      "name": "Historische Statistiken importieren",
+      "description": "Importiert historische Energieverbrauchsdaten in die Langzeitstatistiken von Home Assistant. Verwendet intelligente dynamische Aggregation: stündlich für die letzten 7 Tage, täglich für 8-90 Tage zurück, monatlich für ältere Daten.",
+      "fields": {
+        "energy_entity": {
+          "name": "Energie-Entität",
+          "description": "Wählen Sie den Energieverbrauchssensor aus, für den historische Daten importiert werden sollen."
+        },
+        "days_back": {
+          "name": "Tage zum Importieren",
+          "description": "Anzahl der Tage historischer Daten zum Importieren (1-365). Aktuelle Daten werden stündlich detailliert, ältere Daten grober aggregiert."
+        }
+      }
     }
   },
   "exceptions": {
@@ -85,6 +99,14 @@
     "entity_not_found": { "message": "Entität {entity_id} wurde nicht gefunden oder keiner gültigen Installation zugeordnet." },
     "installation_id_missing": { "message": "Installations-ID fehlt für das ausgewählte Gerät." },
     "api_error_set_holiday": { "message": "Urlaubsplan konnte nicht festgelegt werden. Bitte Verbindung prüfen und erneut versuchen." },
-    "api_error_cancel_holiday": { "message": "Urlaubsplan konnte nicht abgebrochen werden. Bitte Verbindung prüfen und erneut versuchen." }
+    "api_error_cancel_holiday": { "message": "Urlaubsplan konnte nicht abgebrochen werden. Bitte Verbindung prüfen und erneut versuchen." },
+    "integration_not_loaded": { "message": "Die Integration ist nicht geladen. Bitte starten Sie die Integration neu und versuchen Sie es erneut." },
+    "device_not_found": { "message": "Gerät wurde für die ausgewählte Entität nicht gefunden." },
+    "device_id_missing": { "message": "Geräte-ID fehlt für das ausgewählte Gerät." },
+    "device_data_not_found": { "message": "Gerätedaten wurden im Koordinator nicht gefunden." },
+    "room_installation_missing": { "message": "Raum-ID oder Installations-ID fehlt für das ausgewählte Gerät." },
+    "no_entity_selected": { "message": "Bitte wählen Sie einen Energiesensor zum Importieren von Daten aus." },
+    "import_failed": { "message": "Historische Statistiken konnten nicht importiert werden. Weitere Details finden Sie in den Protokollen." },
+    "missing_subscription_id": { "message": "Abonnement-ID fehlt; historische Daten können nicht importiert werden. Bitte authentifizieren Sie sich erneut oder überprüfen Sie Ihre Kontoberechtigungen." }
   }
 }

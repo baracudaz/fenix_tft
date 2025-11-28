@@ -5,6 +5,9 @@
         "@baracudaz"
     ],
     "config_flow": true,
+    "dependencies": [
+        "recorder"
+    ],
     "documentation": "https://github.com/baracudaz/fenix_tft",
     "integration_type": "device",
     "iot_class": "cloud_polling",
@@ -13,5 +16,5 @@
         "aiohttp>=3.8.0",
         "beautifulsoup4>=4.11.0"
     ],
-    "version": "1.0.1"
+    "version": "1.1.0"
 }

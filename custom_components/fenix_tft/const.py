@@ -28,6 +28,7 @@ SCOPES: Final[str] = (
 
 # HTTP codes
 HTTP_OK: Final[int] = 200
+HTTP_NO_CONTENT: Final[int] = 204
 HTTP_REDIRECT: Final[int] = 302
 
 # API timeout configuration
@@ -87,8 +88,14 @@ HOLIDAY_PROPAGATION_DELAY: Final[int] = 5
 # Service names
 SERVICE_SET_HOLIDAY_SCHEDULE: Final[str] = "set_holiday_schedule"
 SERVICE_CANCEL_HOLIDAY_SCHEDULE: Final[str] = "cancel_holiday_schedule"
+SERVICE_IMPORT_HISTORICAL_STATISTICS: Final[str] = "import_historical_statistics"
 
 # Service field names
 ATTR_START_DATE: Final[str] = "start_date"
 ATTR_END_DATE: Final[str] = "end_date"
 ATTR_MODE: Final[str] = "mode"
+ATTR_DAYS_BACK: Final[str] = "days_back"
+ATTR_ENERGY_ENTITY: Final[str] = "energy_entity"
+
+# Historical data import configuration
+API_RATE_LIMIT_DELAY: Final[int] = 1  # Delay in seconds between API calls

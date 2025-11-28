@@ -104,11 +104,25 @@
     },
     "cancel_holiday_schedule": {
       "name": "Zrušit plán prázdnin",
-      "description": "Zrušit aktivní nebo naplánované prázdniny pro všechny termostaty v instalaci a vrátit je k běžnému týdennímu programu.",
+      "description": "Zrušit aktivní nebo naplánované prázdniny pro všechny termostaty v instalaci a vrátit je k běžnému týdenímu programu.",
       "fields": {
         "entity_id": {
           "name": "Termostat",
           "description": "Libovolná entita termostatu z instalace (zrušení platí pro celou instalaci)."
+        }
+      }
+    },
+    "import_historical_statistics": {
+      "name": "Importovat historické statistiky",
+      "description": "Importovat historická data o spotřebě energie do dlouhodobých statistik Home Assistant. Používá inteligentní dynamické seskupování: hodinové pro posledních 7 dní, denní pro 8-90 dní dozadu, měsíční pro starší data.",
+      "fields": {
+        "energy_entity": {
+          "name": "Entita spotřeby energie",
+          "description": "Vyberte senzor spotřeby energie, pro který chcete importovat historická data."
+        },
+        "days_back": {
+          "name": "Počet dní k importu",
+          "description": "Počet dní historických dat k importu (1-365). Nedávná data budou s hodinovým detailem, starší s hrubším seskupením."
         }
       }
     }
@@ -128,6 +142,30 @@
     },
     "api_error_cancel_holiday": {
       "message": "Nepodařilo se zrušit plán prázdnin. Zkontrolujte prosím připojení a zkuste to znovu."
+    },
+    "integration_not_loaded": {
+      "message": "Integrace není načtena. Prosím restartujte integraci a zkuste to znovu."
+    },
+    "device_not_found": {
+      "message": "Zařízení nebylo nalezeno pro vybranou entitu."
+    },
+    "device_id_missing": {
+      "message": "ID zařízení chybí pro vybrané zařízení."
+    },
+    "device_data_not_found": {
+      "message": "Data zařízení nebyla nalezena v koordinátoru."
+    },
+    "room_installation_missing": {
+      "message": "ID místnosti nebo instalace chybí pro vybrané zařízení."
+    },
+    "no_entity_selected": {
+      "message": "Prosím vyberte senzor spotřeby energie k importu dat."
+    },
+    "import_failed": {
+      "message": "Nepodařilo se importovat historické statistiky. Zkontrolujte logy pro více informací."
+    },
+    "missing_subscription_id": {
+      "message": "ID předplatného chybí; nelze importovat historická data. Prosím znovu se ověřte nebo zkontrolujte oprávnění vašeho účtu."
     }
   }
 }

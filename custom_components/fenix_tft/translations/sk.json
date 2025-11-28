@@ -111,6 +111,20 @@
           "description": "Ľubovoľná entita termostatu z inštalácie (zrušenie platí pre celú inštaláciu)."
         }
       }
+    },
+    "import_historical_statistics": {
+      "name": "Importovať historické štatistiky",
+      "description": "Importovať historické údaje o spotrebe energie do dlhodobých štatistík Home Assistant. Používa inteligentné dynamické zoskupovanie: hodinové pre posledných 7 dní, denné pre 8-90 dní dozadu, mesačné pre staršie údaje.",
+      "fields": {
+        "energy_entity": {
+          "name": "Entita spotreby energie",
+          "description": "Vyberte senzor spotreby energie, pre ktorý chcete importovať historické údaje."
+        },
+        "days_back": {
+          "name": "Počet dní na import",
+          "description": "Počet dní historických údajov na import (1-365). Nedávne údaje budú s hodinovým detailom, staršie s hrubším zoskupením."
+        }
+      }
     }
   },
   "exceptions": {
@@ -128,6 +142,30 @@
     },
     "api_error_cancel_holiday": {
       "message": "Nepodarilo sa zrušiť plán dovolenky. Skontrolujte prosím pripojenie a skúste to znovu."
+    },
+    "integration_not_loaded": {
+      "message": "Integrácia nie je načítaná. Prosím reštartujte integráciu a skúste to znovu."
+    },
+    "device_not_found": {
+      "message": "Zariadenie nebolo nájdené pre vybranú entitu."
+    },
+    "device_id_missing": {
+      "message": "ID zariadenia chýba pre vybrané zariadenie."
+    },
+    "device_data_not_found": {
+      "message": "Údaje zariadenia neboli nájdené v koordinátore."
+    },
+    "room_installation_missing": {
+      "message": "ID miestnosti alebo inštalácie chýba pre vybrané zariadenie."
+    },
+    "no_entity_selected": {
+      "message": "Prosím vyberte senzor spotreby energie na import údajov."
+    },
+    "import_failed": {
+      "message": "Nepodarilo sa importovať historické štatistiky. Skontrolujte logy pre viac detailov."
+    },
+    "missing_subscription_id": {
+      "message": "ID predplatného chýba; nie je možné importovať historické údaje. Prosím znovu sa overte alebo skontrolujte oprávnenia vášho účtu."
     }
   }
 }

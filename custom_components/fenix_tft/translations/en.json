@@ -111,6 +111,20 @@
           "description": "Any thermostat entity from the installation (cancellation applies installation-wide)."
         }
       }
+    },
+    "import_historical_statistics": {
+      "name": "Import historical statistics",
+      "description": "Import historical energy consumption data as external statistics. Data will appear as a separate external statistic (e.g., fenix_tft:device_name_history) that can be added to the Energy Dashboard without interfering with the main sensor's current data. Uses intelligent dynamic aggregation: hourly for last 7 days, daily for 8-90 days ago, monthly for older data.",
+      "fields": {
+        "energy_entity": {
+          "name": "Energy entity",
+          "description": "Select the energy consumption sensor to import historical data for. Data will be imported as a separate external statistic."
+        },
+        "days_back": {
+          "name": "Days to import",
+          "description": "Number of days of historical data to import (1-365). Recent data gets hourly detail, older data uses coarser aggregation."
+        }
+      }
     }
   },
   "exceptions": {
@@ -128,6 +142,30 @@
     },
     "api_error_cancel_holiday": {
       "message": "Failed to cancel holiday schedule. Please check your connection and try again."
+    },
+    "integration_not_loaded": {
+      "message": "The integration is not loaded. Please reload the integration and try again."
+    },
+    "device_not_found": {
+      "message": "Device not found for the selected entity."
+    },
+    "device_id_missing": {
+      "message": "Device ID is missing for the selected device."
+    },
+    "device_data_not_found": {
+      "message": "Device data not found in coordinator."
+    },
+    "room_installation_missing": {
+      "message": "Room ID or Installation ID is missing for the selected device."
+    },
+    "no_entity_selected": {
+      "message": "Please select an energy sensor to import data for."
+    },
+    "import_failed": {
+      "message": "Failed to import historical statistics. Check the logs for more details."
+    },
+    "missing_subscription_id": {
+      "message": "Subscription ID is missing; cannot import historical data. Please re-authenticate or check your account permissions."
     }
   }
 }

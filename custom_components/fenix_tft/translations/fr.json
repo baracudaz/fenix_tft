@@ -111,6 +111,20 @@
           "description": "Toute entité de thermostat de l'installation (l'annulation s'applique à toute l'installation)."
         }
       }
+    },
+    "import_historical_statistics": {
+      "name": "Importer les statistiques historiques",
+      "description": "Importer les données historiques de consommation d'énergie dans les statistiques à long terme de Home Assistant. Utilise une agrégation dynamique intelligente : horaire pour les 7 derniers jours, quotidienne pour 8-90 jours en arrière, mensuelle pour les données plus anciennes.",
+      "fields": {
+        "energy_entity": {
+          "name": "Entité d'énergie",
+          "description": "Sélectionnez le capteur de consommation d'énergie pour lequel importer les données historiques."
+        },
+        "days_back": {
+          "name": "Jours à importer",
+          "description": "Nombre de jours de données historiques à importer (1-365). Les données récentes auront des détails horaires, les données plus anciennes une agrégation plus grossière."
+        }
+      }
     }
   },
   "exceptions": {
@@ -128,6 +142,30 @@
     },
     "api_error_cancel_holiday": {
       "message": "Impossible d'annuler le calendrier de vacances. Veuillez vérifier votre connexion et réessayer."
+    },
+    "integration_not_loaded": {
+      "message": "L'intégration n'est pas chargée. Veuillez redémarrer l'intégration et réessayer."
+    },
+    "device_not_found": {
+      "message": "Appareil introuvable pour l'entité sélectionnée."
+    },
+    "device_id_missing": {
+      "message": "L'ID de l'appareil est manquant pour l'appareil sélectionné."
+    },
+    "device_data_not_found": {
+      "message": "Les données de l'appareil n'ont pas été trouvées dans le coordinateur."
+    },
+    "room_installation_missing": {
+      "message": "L'ID de la pièce ou de l'installation est manquant pour l'appareil sélectionné."
+    },
+    "no_entity_selected": {
+      "message": "Veuillez sélectionner un capteur d'énergie pour importer des données."
+    },
+    "import_failed": {
+      "message": "Impossible d'importer les statistiques historiques. Consultez les journaux pour plus de détails."
+    },
+    "missing_subscription_id": {
+      "message": "L'ID d'abonnement est manquant ; impossible d'importer les données historiques. Veuillez vous réauthentifier ou vérifier les autorisations de votre compte."
     }
   }
 }
