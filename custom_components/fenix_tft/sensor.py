@@ -369,21 +369,28 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return HOLIDAY_MODE_DISPLAY_NAMES.get(HOLIDAY_MODE_NONE, "None")
 
+        preset_mode = dev.get("preset_mode")
         holiday_start = dev.get("holiday_start")
         holiday_end = dev.get("holiday_end")
         holiday_mode = dev.get("holiday_mode", HOLIDAY_MODE_NONE)
 
-        # No holiday if mode is 0 or dates are epoch
-        if (
-            holiday_mode == HOLIDAY_MODE_NONE
-            or HOLIDAY_EPOCH_DATE in (holiday_start, holiday_end)
-            or not holiday_start
-            or not holiday_end
-        ):
+        # Check if device is in holiday preset mode (preset_mode == 1)
+        # This covers both manual holiday mode and scheduled holidays
+        if preset_mode != 1:
             return HOLIDAY_MODE_DISPLAY_NAMES.get(HOLIDAY_MODE_NONE, "None")
 
-        # Return the user-facing holiday mode display name
-        return HOLIDAY_MODE_DISPLAY_NAMES.get(holiday_mode, "None")
+        # If we have valid holiday dates and a specific holiday mode, return it
+        if (
+            holiday_mode != HOLIDAY_MODE_NONE
+            and holiday_start
+            and holiday_end
+            and HOLIDAY_EPOCH_DATE not in (holiday_start, holiday_end)
+        ):
+            return HOLIDAY_MODE_DISPLAY_NAMES.get(holiday_mode, "None")
+
+        # Device is in holiday mode but no specific mode is set
+        # Return a generic "Holiday" indicator
+        return "Holiday"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -392,14 +399,17 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return {}
 
+        preset_mode = dev.get("preset_mode")
         holiday_start = dev.get("holiday_start")
         holiday_end = dev.get("holiday_end")
         holiday_mode = dev.get("holiday_mode", HOLIDAY_MODE_NONE)
 
-        # Active state and time remaining
-        is_active = is_holiday_active(holiday_mode, holiday_start, holiday_end)
+        # Holiday is active if preset_mode == 1
+        is_active = preset_mode == 1
         time_remaining = None
-        if is_active:
+
+        # Calculate time remaining if we have valid dates and holiday is active
+        if is_active and is_holiday_active(holiday_mode, holiday_start, holiday_end):
             _start_dt, end_dt = parse_holiday_window(holiday_start, holiday_end)
             if end_dt:
                 now = dt_util.now()
@@ -448,16 +458,17 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return None
 
+        preset_mode = dev.get("preset_mode")
         holiday_start = dev.get("holiday_start")
         holiday_end = dev.get("holiday_end")
         holiday_mode = dev.get("holiday_mode", HOLIDAY_MODE_NONE)
 
-        # No holiday if mode is 0 or date is epoch
-        if (
-            holiday_mode == HOLIDAY_MODE_NONE
-            or holiday_end == HOLIDAY_EPOCH_DATE
-            or not holiday_end
-        ):
+        # No holiday if not in holiday preset mode
+        if preset_mode != 1:
+            return None
+
+        # No end date if no valid dates are set
+        if not holiday_end or holiday_end == HOLIDAY_EPOCH_DATE:
             return None
 
         _start_dt, end_dt = parse_holiday_window(holiday_start, holiday_end)

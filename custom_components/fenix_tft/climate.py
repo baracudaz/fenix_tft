@@ -114,15 +114,12 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         return None if raw_preset is None else PRESET_MAP.get(raw_preset)
 
     def _is_holiday_active(self) -> bool:
-        """Return True if device is currently in an active holiday schedule."""
+        """Return True if device is currently in holiday mode."""
         dev = self._device
         if not dev:
             return False
-        return is_holiday_active(
-            dev.get("holiday_mode", HOLIDAY_MODE_NONE),
-            dev.get("holiday_start"),
-            dev.get("holiday_end"),
-        )
+        # Holiday is active when preset_mode is 1 (holidays)
+        return dev.get("preset_mode") == 1
 
     @property
     def current_temperature(self) -> float | None:
