@@ -74,6 +74,9 @@
       "holiday_mode": {
         "name": "Holiday Mode"
       },
+      "holiday_schedule_from": {
+        "name": "Holiday Schedule From"
+      },
       "holiday_schedule_until": {
         "name": "Holiday Schedule Until"
       }

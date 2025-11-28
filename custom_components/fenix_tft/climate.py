@@ -18,10 +18,14 @@ from . import FenixTFTConfigEntry
 from .api import FenixTFTApiError
 from .const import (
     HOLIDAY_LOCKED_MSG,
-    HOLIDAY_MODE_NONE,
+    PRESET_MODE_BOOST,
+    PRESET_MODE_DEFROST,
+    PRESET_MODE_HOLIDAYS,
+    PRESET_MODE_MANUAL,
+    PRESET_MODE_OFF,
+    PRESET_MODE_PROGRAM,
 )
 from .entity import FenixTFTEntity
-from .helpers import is_holiday_active
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,19 +42,20 @@ FENIX_TFT_TO_HASS_HVAC_ACTION: dict[int | None, HVACAction] = {
 }
 
 # Map Fenix TFT preset mode values to operational mode strings
+# Used to determine which Home Assistant HVAC mode to display
 HVAC_MODE_MAP: dict[int, str] = {
-    0: "off",  # Device is turned off
-    1: "holidays",  # Holiday mode (reduced heating)
-    2: "auto",  # Automatic program mode
-    6: "manual",  # Manual temperature control
+    PRESET_MODE_OFF: "off",  # Device is turned off
+    PRESET_MODE_HOLIDAYS: "holidays",  # Holiday mode (reduced heating)
+    PRESET_MODE_PROGRAM: "auto",  # Automatic program mode
+    PRESET_MODE_MANUAL: "manual",  # Manual temperature control
 }
-HVAC_MODE_INVERTED: dict[str, int] = {v: k for k, v in HVAC_MODE_MAP.items()}
 
-# Map special preset modes that don't fit into basic HVAC modes
+# Map device preset_mode values to Home Assistant preset mode strings
+# Note: PRESET_MODE_PROGRAM (2) appears in both maps - shows as AUTO + "program"
 PRESET_MAP: dict[int, str] = {
-    2: "program",  # Follow programmed schedule
-    4: "defrost",  # Defrost cycle
-    5: "boost",  # Boost heating mode
+    PRESET_MODE_PROGRAM: "program",  # Follow programmed schedule
+    PRESET_MODE_DEFROST: "defrost",  # Defrost cycle
+    PRESET_MODE_BOOST: "boost",  # Boost heating mode
 }
 PRESET_INVERTED: dict[str, int] = {v: k for k, v in PRESET_MAP.items()}
 
@@ -118,11 +123,8 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         dev = self._device
         if not dev:
             return False
-        return is_holiday_active(
-            dev.get("holiday_mode", HOLIDAY_MODE_NONE),
-            dev.get("holiday_start"),
-            dev.get("holiday_end"),
-        )
+        # Holiday is active when preset_mode is HOLIDAYS
+        return dev.get("preset_mode") == PRESET_MODE_HOLIDAYS
 
     @property
     def current_temperature(self) -> float | None:
@@ -183,20 +185,6 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         hvac_mode_str = (
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
-        if self._attr_device_info:
-            if isinstance(self._attr_device_info, dict):
-                dev_name = self._attr_device_info.get("name")
-            else:
-                dev_name = getattr(self._attr_device_info, "name", None)
-        else:
-            dev_name = None
-        _LOGGER.debug(
-            "Device %s (%s) preset mode: %s (%s)",
-            self._device_id,
-            dev_name,
-            raw_preset,
-            hvac_mode_str,
-        )
         # Map device modes to Home Assistant HVAC modes (holiday treated as AUTO)
         return (
             HVACMode.OFF
@@ -244,26 +232,33 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             )
             msg = HOLIDAY_LOCKED_MSG
             raise HomeAssistantError(msg)
-        _LOGGER.debug(
-            "Setting HVAC mode to %s for device %s", hvac_mode, self._device_id
-        )
-
         # Map Home Assistant HVAC mode to device preset mode value
         if hvac_mode == HVACMode.OFF:
-            preset_value = HVAC_MODE_INVERTED["off"]  # 0
+            preset_value = PRESET_MODE_OFF
         elif hvac_mode == HVACMode.AUTO:
-            preset_value = HVAC_MODE_INVERTED["auto"]  # 2
+            preset_value = PRESET_MODE_PROGRAM
         elif hvac_mode == HVACMode.HEAT:
-            preset_value = HVAC_MODE_INVERTED["manual"]  # 6
+            preset_value = PRESET_MODE_MANUAL
         else:
-            _LOGGER.warning("Unsupported HVAC mode: %s", hvac_mode)
+            _LOGGER.warning(
+                "Device %s: Unsupported HVAC mode: %s", self._device_id, hvac_mode
+            )
             return
+
+        _LOGGER.info(
+            "Device %s: Setting HVAC mode %s (preset_mode=%s)",
+            self._device_id,
+            hvac_mode,
+            preset_value,
+        )
 
         try:
             # Send mode change to device
             await self._api.set_device_preset_mode(self._device_id, preset_value)
         except (aiohttp.ClientError, FenixTFTApiError):
-            _LOGGER.exception("Failed to set HVAC mode for device %s", self._device_id)
+            _LOGGER.exception(
+                "Device %s: Failed to set HVAC mode %s", self._device_id, hvac_mode
+            )
             raise
 
         # Update coordinator with optimistic data for immediate UI feedback
@@ -281,16 +276,18 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             msg = HOLIDAY_LOCKED_MSG
             raise HomeAssistantError(msg)
         if preset_mode not in self._attr_preset_modes:
-            _LOGGER.warning("Unsupported preset mode: %s", preset_mode)
+            _LOGGER.warning(
+                "Device %s: Unsupported preset mode: %s", self._device_id, preset_mode
+            )
             return
 
         # Convert preset mode string to device value
         preset_value = PRESET_INVERTED[preset_mode]
-        _LOGGER.debug(
-            "Setting preset mode to %s (%s) for device %s",
+        _LOGGER.info(
+            "Device %s: Setting preset mode %s (preset_mode=%s)",
+            self._device_id,
             preset_mode,
             preset_value,
-            self._device_id,
         )
 
         try:
@@ -298,10 +295,9 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             await self._api.set_device_preset_mode(self._device_id, preset_value)
         except (aiohttp.ClientError, FenixTFTApiError):
             _LOGGER.exception(
-                "Failed to set preset mode %s (%s) for device %s",
-                preset_mode,
-                preset_value,
+                "Device %s: Failed to set preset mode %s",
                 self._device_id,
+                preset_mode,
             )
             raise
 

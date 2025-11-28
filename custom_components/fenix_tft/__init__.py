@@ -32,15 +32,12 @@ from .const import (
     ATTR_MODE,
     ATTR_START_DATE,
     DOMAIN,
-    HOLIDAY_MODE_DEFROST,
-    HOLIDAY_MODE_OFF,
-    HOLIDAY_MODE_REDUCE,
-    HOLIDAY_MODE_SUNDAY,
     HOLIDAY_PROPAGATION_DELAY,
     PLATFORMS,
     SERVICE_CANCEL_HOLIDAY_SCHEDULE,
     SERVICE_IMPORT_HISTORICAL_STATISTICS,
     SERVICE_SET_HOLIDAY_SCHEDULE,
+    VALID_HOLIDAY_MODES,
 )
 from .coordinator import FenixTFTCoordinator
 from .statistics import (
@@ -67,14 +64,6 @@ HOURLY_AGGREGATION_MAX_DAYS = 7  # Use hourly for last 7 days
 DAILY_AGGREGATION_MAX_DAYS = 90  # Use daily up to 90 days back
 DAILY_AGGREGATION_CHUNK_DAYS = 30  # Max days are included in each daily API call
 MONTHLY_AGGREGATION_MAX_DAYS = 365  # Use monthly beyond 90 days back
-
-# Valid holiday modes for service
-VALID_HOLIDAY_MODES = {
-    "off": HOLIDAY_MODE_OFF,
-    "reduce": HOLIDAY_MODE_REDUCE,
-    "defrost": HOLIDAY_MODE_DEFROST,
-    "sunday": HOLIDAY_MODE_SUNDAY,
-}
 
 # Service schemas
 SET_HOLIDAY_SCHEDULE_SCHEMA = vol.Schema(

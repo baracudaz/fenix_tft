@@ -34,14 +34,23 @@ HTTP_REDIRECT: Final[int] = 302
 # API timeout configuration
 API_TIMEOUT_SECONDS: Final[int] = 10
 
-# Valid preset mode values
-# 0=off, 1=holidays, 2=program, 4=defrost, 5=boost, 6=manual
-VALID_PRESET_MODES: Final[set[int]] = {0, 1, 2, 4, 5, 6}
-
 # Preset mode constants
 PRESET_MODE_OFF: Final[int] = 0
-PRESET_MODE_MANUAL: Final[int] = 1
+PRESET_MODE_HOLIDAYS: Final[int] = 1
 PRESET_MODE_PROGRAM: Final[int] = 2
+PRESET_MODE_DEFROST: Final[int] = 4
+PRESET_MODE_BOOST: Final[int] = 5
+PRESET_MODE_MANUAL: Final[int] = 6
+
+# Valid preset mode values (derived from constants)
+VALID_PRESET_MODES: Final[set[int]] = {
+    PRESET_MODE_OFF,
+    PRESET_MODE_HOLIDAYS,
+    PRESET_MODE_PROGRAM,
+    PRESET_MODE_DEFROST,
+    PRESET_MODE_BOOST,
+    PRESET_MODE_MANUAL,
+}
 
 # HVAC action constants
 HVAC_ACTION_IDLE: Final[int] = 0
@@ -71,6 +80,12 @@ HOLIDAY_MODE_DISPLAY_NAMES: Final[dict[int, str]] = {
     HOLIDAY_MODE_REDUCE: "Reduce (Eco)",
     HOLIDAY_MODE_DEFROST: "Defrost",
     HOLIDAY_MODE_SUNDAY: "Sunday Schedule",
+}
+
+# Valid holiday modes for service (inverted, excluding "none")
+# Maps string names to integer codes for API calls
+VALID_HOLIDAY_MODES: Final[dict[str, int]] = {
+    name: code for code, name in HOLIDAY_MODE_NAMES.items() if code != HOLIDAY_MODE_NONE
 }
 
 # Unix epoch date used to indicate no holiday schedule
