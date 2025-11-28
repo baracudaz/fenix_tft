@@ -451,6 +451,10 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
             else "Unknown"
         )
 
+        # Device is in holiday mode but no specific mode is set
+        # Return a generic "Holiday" indicator
+        return "Holiday"
+
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return additional state attributes."""
