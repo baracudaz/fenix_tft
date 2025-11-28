@@ -591,18 +591,25 @@ class FenixTFTApi:
         """
         Get historical energy consumption data for a specific room.
 
+        All date parameters are normalized to UTC before being sent to the API.
+        This accepts aware or naive datetimes; naive values are treated as UTC.
+
         Args:
             installation_id: Installation ID
             room_id: Room ID
             subscription_id: Subscription ID (user ID)
-            start_date: Start date (UTC)
-            end_date: End date (UTC)
+            start_date: Start date (any timezone, will be converted to UTC)
+            end_date: End date (any timezone, will be converted to UTC)
             period: Aggregation period (Hour, Day, Week, Month, Quarter, Year)
 
         Returns:
             List of energy consumption metrics at the specified aggregation period
 
         """
+        # Normalize dates to UTC to ensure consistent API behavior
+        start_date = dt_util.as_utc(start_date)
+        end_date = dt_util.as_utc(end_date)
+
         await self._ensure_token()
 
         url = (

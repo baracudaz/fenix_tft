@@ -234,34 +234,40 @@ def _calculate_import_date_range(
     Calculate the date range for historical data import.
 
     Since energy data points are day aggregates, we align imports to midnight
-    boundaries to avoid overlaps and double-counting. Uses Home Assistant's
-    configured timezone for date calculations.
+    boundaries to avoid overlaps and double-counting. All calculations are done
+    in UTC to ensure consistency with the API and recorder.
 
     Args:
-        days_back: Number of days to import
-        first_stat_time: Timestamp of first existing statistic (if any)
+        days_back: Number of days to import (requested count)
+        first_stat_time: Timestamp of first existing statistic (if any, in UTC)
 
     Returns:
-        Tuple of (start_date, end_date, days_to_import)
+        Tuple of (start_date_utc, end_date_utc, actual_days_imported)
+        where dates are in UTC and actual_days reflects the real span
 
     """
     if first_stat_time:
-        # Backfilling: import data ending just before the day when existing data
-        # begins (midnight minus 1 second = 23:59:59 of previous day)
-        # This ensures we don't include any data from the day with existing stats
-        existing_day_start = dt_util.as_local(first_stat_time).replace(
+        # Backfilling: import data ending at midnight (start of day) when
+        # existing data begins. Since first_stat_time is in UTC from recorder,
+        # convert to local to find the day boundary, then back to UTC.
+        existing_day_start_local = dt_util.as_local(first_stat_time).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
-        end_date = existing_day_start - dt_util.dt.timedelta(seconds=1)
+        end_date = dt_util.as_utc(existing_day_start_local)
     else:
-        # No existing data: import up to end of yesterday (midnight minus 1 second)
-        # to avoid including today's 00:00-01:00 bucket which overlaps with
-        # the sensor's current data
-        today_midnight = dt_util.start_of_local_day()
-        end_date = today_midnight - dt_util.dt.timedelta(seconds=1)
+        # No existing data: import up to midnight (start of today) in UTC
+        # to avoid including today's data which the sensor is actively collecting
+        today_midnight_local = dt_util.start_of_local_day()
+        end_date = dt_util.as_utc(today_midnight_local)
 
+    # Calculate start_date: go back days_back full days from end_date
+    # This ensures we import exactly days_back days, not days_back + 1
     start_date = end_date - dt_util.dt.timedelta(days=days_back)
-    return start_date, end_date, days_back
+
+    # Calculate actual days imported (should match days_back for consistency)
+    actual_days = (end_date - start_date).days
+
+    return start_date, end_date, actual_days
 
 
 def _determine_aggregation_period(
