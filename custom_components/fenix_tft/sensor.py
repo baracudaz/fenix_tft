@@ -86,6 +86,7 @@ async def async_setup_entry(
         entities.extend(
             (
                 FenixHolidayModeSensor(coordinator, device_id),
+                FenixHolidayFromSensor(coordinator, device_id),
                 FenixHolidayUntilSensor(coordinator, device_id),
                 FenixHolidayTargetTempSensor(coordinator, device_id),
             )
@@ -525,6 +526,7 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return None
 
+        preset_mode = dev.get("preset_mode")
         preset_mode = dev.get("preset_mode")
         holiday_end = dev.get("holiday_end")
 
