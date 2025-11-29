@@ -62,6 +62,17 @@
       "hvac_state": {
         "name": "Stav topení"
       },
+      "preset_mode": {
+        "name": "Režim předvolby",
+        "state": {
+          "off": "Vypnuto",
+          "holidays": "Prázdniny",
+          "program": "Program",
+          "defrost": "Odmrazování",
+          "boost": "Boost",
+          "manual": "Manuální"
+        }
+      },
       "floor_air_difference": {
         "name": "Rozdíl podlaha-vzduch"
       },

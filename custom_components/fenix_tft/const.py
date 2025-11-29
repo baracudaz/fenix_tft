@@ -52,6 +52,16 @@ VALID_PRESET_MODES: Final[set[int]] = {
     PRESET_MODE_MANUAL,
 }
 
+# Preset mode display names (user-facing)
+PRESET_MODE_DISPLAY_NAMES: Final[dict[int, str]] = {
+    PRESET_MODE_OFF: "Off",
+    PRESET_MODE_HOLIDAYS: "Holidays",
+    PRESET_MODE_PROGRAM: "Program",
+    PRESET_MODE_DEFROST: "Defrost",
+    PRESET_MODE_BOOST: "Boost",
+    PRESET_MODE_MANUAL: "Manual",
+}
+
 # HVAC action constants
 HVAC_ACTION_IDLE: Final[int] = 0
 HVAC_ACTION_HEATING: Final[int] = 1

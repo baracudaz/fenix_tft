@@ -62,6 +62,17 @@
       "hvac_state": {
         "name": "État HVAC"
       },
+      "preset_mode": {
+        "name": "Mode prédéfini",
+        "state": {
+          "off": "Éteint",
+          "holidays": "Vacances",
+          "program": "Programme",
+          "defrost": "Dégivrage",
+          "boost": "Boost",
+          "manual": "Manuel"
+        }
+      },
       "floor_air_difference": {
         "name": "Différence sol-air"
       },

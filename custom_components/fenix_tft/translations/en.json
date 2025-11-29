@@ -62,6 +62,17 @@
       "hvac_state": {
         "name": "HVAC state"
       },
+      "preset_mode": {
+        "name": "Preset mode",
+        "state": {
+          "off": "Off",
+          "holidays": "Holidays",
+          "program": "Program",
+          "defrost": "Defrost",
+          "boost": "Boost",
+          "manual": "Manual"
+        }
+      },
       "floor_air_difference": {
         "name": "Floor-air difference"
       },

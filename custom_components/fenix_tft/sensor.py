@@ -19,6 +19,7 @@ from .const import (
     HOLIDAY_MODE_NONE,
     HVAC_ACTION_HEATING,
     HVAC_ACTION_IDLE,
+    PRESET_MODE_DISPLAY_NAMES,
     PRESET_MODE_HOLIDAYS,
 )
 from .entity import FenixTFTEntity
@@ -47,42 +48,24 @@ async def async_setup_entry(
 
     entities = []
 
-    # Create sensors for each device
+    # Create sensors for each device in specific order
     for dev in coordinator.data:
         device_id = dev["id"]
 
-        # Create floor temperature sensor if floor_temp data is available
-        if dev.get("floor_temp") is not None:
-            entities.append(FenixFloorTempSensor(coordinator, device_id))
-
-        # Create ambient temperature sensor if current_temp data is available
-        if dev.get("current_temp") is not None:
-            entities.append(FenixAmbientTempSensor(coordinator, device_id))
-
-        # Create target temperature sensor if target_temp data is available
-        if dev.get("target_temp") is not None:
-            entities.append(FenixTargetTempSensor(coordinator, device_id))
-
-        # Create temperature difference sensor if both temps are available
-        if dev.get("target_temp") is not None and dev.get("current_temp") is not None:
-            entities.append(FenixTempDifferenceSensor(coordinator, device_id))
-
-        # Create floor-air difference sensor if both temps are available
-        if dev.get("floor_temp") is not None and dev.get("current_temp") is not None:
-            entities.append(FenixFloorAirDifferenceSensor(coordinator, device_id))
-
-        # Create HVAC state sensor if hvac_action data is available
-        if dev.get("hvac_action") is not None:
-            entities.append(FenixHvacStateSensor(coordinator, device_id))
-
-        # Create connectivity sensor (always available)
-        entities.append(FenixConnectivitySensor(coordinator, device_id))
-
-        # Create energy consumption sensor if room_id and installation_id are available
+        # Regular sensors (in display order)
+        # 1. Daily Energy Consumption (Enabled)
         if dev.get("room_id") is not None and dev.get("installation_id") is not None:
             entities.append(FenixEnergyConsumptionSensor(coordinator, device_id))
 
-        # Create holiday sensors (always available)
+        # 2. HVAC state (Enabled)
+        if dev.get("hvac_action") is not None:
+            entities.append(FenixHvacStateSensor(coordinator, device_id))
+
+        # 3. Preset mode (Enabled)
+        if dev.get("preset_mode") is not None:
+            entities.append(FenixPresetModeSensor(coordinator, device_id))
+
+        # 4-6. Holiday sensors (Disabled)
         entities.extend(
             (
                 FenixHolidayModeSensor(coordinator, device_id),
@@ -90,6 +73,29 @@ async def async_setup_entry(
                 FenixHolidayTargetTempSensor(coordinator, device_id),
             )
         )
+
+        # 7. Ambient temperature (Disabled)
+        if dev.get("current_temp") is not None:
+            entities.append(FenixAmbientTempSensor(coordinator, device_id))
+
+        # 8. Target temperature (Disabled)
+        if dev.get("target_temp") is not None:
+            entities.append(FenixTargetTempSensor(coordinator, device_id))
+
+        # 9. Temperature difference (Disabled)
+        if dev.get("target_temp") is not None and dev.get("current_temp") is not None:
+            entities.append(FenixTempDifferenceSensor(coordinator, device_id))
+
+        # 10. Floor temperature (Disabled)
+        if dev.get("floor_temp") is not None:
+            entities.append(FenixFloorTempSensor(coordinator, device_id))
+
+        # 11. Floor-air difference (Disabled)
+        if dev.get("floor_temp") is not None and dev.get("current_temp") is not None:
+            entities.append(FenixFloorAirDifferenceSensor(coordinator, device_id))
+
+        # Diagnostic sensors
+        entities.append(FenixConnectivitySensor(coordinator, device_id))
 
     if entities:
         async_add_entities(entities)
@@ -150,7 +156,6 @@ class FenixTargetTempSensor(FenixTFTEntity, SensorEntity):
     _attr_translation_key = "target_temperature"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
@@ -179,7 +184,6 @@ class FenixTempDifferenceSensor(FenixTFTEntity, SensorEntity):
     _attr_translation_key = "temperature_difference"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
@@ -218,8 +222,6 @@ class FenixHvacStateSensor(FenixTFTEntity, SensorEntity):
 
     _attr_translation_key = "hvac_state"
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_entity_registry_enabled_default = False
     _attr_options: ClassVar[list[str]] = ["idle", "heating", "off"]
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
@@ -250,13 +252,53 @@ class FenixHvacStateSensor(FenixTFTEntity, SensorEntity):
         return "idle" if hvac_action == HVAC_ACTION_IDLE else "off"
 
 
+class FenixPresetModeSensor(FenixTFTEntity, SensorEntity):
+    """Representation of a Fenix TFT preset mode sensor."""
+
+    _attr_translation_key = "preset_mode"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options: ClassVar[list[str]] = [
+        "off",
+        "holidays",
+        "program",
+        "defrost",
+        "boost",
+        "manual",
+    ]
+
+    def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
+        """Initialize a Fenix TFT preset mode sensor."""
+        super().__init__(coordinator, device_id)
+        self._attr_unique_id = f"{device_id}_preset_mode"
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        dev = self._device
+        return (
+            super().available and dev is not None and dev.get("preset_mode") is not None
+        )
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the preset mode."""
+        dev = self._device
+        if not dev:
+            return None
+
+        preset_mode = dev.get("preset_mode")
+
+        # Map numeric preset mode to display name, then to lowercase for enum
+        display_name = PRESET_MODE_DISPLAY_NAMES.get(preset_mode)
+        return display_name.lower() if display_name else None
+
+
 class FenixFloorAirDifferenceSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT floor-air temperature difference sensor."""
 
     _attr_translation_key = "floor_air_difference"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
@@ -295,6 +337,7 @@ class FenixConnectivitySensor(FenixTFTEntity, SensorEntity):
 
     _attr_translation_key = "connectivity_status"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT connectivity sensor."""
@@ -351,6 +394,7 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT holiday mode sensor."""
 
     _attr_translation_key = "holiday_mode"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT holiday mode sensor."""

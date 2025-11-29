@@ -39,6 +39,17 @@
       "target_temperature": { "name": "Zieltemperatur" },
       "temperature_difference": { "name": "Temperaturdifferenz" },
       "hvac_state": { "name": "Heizungsstatus" },
+      "preset_mode": {
+        "name": "Voreinstellungsmodus",
+        "state": {
+          "off": "Aus",
+          "holidays": "Urlaub",
+          "program": "Programm",
+          "defrost": "Abtauen",
+          "boost": "Boost",
+          "manual": "Manuell"
+        }
+      },
       "floor_air_difference": { "name": "Boden-Luft-Differenz" },
       "connectivity_status": { "name": "Verbindung" },
       "daily_energy_consumption": { "name": "Täglicher Energieverbrauch" },
