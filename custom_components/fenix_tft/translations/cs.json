@@ -74,9 +74,7 @@
       "holiday_mode": {
         "name": "Režim prázdnin"
       },
-      "holiday_schedule_from": {
-        "name": "Plán prázdnin od"
-      },
+      
       "holiday_schedule_until": {
         "name": "Plán prázdnin do"
       },
