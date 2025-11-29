@@ -257,9 +257,6 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             )
             msg = HOLIDAY_LOCKED_MSG
             raise HomeAssistantError(msg)
-        _LOGGER.debug(
-            "Setting HVAC mode to %s for device %s", hvac_mode, self._device_id
-        )
 
         # Map Home Assistant HVAC mode to device preset mode value
         if hvac_mode == HVACMode.OFF:
@@ -270,12 +267,14 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             preset_value = PRESET_MODE_MANUAL
         else:
             _LOGGER.warning(
-                "Device %s: Unsupported HVAC mode: %s", self._device_id, hvac_mode
+                "Unsupported HVAC mode for device %s: %s",
+                self._device_id,
+                hvac_mode,
             )
             return
 
-        _LOGGER.info(
-            "Device %s: Setting HVAC mode %s (preset_mode=%s)",
+        _LOGGER.debug(
+            "Setting HVAC mode for device %s: %s (preset_mode=%s)",
             self._device_id,
             hvac_mode,
             preset_value,
