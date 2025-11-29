@@ -79,6 +79,9 @@
       },
       "holiday_schedule_until": {
         "name": "Holiday Schedule Until"
+      },
+      "holiday_target_temperature": {
+        "name": "Holiday Target Temperature"
       }
     }
   },

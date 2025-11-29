@@ -44,7 +44,8 @@
       "daily_energy_consumption": { "name": "Täglicher Energieverbrauch" },
       "holiday_mode": { "name": "Urlaubsmodus" },
       "holiday_schedule_from": { "name": "Urlaubsplan von" },
-      "holiday_schedule_until": { "name": "Urlaubsplan bis" }
+      "holiday_schedule_until": { "name": "Urlaubsplan bis" },
+      "holiday_target_temperature": { "name": "Urlaubs-Zieltemperatur" }
     }
   },
   "services": {

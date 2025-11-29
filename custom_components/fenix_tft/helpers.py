@@ -7,9 +7,32 @@ from datetime import datetime
 
 from homeassistant.util import dt as dt_util
 
-from .const import HOLIDAY_DATE_FORMAT, HOLIDAY_EPOCH_DATE, HOLIDAY_MODE_NONE
+from .const import (
+    HOLIDAY_DATE_FORMAT,
+    HOLIDAY_EPOCH_DATE,
+    PRESET_MODE_HOLIDAYS,
+)
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def parse_holiday_end(end_str: str | None) -> datetime | None:
+    """
+    Parse holiday end date string into timezone-aware datetime.
+
+    Returns None if date is missing, epoch placeholder, or cannot be parsed.
+    Note: We only parse the end date (H2) as the start date (H1) is unreliable
+    and gets updated dynamically by the Fenix API.
+    """
+    if not end_str or end_str == HOLIDAY_EPOCH_DATE:
+        return None
+
+    tz = dt_util.get_default_time_zone()
+    try:
+        return datetime.strptime(end_str, HOLIDAY_DATE_FORMAT).replace(tzinfo=tz)
+    except (ValueError, TypeError) as err:
+        _LOGGER.debug("Failed to parse holiday end date (%s): %s", end_str, err)
+        return None
 
 
 def parse_holiday_window(
@@ -17,6 +40,10 @@ def parse_holiday_window(
 ) -> tuple[datetime | None, datetime | None]:
     """
     Parse holiday start/end strings into timezone-aware datetimes.
+
+    DEPRECATED: This function is kept for backward compatibility but should not be
+    used for validation. The start date (H1) is unreliable as it gets updated
+    dynamically by the Fenix API. Use parse_holiday_end() and check preset_mode instead.
 
     Returns (None, None) if dates are missing, epoch placeholders, or cannot be parsed.
     """
@@ -37,25 +64,28 @@ def parse_holiday_window(
 
 
 def is_holiday_active(
-    holiday_mode: int,
-    start_str: str | None,
+    preset_mode: int,
     end_str: str | None,
     now: datetime | None = None,
 ) -> bool:
     """
     Determine if a holiday schedule is currently active.
 
+    Uses preset_mode (Cm field) and end date (H2) for validation.
+    The start date (H1) is not used as it's unreliable and updated
+    dynamically by the API.
+
     Conditions:
-    - holiday_mode != HOLIDAY_MODE_NONE
-    - start/end parse successfully
-    - current time is within [start, end]
+    - preset_mode == PRESET_MODE_HOLIDAYS (Cm=1)
+    - end date exists and parses successfully
+    - current time <= end date (haven't passed the end yet)
     """
-    if holiday_mode == HOLIDAY_MODE_NONE:
+    if preset_mode != PRESET_MODE_HOLIDAYS:
         return False
 
-    start_dt, end_dt = parse_holiday_window(start_str, end_str)
-    if not start_dt or not end_dt:
+    end_dt = parse_holiday_end(end_str)
+    if not end_dt:
         return False
 
     current = now or dt_util.now()
-    return start_dt <= current <= end_dt
+    return current <= end_dt

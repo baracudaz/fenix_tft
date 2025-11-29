@@ -134,7 +134,12 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
 
     @property
     def target_temperature(self) -> float | None:
-        """Return the target temperature set on the thermostat."""
+        """
+        Return the target temperature set on the thermostat.
+
+        Note: In holiday mode, returns the normal target (Ma) that will resume
+        after holiday ends. The active holiday target (Sp) is shown as an attribute.
+        """
         dev = self._device
         return dev.get("target_temp") if dev else None
 
@@ -159,7 +164,9 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         dev = self._device
         if not dev:
             return ClimateEntityFeature(0)
-        # Disable all controls if holiday is active
+
+        # In holiday mode: disable all controls (locked)
+        # Holiday target temp will be shown as an attribute instead
         if self._is_holiday_active():
             return ClimateEntityFeature(0)
 
@@ -201,37 +208,56 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature on the device."""
-        if self._is_holiday_active():
+        temp: float | None = kwargs.get(ATTR_TEMPERATURE)
+        if temp is None:
             _LOGGER.debug(
-                "Ignoring temperature change for %s - holiday active",
+                "Temperature change ignored for device %s: no temperature provided",
+                self._device_id,
+            )
+            return
+
+        if self._is_holiday_active():
+            _LOGGER.warning(
+                "Temperature change blocked for device %s: holiday mode active",
                 self._device_id,
             )
             msg = HOLIDAY_LOCKED_MSG
             raise HomeAssistantError(msg)
-        temp: float | None = kwargs.get(ATTR_TEMPERATURE)
-        if temp is None:
-            return
+
+        _LOGGER.debug(
+            "Setting temperature for device %s: %.1f°C",
+            self._device_id,
+            temp,
+        )
 
         try:
             # Send temperature change to device via API
             await self._api.set_device_temperature(self._device_id, temp)
+            _LOGGER.info(
+                "Temperature set successfully for device %s: %.1f°C",
+                self._device_id,
+                temp,
+            )
             # Request fresh data from coordinator to update UI
             await self.coordinator.async_request_refresh()
         except (aiohttp.ClientError, FenixTFTApiError):
             _LOGGER.exception(
-                "Failed to set temperature for device %s", self._device_id
+                "Failed to set temperature for device %s to %.1f°C",
+                self._device_id,
+                temp,
             )
             raise
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by mapping to appropriate device preset mode."""
         if self._is_holiday_active():
-            _LOGGER.debug(
-                "Ignoring HVAC mode change for %s - holiday active",
+            _LOGGER.warning(
+                "HVAC mode change blocked for device %s: holiday mode active",
                 self._device_id,
             )
             msg = HOLIDAY_LOCKED_MSG
             raise HomeAssistantError(msg)
+
         # Map Home Assistant HVAC mode to device preset mode value
         if hvac_mode == HVACMode.OFF:
             preset_value = PRESET_MODE_OFF
@@ -241,12 +267,14 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             preset_value = PRESET_MODE_MANUAL
         else:
             _LOGGER.warning(
-                "Device %s: Unsupported HVAC mode: %s", self._device_id, hvac_mode
+                "Unsupported HVAC mode for device %s: %s",
+                self._device_id,
+                hvac_mode,
             )
             return
 
-        _LOGGER.info(
-            "Device %s: Setting HVAC mode %s (preset_mode=%s)",
+        _LOGGER.debug(
+            "Setting HVAC mode for device %s: %s (preset_mode=%s)",
             self._device_id,
             hvac_mode,
             preset_value,
@@ -255,9 +283,16 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         try:
             # Send mode change to device
             await self._api.set_device_preset_mode(self._device_id, preset_value)
+            _LOGGER.info(
+                "HVAC mode set successfully for device %s: %s",
+                self._device_id,
+                hvac_mode,
+            )
         except (aiohttp.ClientError, FenixTFTApiError):
             _LOGGER.exception(
-                "Device %s: Failed to set HVAC mode %s", self._device_id, hvac_mode
+                "Failed to set HVAC mode for device %s to %s",
+                self._device_id,
+                hvac_mode,
             )
             raise
 
@@ -269,22 +304,26 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode for special operations."""
         if self._is_holiday_active():
-            _LOGGER.debug(
-                "Ignoring preset mode change for %s - holiday active",
+            _LOGGER.warning(
+                "Preset mode change blocked for device %s: holiday mode active",
                 self._device_id,
             )
             msg = HOLIDAY_LOCKED_MSG
             raise HomeAssistantError(msg)
+
         if preset_mode not in self._attr_preset_modes:
             _LOGGER.warning(
-                "Device %s: Unsupported preset mode: %s", self._device_id, preset_mode
+                "Unsupported preset mode for device %s: %s (valid: %s)",
+                self._device_id,
+                preset_mode,
+                self._attr_preset_modes,
             )
             return
 
         # Convert preset mode string to device value
         preset_value = PRESET_INVERTED[preset_mode]
-        _LOGGER.info(
-            "Device %s: Setting preset mode %s (preset_mode=%s)",
+        _LOGGER.debug(
+            "Setting preset mode for device %s: %s (preset_mode=%s)",
             self._device_id,
             preset_mode,
             preset_value,
@@ -293,9 +332,14 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         try:
             # Send preset mode change to device
             await self._api.set_device_preset_mode(self._device_id, preset_value)
+            _LOGGER.info(
+                "Preset mode set successfully for device %s: %s",
+                self._device_id,
+                preset_mode,
+            )
         except (aiohttp.ClientError, FenixTFTApiError):
             _LOGGER.exception(
-                "Device %s: Failed to set preset mode %s",
+                "Failed to set preset mode for device %s to %s",
                 self._device_id,
                 preset_mode,
             )

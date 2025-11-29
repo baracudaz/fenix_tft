@@ -79,6 +79,9 @@
       },
       "holiday_schedule_until": {
         "name": "Plán prázdnin do"
+      },
+      "holiday_target_temperature": {
+        "name": "Cílová teplota během prázdnin"
       }
     }
   },

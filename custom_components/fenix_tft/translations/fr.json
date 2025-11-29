@@ -79,6 +79,9 @@
       },
       "holiday_schedule_until": {
         "name": "Calendrier de vacances jusqu'à"
+      },
+      "holiday_target_temperature": {
+        "name": "Température cible en vacances"
       }
     }
   },
