@@ -351,11 +351,20 @@ class FenixTFTApi:
 
             success = await self._exchange_tokens(auth_code, code_verifier)
             if success:
-                _LOGGER.info(
-                    "OAuth2 login completed successfully for user: %s", self._username
+                # Avoid logging PII at info level; keep detailed context at debug level
+                _LOGGER.info("OAuth2 login completed successfully")
+                _LOGGER.debug(
+                    "OAuth2 login completed successfully for user: %s",
+                    self._username,
                 )
         except (aiohttp.ClientError, FenixTFTApiError, ValueError, KeyError):
-            _LOGGER.exception("OAuth2 login failed for user: %s", self._username)
+            # Avoid logging PII at exception level; use debug for per-user detail
+            _LOGGER.exception("OAuth2 login failed")
+            _LOGGER.debug(
+                "OAuth2 login failed for user: %s",
+                self._username,
+                exc_info=True,
+            )
             success = False
         return success
 
@@ -461,11 +470,6 @@ class FenixTFTApi:
                             else HOLIDAY_MODE_NONE
                         )
 
-                        # Decode temperatures for logging
-                        target_temp = decode_temp_from_entry(props.get("Ma"))
-                        current_temp = decode_temp_from_entry(props.get("At"))
-                        setpoint_temp = decode_temp_from_entry(props.get("Sp"))
-
                         _LOGGER.debug(
                             "Device %s API fields: Cm=%s, Hs=%s, H1=%s, H2=%s, "
                             "H3=%s, parsed_holiday_mode=%s",
@@ -476,13 +480,6 @@ class FenixTFTApi:
                             h2_val,
                             h3_val,
                             holiday_mode,
-                        )
-                        _LOGGER.debug(
-                            "Device %s temperatures: Ma=%.1f°C, At=%.1f°C, Sp=%.1f°C",
-                            dev_id,
-                            target_temp if target_temp is not None else 0.0,
-                            current_temp if current_temp is not None else 0.0,
-                            setpoint_temp if setpoint_temp is not None else 0.0,
                         )
                         device_data = {
                             "id": dev_id,
