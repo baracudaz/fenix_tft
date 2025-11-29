@@ -132,7 +132,7 @@ class FenixTFTApi:
             return
 
         if not self._access_token or not self._refresh_token:
-            _LOGGER.debug("No tokens available, initiating login")
+            _LOGGER.debug("Token missing, initiating login")
             self._login_in_progress = True
             try:
                 success = await self.login()
@@ -146,7 +146,7 @@ class FenixTFTApi:
         if self._token_expires and time.time() < self._token_expires - 60:
             return
 
-        _LOGGER.debug("Refreshing access token")
+        _LOGGER.debug("Token expiring soon, refreshing access token")
         url = f"{API_IDENTITY}/connect/token"
         data = {
             "grant_type": "refresh_token",
@@ -157,17 +157,18 @@ class FenixTFTApi:
             url, data=data, timeout=API_TIMEOUT_SECONDS
         ) as resp:
             if resp.status != HTTP_OK:
+                _LOGGER.error("Token refresh failed: HTTP status %s", resp.status)
                 msg = f"Token refresh failed: {resp.status}"
-                _LOGGER.error(msg)
                 raise FenixTFTApiError(msg)
             tokens = await resp.json()
             if "access_token" not in tokens:
+                _LOGGER.error("Token refresh response missing access_token")
                 msg = "No access_token in response"
                 raise FenixTFTApiError(msg)
             self._access_token = tokens["access_token"]
             self._refresh_token = tokens.get("refresh_token", self._refresh_token)
             self._token_expires = time.time() + tokens.get("expires_in", 3600)
-            _LOGGER.info("Access token refreshed")
+            _LOGGER.info("Access token refreshed successfully")
 
     async def _start_authorization(
         self,
@@ -350,9 +351,20 @@ class FenixTFTApi:
 
             success = await self._exchange_tokens(auth_code, code_verifier)
             if success:
-                _LOGGER.info("Login successful")
+                # Avoid logging PII at info level; keep detailed context at debug level
+                _LOGGER.info("OAuth2 login completed successfully")
+                _LOGGER.debug(
+                    "OAuth2 login completed successfully for user: %s",
+                    self._username,
+                )
         except (aiohttp.ClientError, FenixTFTApiError, ValueError, KeyError):
-            _LOGGER.exception("Login failed with exception")
+            # Avoid logging PII at exception level; use debug for per-user detail
+            _LOGGER.exception("OAuth2 login failed")
+            _LOGGER.debug(
+                "OAuth2 login failed for user: %s",
+                self._username,
+                exc_info=True,
+            )
             success = False
         return success
 
@@ -364,14 +376,16 @@ class FenixTFTApi:
             url, headers=self._headers(), timeout=API_TIMEOUT_SECONDS
         ) as resp:
             if resp.status != HTTP_OK:
+                _LOGGER.error("Get userinfo failed: HTTP status %s", resp.status)
                 msg = f"Userinfo failed: {resp.status}"
                 raise FenixTFTApiError(msg)
             data = await resp.json()
             self._sub = data.get("sub")
             if not self._sub:
+                _LOGGER.error("Userinfo response missing 'sub' field")
                 msg = "No 'sub' field in userinfo"
                 raise FenixTFTApiError(msg)
-            _LOGGER.debug("Retrieved user sub: %s", self._sub)
+            _LOGGER.debug("Retrieved user subscription ID: %s", self._sub)
             return data
 
     async def get_installations(self) -> list[dict[str, Any]]:
@@ -381,9 +395,15 @@ class FenixTFTApi:
         url = f"{API_BASE}/businessmodule/v1/installations/admins/{self._sub}"
         async with self._session.get(url, headers=self._headers()) as resp:
             if resp.status != HTTP_OK:
+                _LOGGER.error("Get installations failed: HTTP status %s", resp.status)
                 msg = f"Installations failed: {resp.status}"
                 raise FenixTFTApiError(msg)
-            return await resp.json()
+            installations = await resp.json()
+            _LOGGER.debug(
+                "Retrieved %d installation(s)",
+                len(installations) if installations else 0,
+            )
+            return installations
 
     async def get_device_properties(self, device_id: str) -> dict[str, Any]:
         """Fetch device properties from configuration endpoint."""
@@ -394,6 +414,11 @@ class FenixTFTApi:
         )
         async with self._session.get(url, headers=self._headers()) as resp:
             if resp.status != HTTP_OK:
+                _LOGGER.error(
+                    "Get device properties failed for device %s: HTTP status %s",
+                    device_id,
+                    resp.status,
+                )
                 msg = f"Device props failed: {resp.status}"
                 raise FenixTFTApiError(msg)
             return await resp.json()
@@ -418,11 +443,43 @@ class FenixTFTApi:
                     dev_id = dev.get("Id_deviceId")
                     try:
                         props = await self.get_device_properties(dev_id)
+
+                        # API Field Mapping:
+                        # Cm = Current preset/operating mode
+                        #      (0=Off, 1=Holidays, 2=Program, 4=Defrost, 5=Boost,
+                        #      6=Manual)
+                        # Hs = HVAC state - dual purpose field:
+                        #      - Normal mode: heating status (0=idle, 1=heating, 2=off)
+                        #      - Holiday mode (Cm=1): holiday mode type
+                        #        (1=Off, 2=Reduce/Eco, 5=Defrost, 8=Sunday)
+                        # H1 = Holiday schedule start date/time (DD/MM/YYYY HH:MM:SS)
+                        # H2 = Holiday schedule end date/time (DD/MM/YYYY HH:MM:SS)
+                        # H3 = Holiday mode array [mode, 0, 0, ...]
+                        #      Often all zeros when using manual holiday activation
+
+                        preset_mode_val = props.get("Cm", {}).get("value")
+                        hvac_state_val = props.get("Hs", {}).get("value")
+                        h1_val = props.get("H1", {}).get("value")
+                        h2_val = props.get("H2", {}).get("value")
                         h3_val = props.get("H3", {}).get("value")
+
+                        # Parse H3 array to get holiday_mode (first element if present)
                         holiday_mode = (
                             h3_val[0]
                             if h3_val and isinstance(h3_val, list)
                             else HOLIDAY_MODE_NONE
+                        )
+
+                        _LOGGER.debug(
+                            "Device %s API fields: Cm=%s, Hs=%s, H1=%s, H2=%s, "
+                            "H3=%s, parsed_holiday_mode=%s",
+                            dev_id,
+                            preset_mode_val,
+                            hvac_state_val,
+                            h1_val,
+                            h2_val,
+                            h3_val,
+                            holiday_mode,
                         )
                         device_data = {
                             "id": dev_id,
@@ -435,11 +492,15 @@ class FenixTFTApi:
                             "target_temp": decode_temp_from_entry(props.get("Ma")),
                             "current_temp": decode_temp_from_entry(props.get("At")),
                             "floor_temp": decode_temp_from_entry(props.get("bo")),
-                            "hvac_action": props.get("Hs", {}).get("value"),
-                            "preset_mode": props.get("Cm", {}).get("value"),
-                            "holiday_start": props.get("H1", {}).get("value"),
-                            "holiday_end": props.get("H2", {}).get("value"),
-                            "holiday_mode": holiday_mode,
+                            # hvac_action: Hs value (heating status OR holiday mode)
+                            "hvac_action": hvac_state_val,
+                            "preset_mode": preset_mode_val,  # Cm value
+                            "holiday_start": h1_val,  # H1 value
+                            "holiday_end": h2_val,  # H2 value
+                            "holiday_mode": holiday_mode,  # H3[0] value
+                            "holiday_target_temp": decode_temp_from_entry(
+                                props.get("Sp")
+                            ),  # Sp value - active target when in holiday mode
                         }
                         devices.append(device_data)
                     except FenixTFTApiError:
@@ -474,8 +535,19 @@ class FenixTFTApi:
             url, headers=self._headers(), json=payload
         ) as resp:
             if resp.status != HTTP_OK:
+                _LOGGER.error(
+                    "Set temperature failed for device %s: temp=%.1f°C, HTTP status %s",
+                    device_id,
+                    temp_c,
+                    resp.status,
+                )
                 msg = f"Failed to set temp: {resp.status}"
                 raise FenixTFTApiError(msg)
+            _LOGGER.debug(
+                "Temperature set successfully for device %s: %.1f°C",
+                device_id,
+                temp_c,
+            )
             return await resp.json()
 
     async def set_device_preset_mode(
@@ -484,6 +556,12 @@ class FenixTFTApi:
         """Set device preset mode (comfort, eco, etc.)."""
         await self._ensure_token()
         if preset_mode not in VALID_PRESET_MODES:
+            _LOGGER.error(
+                "Invalid preset mode %s for device %s (valid: %s)",
+                preset_mode,
+                device_id,
+                VALID_PRESET_MODES,
+            )
             msg = f"Invalid preset mode: {preset_mode}"
             raise FenixTFTApiError(msg)
 
@@ -499,8 +577,19 @@ class FenixTFTApi:
             url, headers=self._headers(), json=payload
         ) as resp:
             if resp.status != HTTP_OK:
+                _LOGGER.error(
+                    "Set preset mode failed for device %s: mode=%s, HTTP status %s",
+                    device_id,
+                    preset_mode,
+                    resp.status,
+                )
                 msg = f"Failed to set preset mode: {resp.status}"
                 raise FenixTFTApiError(msg)
+            _LOGGER.debug(
+                "Preset mode set successfully for device %s: mode=%s",
+                device_id,
+                preset_mode,
+            )
             return await resp.json()
 
     async def update_all_devices(self, devices: list[dict[str, Any]]) -> None:
@@ -529,6 +618,11 @@ class FenixTFTApi:
             url, headers=self._headers(), json=payload
         ) as resp:
             if resp.status != HTTP_OK:
+                _LOGGER.error(
+                    "Trigger device updates failed for installation %s: HTTP status %s",
+                    installation_id,
+                    resp.status,
+                )
                 msg = f"Failed to trigger device updates: {resp.status}"
                 raise FenixTFTApiError(msg)
             return await resp.json()
@@ -563,18 +657,24 @@ class FenixTFTApi:
         )
 
         _LOGGER.debug(
-            "Fetching energy consumption for subscription %s, room %s, installation %s "
-            "(UTC range: %s to %s)",
-            subscription_id,
-            room_id,
+            "Fetching energy consumption: installation_id=%s, room_id=%s, "
+            "subscription_id=%s, UTC_range=%s to %s",
             installation_id,
+            room_id,
+            subscription_id,
             start_date.isoformat(),
             end_date.isoformat(),
         )
-        _LOGGER.debug("Energy consumption URL: %s", url)
 
         async with self._session.get(url, headers=self._headers()) as resp:
             if resp.status != HTTP_OK:
+                _LOGGER.error(
+                    "Get energy consumption failed: installation_id=%s, room_id=%s, "
+                    "HTTP status %s",
+                    installation_id,
+                    room_id,
+                    resp.status,
+                )
                 msg = f"Failed to get energy consumption: {resp.status}"
                 raise FenixTFTApiError(msg)
             return await resp.json()
@@ -619,19 +719,34 @@ class FenixTFTApi:
         )
 
         _LOGGER.debug(
-            "Fetching historical energy for room %s, installation %s "
-            "(UTC range: %s to %s)",
-            room_id,
+            "Fetching historical energy: installation_id=%s, room_id=%s, "
+            "period=%s, UTC_range=%s to %s",
             installation_id,
+            room_id,
+            period,
             start_date.isoformat(),
             end_date.isoformat(),
         )
 
         async with self._session.get(url, headers=self._headers()) as resp:
             if resp.status == HTTP_NO_CONTENT:
-                # No data available for this period
+                _LOGGER.debug(
+                    "No historical energy data available: installation_id=%s, "
+                    "room_id=%s, period=%s",
+                    installation_id,
+                    room_id,
+                    period,
+                )
                 return []
             if resp.status != HTTP_OK:
+                _LOGGER.error(
+                    "Get historical energy failed: installation_id=%s, room_id=%s, "
+                    "period=%s, HTTP status %s",
+                    installation_id,
+                    room_id,
+                    period,
+                    resp.status,
+                )
                 msg = f"Failed to get historical energy data: {resp.status}"
                 raise FenixTFTApiError(msg)
             return await resp.json()

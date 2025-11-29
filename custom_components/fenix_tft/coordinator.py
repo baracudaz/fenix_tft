@@ -56,11 +56,17 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
 
     async def _async_update_data(self) -> list[dict[str, Any]]:
         """Fetch data from Fenix TFT API."""
+        _LOGGER.debug("Starting coordinator data update")
         try:
             fresh_data: list[
                 dict[str, Any]
             ] = await self.api.fetch_devices_with_energy_data()
+            _LOGGER.debug(
+                "Coordinator data update successful: fetched %d device(s)",
+                len(fresh_data) if fresh_data else 0,
+            )
         except Exception as err:  # Broad allowed: external I/O layer
+            _LOGGER.exception("Coordinator data update failed")
             msg = f"Error fetching Fenix TFT data: {err}"
             raise UpdateFailed(msg) from err
 
@@ -87,12 +93,26 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                     break
 
         for device_id in expired_updates:
+            _LOGGER.debug(
+                "Optimistic update expired for device %s, reverting to fresh data",
+                device_id,
+            )
             del self._optimistic_updates[device_id]
+
+        if expired_updates:
+            _LOGGER.debug(
+                "Removed %d expired optimistic update(s)", len(expired_updates)
+            )
+
         return fresh_data
 
     def update_device_preset_mode(self, device_id: str, preset_mode: int) -> None:
         """Optimistically update device preset mode in coordinator data."""
         if not self.data:
+            _LOGGER.warning(
+                "Cannot apply optimistic update for device %s: no coordinator data",
+                device_id,
+            )
             return
 
         predicted_hvac_action: int = _predict_hvac_action(preset_mode)
@@ -103,16 +123,25 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             current_time,
         )
 
+        device_found = False
         for device in self.data:
             if device.get("id") == device_id:
                 device["preset_mode"] = preset_mode
                 device["hvac_action"] = predicted_hvac_action
+                device_found = True
                 _LOGGER.debug(
-                    "Optimistically updated device %s: preset_mode=%s, hvac_action=%s",
+                    "Optimistic update applied for device %s: preset_mode=%s, "
+                    "predicted_hvac_action=%s",
                     device_id,
                     preset_mode,
                     predicted_hvac_action,
                 )
                 break
+
+        if not device_found:
+            _LOGGER.warning(
+                "Device %s not found in coordinator data for optimistic update",
+                device_id,
+            )
 
     # Adaptive polling removed: fixed update_interval is used.

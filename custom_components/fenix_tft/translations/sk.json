@@ -62,6 +62,17 @@
       "hvac_state": {
         "name": "Stav kúrenia"
       },
+      "preset_mode": {
+        "name": "Režim predvoľby",
+        "state": {
+          "off": "Vypnuté",
+          "holidays": "Dovolenka",
+          "program": "Program",
+          "defrost": "Odmrazovanie",
+          "boost": "Zrýchlenie",
+          "manual": "Manuálny"
+        }
+      },
       "floor_air_difference": {
         "name": "Rozdiel podlaha-vzduch"
       },
@@ -76,6 +87,9 @@
       },
       "holiday_schedule_until": {
         "name": "Plán dovolenky do"
+      },
+      "holiday_target_temperature": {
+        "name": "Cieľová teplota počas dovolenky"
       }
     }
   },

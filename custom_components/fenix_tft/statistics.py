@@ -55,10 +55,12 @@ async def get_last_statistic_sum(hass: HomeAssistant, statistic_id: str) -> floa
     result = await get_instance(hass).async_add_executor_job(_get_last_stat)
     if result > 0:
         _LOGGER.debug(
-            "Found existing cumulative sum for %s: %s",
+            "Retrieved last statistic sum for %s: %.2f",
             statistic_id,
             result,
         )
+    else:
+        _LOGGER.debug("No existing statistics found for %s", statistic_id)
     return result
 
 
@@ -119,9 +121,14 @@ async def get_first_statistic_time(
     result = await get_instance(hass).async_add_executor_job(_get_first_stat)
     if result:
         _LOGGER.debug(
-            "Found first statistic for %s at %s",
+            "Retrieved first statistic timestamp for %s: %s",
             statistic_id,
-            result,
+            result.isoformat(),
+        )
+    else:
+        _LOGGER.debug(
+            "No historical statistics found for %s",
+            statistic_id,
         )
     return result
 
@@ -151,6 +158,12 @@ def create_energy_statistic_metadata(
     history_statistic_id = f"fenix_tft:{clean_id}_history"
     history_entity_name = f"{entity_name} (History)"
 
+    _LOGGER.debug(
+        "Created energy statistic metadata: entity_id=%s, statistic_id=%s",
+        entity_id,
+        history_statistic_id,
+    )
+
     return StatisticMetaData(
         has_mean=False,
         has_sum=True,
@@ -177,6 +190,12 @@ def convert_energy_api_data_to_statistics(
         List of StatisticData objects with cumulative sum
 
     """
+    _LOGGER.debug(
+        "Converting %d API data point(s) to statistics: starting_sum=%.2f",
+        len(api_data) if api_data else 0,
+        starting_sum,
+    )
+
     statistics = []
     cumulative_sum = starting_sum
 
@@ -247,5 +266,12 @@ def convert_energy_api_data_to_statistics(
         except (ValueError, TypeError) as err:
             _LOGGER.warning("Error processing energy data item %s: %s", item, err)
             continue
+
+    _LOGGER.debug(
+        "Converted %d data point(s) to %d statistic(s): final_sum=%.2f",
+        len(api_data) if api_data else 0,
+        len(statistics),
+        cumulative_sum,
+    )
 
     return statistics
