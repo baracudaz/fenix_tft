@@ -348,7 +348,3 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         # Update coordinator with optimistic data and force state update
         self.coordinator.update_device_preset_mode(self._device_id, preset_value)
         self.async_write_ha_state()
-
-    async def async_update(self) -> None:
-        """Request latest data from coordinator (called by Home Assistant)."""
-        await self.coordinator.async_request_refresh()

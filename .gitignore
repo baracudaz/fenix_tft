@@ -17,6 +17,7 @@ artifacts/api-captures/
 coverage.xml
 .ruff_cache
 .DS_Store
+.ansible/
 
 # Home Assistant configuration
 config*

@@ -43,12 +43,17 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     def __init__(
         self, hass: HomeAssistant, api: FenixTFTApi, config_entry: ConfigEntry
     ) -> None:
-        """Initialize the Fenix TFT coordinator with fixed polling interval."""
+        """Initialize the Fenix TFT coordinator with configurable polling interval."""
+        # Use options polling_interval if available, otherwise use default
+        polling_interval = config_entry.options.get(
+            "polling_interval", POLLING_INTERVAL
+        )
+
         super().__init__(
             hass,
             logger=_LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=POLLING_INTERVAL),
+            update_interval=timedelta(seconds=polling_interval),
             config_entry=config_entry,
         )
         self.api = api
@@ -143,5 +148,3 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 "Device %s not found in coordinator data for optimistic update",
                 device_id,
             )
-
-    # Adaptive polling removed: fixed update_interval is used.

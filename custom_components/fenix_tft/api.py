@@ -40,9 +40,25 @@ ENERGY_CONSUMPTION_URL_TEMPLATE = (
 # Maximum concurrent energy data requests to avoid API rate limiting
 MAX_CONCURRENT_ENERGY_REQUESTS = 5
 
+# HTTP status codes
+HTTP_UNAUTHORIZED = 401
+HTTP_TOO_MANY_REQUESTS = 429
+
 
 class FenixTFTApiError(Exception):
-    """Exception raised for Fenix TFT API errors."""
+    """Base exception for Fenix TFT API errors."""
+
+
+class FenixTFTAuthenticationError(FenixTFTApiError):
+    """Authentication failed - credentials invalid or expired."""
+
+
+class FenixTFTConnectionError(FenixTFTApiError):
+    """Cannot connect to Fenix servers - network issue."""
+
+
+class FenixTFTRateLimitError(FenixTFTApiError):
+    """API rate limit exceeded - too many requests."""
 
 
 def decode_temp_from_entry(entry: dict[str, Any] | None) -> float | None:
@@ -153,18 +169,35 @@ class FenixTFTApi:
             "refresh_token": self._refresh_token,
             "client_id": CLIENT_ID,
         }
-        async with self._session.post(
-            url, data=data, timeout=API_TIMEOUT_SECONDS
-        ) as resp:
-            if resp.status != HTTP_OK:
-                _LOGGER.error("Token refresh failed: HTTP status %s", resp.status)
-                msg = f"Token refresh failed: {resp.status}"
-                raise FenixTFTApiError(msg)
-            tokens = await resp.json()
-            if "access_token" not in tokens:
-                _LOGGER.error("Token refresh response missing access_token")
-                msg = "No access_token in response"
-                raise FenixTFTApiError(msg)
+        try:
+            async with self._session.post(
+                url, data=data, timeout=API_TIMEOUT_SECONDS
+            ) as resp:
+                if resp.status == HTTP_UNAUTHORIZED:
+                    _LOGGER.error("Token refresh failed: credentials expired")
+                    msg = "Credentials expired. Please reauthenticate."
+                    raise FenixTFTAuthenticationError(msg)
+                if resp.status == HTTP_TOO_MANY_REQUESTS:
+                    _LOGGER.error("Token refresh failed: rate limit exceeded")
+                    msg = "API rate limit reached. Please try again later."
+                    raise FenixTFTRateLimitError(msg)
+                if resp.status != HTTP_OK:
+                    _LOGGER.error("Token refresh failed: HTTP status %s", resp.status)
+                    msg = f"Token refresh failed with status {resp.status}"
+                    raise FenixTFTApiError(msg)
+                tokens = await resp.json()
+                if "access_token" not in tokens:
+                    _LOGGER.error("Token refresh response missing access_token")
+                    msg = "No access_token in response"
+                    raise FenixTFTApiError(msg) from None
+        except TimeoutError as err:
+            _LOGGER.exception("Token refresh timeout")
+            msg = "Cannot reach Fenix servers. Check your internet connection."
+            raise FenixTFTConnectionError(msg) from err
+        except aiohttp.ClientError as err:
+            _LOGGER.exception("Token refresh connection error")
+            msg = "Network error connecting to Fenix servers."
+            raise FenixTFTConnectionError(msg) from err
             self._access_token = tokens["access_token"]
             self._refresh_token = tokens.get("refresh_token", self._refresh_token)
             self._token_expires = time.time() + tokens.get("expires_in", 3600)

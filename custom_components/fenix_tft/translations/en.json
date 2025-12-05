@@ -24,19 +24,16 @@
     }
   },
   "options": {
-    "error": {
-      "invalid_auth": "Email and/or password invalid.",
-      "unknown": "Unexpected exception occurred.",
-      "username_exists": "An account with the provided email is already being tracked."
-    },
     "step": {
       "init": {
+        "title": "Fenix TFT Options",
+        "description": "Configure integration options",
         "data": {
-          "username": "Email",
-          "password": "Password"
+          "polling_interval": "Polling interval (seconds)"
         },
-        "title": "Fenix - Account reconfiguration",
-        "description": "Reconfigure account details and reconnect to the Fenix API"
+        "data_description": {
+          "polling_interval": "How often to check for device updates (60-3600 seconds, default: 300)"
+        }
       }
     }
   },
