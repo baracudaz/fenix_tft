@@ -408,7 +408,11 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
-        """Return the holiday schedule mode."""
+        """Return the currently active holiday mode.
+        
+        This uses H4 (active_holiday_mode) which is the real-time indicator
+        of whether a holiday is actively being applied to the device.
+        """
         dev = self._device
         none_display = HOLIDAY_MODE_DISPLAY_NAMES.get(HOLIDAY_MODE_NONE, "None")
 
@@ -416,39 +420,40 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
             return none_display
 
         # API field mapping:
+        # active_holiday_mode = H4 field (PRIMARY indicator)
+        #   (0=None/not active, 1=Off, 2=Reduce/Eco, 5=Defrost, 8=Sunday)
         # preset_mode = Cm field
         #   (0=Off, 1=Holidays, 2=Program, 4=Defrost, 5=Boost, 6=Manual)
-        # holiday_mode = H3[0] field
+        # holiday_mode = H3[0] field (configured mode, not necessarily active)
         #   (0=None, 1=Off, 2=Reduce/Eco, 5=Defrost, 8=Sunday)
         # hvac_action = Hs field - dual purpose:
         #   - Normal mode: heating status (0=idle, 1=heating, 2=off)
         #   - Holiday mode (Cm=1): holiday mode type
         #     (1=Off, 2=Reduce, 5=Defrost, 8=Sunday)
         # Note: H1 (holiday_start) is unreliable - updated dynamically by API
+        active_holiday_mode = dev.get("active_holiday_mode")
         holiday_end = dev.get("holiday_end")
-        holiday_mode = dev.get("holiday_mode", HOLIDAY_MODE_NONE)
-        hvac_action = dev.get("hvac_action")
         preset_mode = dev.get("preset_mode")
 
         _LOGGER.debug(
-            "Holiday mode sensor %s: preset_mode=%s, holiday_mode=%s, "
-            "hvac_action=%s, holiday_end=%s",
+            "Holiday mode sensor %s: active_holiday_mode=%s, preset_mode=%s, "
+            "holiday_end=%s",
             self._device_id,
+            active_holiday_mode,
             preset_mode,
-            holiday_mode,
-            hvac_action,
             holiday_end,
         )
 
-        # Validate holiday mode is active
-        if preset_mode != PRESET_MODE_HOLIDAYS:
+        # Validate holiday mode is actually active (H4 != 0)
+        if not active_holiday_mode or active_holiday_mode == HOLIDAY_MODE_NONE:
             _LOGGER.debug(
-                "Device %s holiday mode not active: preset_mode=%s",
+                "Device %s has no active holiday: active_holiday_mode=%s",
                 self._device_id,
-                preset_mode,
+                active_holiday_mode,
             )
             return none_display
 
+        # Check if holiday end date is valid
         end_dt = parse_holiday_end(holiday_end)
         if not end_dt or dt_util.now() > end_dt:
             _LOGGER.debug(
@@ -458,42 +463,17 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
             )
             return none_display
 
-        # Determine mode type: Priority 1 - H3 field (most reliable)
-        if holiday_mode != HOLIDAY_MODE_NONE:
-            mode_name = HOLIDAY_MODE_DISPLAY_NAMES.get(holiday_mode, "None")
-            _LOGGER.debug(
-                "Device %s holiday mode from H3: %s (%s)",
-                self._device_id,
-                mode_name,
-                holiday_mode,
-            )
-            return mode_name
-
-        # Priority 2: hvac_action (Hs field) for manual activation
-        if hvac_action in HOLIDAY_MODE_DISPLAY_NAMES:
-            mode_name = HOLIDAY_MODE_DISPLAY_NAMES.get(hvac_action)
-            _LOGGER.debug(
-                "Device %s holiday mode from hvac_action: %s (%s)",
-                self._device_id,
-                mode_name,
-                hvac_action,
-            )
-            return mode_name
-
-        # Fallback: active holiday but no valid mode indicator
-        _LOGGER.warning(
-            "Device %s has active holiday schedule but no valid mode: "
-            "preset_mode=%s, holiday_mode=%s, hvac_action=%s",
+        # Return the active mode from H4
+        mode_name = HOLIDAY_MODE_DISPLAY_NAMES.get(
+            active_holiday_mode, f"Unknown ({active_holiday_mode})"
+        )
+        _LOGGER.debug(
+            "Device %s has active holiday mode: %s (%s)",
             self._device_id,
-            preset_mode,
-            holiday_mode,
-            hvac_action,
+            mode_name,
+            active_holiday_mode,
         )
-        return (
-            HOLIDAY_MODE_DISPLAY_NAMES.get(hvac_action, f"Unknown ({hvac_action})")
-            if hvac_action is not None
-            else "Unknown"
-        )
+        return mode_name
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -502,17 +482,19 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return {}
 
-        preset_mode = dev.get("preset_mode")
+        active_holiday_mode = dev.get("active_holiday_mode")
         holiday_end = dev.get("holiday_end")
         holiday_target_temp = dev.get("holiday_target_temp")
 
-        # Check if holiday schedule is currently active based on preset_mode
+        # Check if holiday is currently active based on active_holiday_mode (H4)
         # and end date
         is_active = False
         time_remaining = None
 
-        if preset_mode == PRESET_MODE_HOLIDAYS and (
-            end_dt := parse_holiday_end(holiday_end)
+        if (
+            active_holiday_mode
+            and active_holiday_mode != HOLIDAY_MODE_NONE
+            and (end_dt := parse_holiday_end(holiday_end))
         ):
             now = dt_util.now()
             is_active = now <= end_dt
@@ -560,27 +542,31 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
 
     @property
     def native_value(self) -> datetime | None:
-        """Return the holiday end datetime."""
+        """Return the holiday end datetime if actively in holiday mode.
+        
+        Uses H4 (active_holiday_mode) to check if holiday is truly active,
+        not just configured.
+        """
         dev = self._device
         if not dev:
             return None
 
-        preset_mode = dev.get("preset_mode")
+        active_holiday_mode = dev.get("active_holiday_mode")
         holiday_end = dev.get("holiday_end")
 
         _LOGGER.debug(
-            "Holiday until sensor %s: preset_mode=%s, end=%s",
+            "Holiday until sensor %s: active_holiday_mode=%s, end=%s",
             self._device_id,
-            preset_mode,
+            active_holiday_mode,
             holiday_end,
         )
 
-        # Check if holiday mode is active
-        if preset_mode != PRESET_MODE_HOLIDAYS:
+        # Check if holiday mode is actually active (H4 != 0)
+        if not active_holiday_mode or active_holiday_mode == HOLIDAY_MODE_NONE:
             _LOGGER.debug(
-                "Device %s holiday mode not active: preset_mode=%s",
+                "Device %s has no active holiday: active_holiday_mode=%s",
                 self._device_id,
-                preset_mode,
+                active_holiday_mode,
             )
             return None
 
@@ -600,13 +586,11 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return {}
 
-        preset_mode = dev.get("preset_mode")
+        active_holiday_mode = dev.get("active_holiday_mode")
         holiday_end = dev.get("holiday_end")
-        holiday_mode = dev.get("holiday_mode", HOLIDAY_MODE_NONE)
-        hvac_action = dev.get("hvac_action")
 
-        # Only show mode if holiday is currently active
-        if preset_mode != PRESET_MODE_HOLIDAYS:
+        # Only show mode if holiday is currently active (H4 != 0)
+        if not active_holiday_mode or active_holiday_mode == HOLIDAY_MODE_NONE:
             return {}
 
         # Check if holiday has expired
@@ -614,14 +598,12 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
         if not end_dt or dt_util.now() > end_dt:
             return {}
 
-        # Determine mode display (same logic as mode sensor)
-        mode_display = None
-        if holiday_mode != HOLIDAY_MODE_NONE:
-            mode_display = HOLIDAY_MODE_DISPLAY_NAMES.get(holiday_mode)
-        elif hvac_action in HOLIDAY_MODE_DISPLAY_NAMES:
-            mode_display = HOLIDAY_MODE_DISPLAY_NAMES.get(hvac_action)
+        # Return the active mode from H4
+        mode_display = HOLIDAY_MODE_DISPLAY_NAMES.get(
+            active_holiday_mode, f"Unknown ({active_holiday_mode})"
+        )
 
-        return {"mode": mode_display} if mode_display else {}
+        return {"mode": mode_display}
 
 
 class FenixHolidayTargetTempSensor(FenixTFTEntity, SensorEntity):
@@ -644,13 +626,20 @@ class FenixHolidayTargetTempSensor(FenixTFTEntity, SensorEntity):
 
     @property
     def native_value(self) -> float | None:
-        """Return the holiday target temperature."""
+        """Return the holiday target temperature if actively in holiday mode.
+        
+        Uses H4 (active_holiday_mode) to check if holiday is truly active.
+        """
         dev = self._device
         if not dev:
             return None
 
-        preset_mode = dev.get("preset_mode")
+        active_holiday_mode = dev.get("active_holiday_mode")
         holiday_target_temp = dev.get("holiday_target_temp")
 
-        # Only show value when in holiday mode
-        return None if preset_mode != PRESET_MODE_HOLIDAYS else holiday_target_temp
+        # Only show value when holiday is actually active (H4 != 0)
+        return (
+            None
+            if not active_holiday_mode or active_holiday_mode == HOLIDAY_MODE_NONE
+            else holiday_target_temp
+        )

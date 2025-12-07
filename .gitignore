@@ -22,3 +22,6 @@ coverage.xml
 config*
 !config/configuration.yaml
 custom_components/watts_vision/*
+
+.ansible/
+.claude/
