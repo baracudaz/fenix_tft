@@ -119,8 +119,9 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         return None if raw_preset is None else PRESET_MAP.get(raw_preset)
 
     def _is_holiday_active(self) -> bool:
-        """Return True if device is currently in active holiday mode.
-        
+        """
+        Return True if device is currently in active holiday mode.
+
         Uses H4 (active_holiday_mode) as the primary indicator, which reflects
         the real-time holiday state regardless of the preset_mode setting.
         Only when H4 is 0 (no active holiday) is the device truly available for control.

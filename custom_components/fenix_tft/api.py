@@ -504,7 +504,8 @@ class FenixTFTApi:
                             "holiday_start": h1_val,  # H1 value
                             "holiday_end": h2_val,  # H2 value
                             "holiday_mode": holiday_mode,  # H3[0] value
-                            "active_holiday_mode": h4_val or HOLIDAY_MODE_NONE,  # H4 value - real-time indicator
+                            "active_holiday_mode": h4_val
+                            or HOLIDAY_MODE_NONE,  # H4 value - real-time indicator
                             "holiday_target_temp": decode_temp_from_entry(
                                 props.get("Sp")
                             ),  # Sp value - active target when in holiday mode

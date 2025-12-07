@@ -20,7 +20,6 @@ from .const import (
     HVAC_ACTION_HEATING,
     HVAC_ACTION_IDLE,
     PRESET_MODE_DISPLAY_NAMES,
-    PRESET_MODE_HOLIDAYS,
 )
 from .entity import FenixTFTEntity
 from .helpers import parse_holiday_end
@@ -408,8 +407,9 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
-        """Return the currently active holiday mode.
-        
+        """
+        Return the currently active holiday mode.
+
         This uses H4 (active_holiday_mode) which is the real-time indicator
         of whether a holiday is actively being applied to the device.
         """
@@ -542,8 +542,9 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
 
     @property
     def native_value(self) -> datetime | None:
-        """Return the holiday end datetime if actively in holiday mode.
-        
+        """
+        Return the holiday end datetime if actively in holiday mode.
+
         Uses H4 (active_holiday_mode) to check if holiday is truly active,
         not just configured.
         """
@@ -626,8 +627,9 @@ class FenixHolidayTargetTempSensor(FenixTFTEntity, SensorEntity):
 
     @property
     def native_value(self) -> float | None:
-        """Return the holiday target temperature if actively in holiday mode.
-        
+        """
+        Return the holiday target temperature if actively in holiday mode.
+
         Uses H4 (active_holiday_mode) to check if holiday is truly active.
         """
         dev = self._device
