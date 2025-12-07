@@ -38,7 +38,7 @@ async def test_energy_consumption_sensor(
         (
             e
             for e in sensor_entries
-            if e.unique_id == "30C6F7E493C4_daily_energy_consumption"
+            if e.unique_id == "TESTDEV0001_daily_energy_consumption"
         ),
         None,
     )

@@ -30,13 +30,13 @@ async def test_climate_entity_created(
 
     # Check entity IDs match our real fixtures
     entity_ids = {e.entity_id for e in climate_entries}
-    assert "climate.victory_port_spalna" in entity_ids
-    assert "climate.victory_port_obyvacka" in entity_ids
+    assert "climate.test_installation_test_device_1" in entity_ids
+    assert "climate.test_installation_test_device_2" in entity_ids
 
 
 async def test_climate_entity_attributes(hass: HomeAssistant, init_integration) -> None:
     """Test climate entity attributes."""
-    state = hass.states.get("climate.victory_port_spalna")
+    state = hass.states.get("climate.test_installation_test_device_1")
 
     assert state is not None
     assert state.state == HVACMode.HEAT
@@ -54,14 +54,14 @@ async def test_set_temperature(
         CLIMATE_DOMAIN,
         SERVICE_SET_TEMPERATURE,
         {
-            ATTR_ENTITY_ID: "climate.victory_port_spalna",
+            ATTR_ENTITY_ID: "climate.test_installation_test_device_1",
             ATTR_TEMPERATURE: 22.0,
         },
         blocking=True,
     )
 
     # Verify API was called with correct temperature
-    mock_fenix_api.set_device_temperature.assert_called_once_with("30C6F7E493C4", 22.0)
+    mock_fenix_api.set_device_temperature.assert_called_once_with("TESTDEV0001", 22.0)
 
 
 async def test_set_hvac_mode(
@@ -72,14 +72,14 @@ async def test_set_hvac_mode(
         CLIMATE_DOMAIN,
         SERVICE_SET_HVAC_MODE,
         {
-            ATTR_ENTITY_ID: "climate.victory_port_spalna",
+            ATTR_ENTITY_ID: "climate.test_installation_test_device_1",
             ATTR_HVAC_MODE: HVACMode.OFF,
         },
         blocking=True,
     )
 
     # Verify API was called with correct preset mode (OFF = preset_mode 0)
-    mock_fenix_api.set_device_preset_mode.assert_called_once_with("30C6F7E493C4", 0)
+    mock_fenix_api.set_device_preset_mode.assert_called_once_with("TESTDEV0001", 0)
 
 
 async def test_set_preset_mode(
@@ -90,21 +90,21 @@ async def test_set_preset_mode(
         CLIMATE_DOMAIN,
         SERVICE_SET_PRESET_MODE,
         {
-            ATTR_ENTITY_ID: "climate.victory_port_spalna",
+            ATTR_ENTITY_ID: "climate.test_installation_test_device_1",
             ATTR_PRESET_MODE: "boost",
         },
         blocking=True,
     )
 
     # Verify API was called with correct preset mode (boost = preset_mode 5)
-    mock_fenix_api.set_device_preset_mode.assert_called_once_with("30C6F7E493C4", 5)
+    mock_fenix_api.set_device_preset_mode.assert_called_once_with("TESTDEV0001", 5)
 
 
 async def test_holiday_mode_locks_controls(
     hass: HomeAssistant, init_integration
 ) -> None:
     """Test climate entity when NOT in holiday mode."""
-    state = hass.states.get("climate.victory_port_spalna")
+    state = hass.states.get("climate.test_installation_test_device_1")
 
     # Device is NOT in holiday mode in our fixture (preset_mode=6 is manual)
     assert state is not None

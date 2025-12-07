@@ -20,7 +20,7 @@ async def test_set_holiday_schedule(
         "fenix_tft",
         "set_holiday_schedule",
         {
-            "entity_id": "climate.victory_port_spalna",
+            "entity_id": "climate.test_installation_test_device_1",
             "start_date": "2025-12-10",
             "end_date": "2025-12-20",
             "mode": "reduce",
@@ -43,7 +43,7 @@ async def test_set_holiday_schedule_invalid_dates(
             "fenix_tft",
             "set_holiday_schedule",
             {
-                "entity_id": "climate.victory_port_spalna",
+                "entity_id": "climate.test_installation_test_device_1",
                 "start_date": "2025-12-20",
                 "end_date": "2025-12-10",  # End before start
                 "mode": "reduce",
@@ -62,7 +62,7 @@ async def test_cancel_holiday_schedule(
         "fenix_tft",
         "cancel_holiday_schedule",
         {
-            "entity_id": "climate.victory_port_spalna",
+            "entity_id": "climate.test_installation_test_device_1",
         },
         blocking=True,
     )
@@ -107,7 +107,7 @@ async def test_import_historical_statistics(
             "fenix_tft",
             "import_historical_statistics",
             {
-                ATTR_ENERGY_ENTITY: "sensor.victory_port_spalna_daily_energy_consumption",
+                ATTR_ENERGY_ENTITY: "sensor.test_installation_test_device_1_daily_energy_consumption",
                 ATTR_DAYS_BACK: 7,
             },
             blocking=True,
