@@ -24,19 +24,16 @@
     }
   },
   "options": {
-    "error": {
-      "invalid_auth": "Email et/ou mot de passe invalide.",
-      "unknown": "Une exception inattendue s'est produite.",
-      "username_exists": "Un compte avec l'email fourni est déjà suivi."
-    },
     "step": {
       "init": {
+        "title": "Options Fenix TFT",
+        "description": "Configurer les options d'intégration",
         "data": {
-          "username": "Email",
-          "password": "Mot de passe"
+          "polling_interval": "Intervalle de sondage (secondes)"
         },
-        "title": "Fenix - Reconfiguration du compte",
-        "description": "Reconfigurer les détails du compte et se reconnecter à l'API Fenix"
+        "data_description": {
+          "polling_interval": "Fréquence de vérification des mises à jour des appareils (60-3600 secondes, par défaut: 300)"
+        }
       }
     }
   },

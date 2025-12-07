@@ -18,16 +18,16 @@
     }
   },
   "options": {
-    "error": {
-      "invalid_auth": "E-Mail und/oder Passwort ungültig.",
-      "unknown": "Es ist ein unerwarteter Fehler aufgetreten.",
-      "username_exists": "Ein Konto mit der angegebenen E-Mail wird bereits verfolgt."
-    },
     "step": {
       "init": {
-        "data": { "username": "E-Mail", "password": "Passwort" },
-        "title": "Fenix - Konto-Rekonfiguration",
-        "description": "Kontodaten neu konfigurieren und erneut mit der Fenix API verbinden"
+        "title": "Fenix TFT Optionen",
+        "description": "Integrationsoptionen konfigurieren",
+        "data": {
+          "polling_interval": "Abrufintervall (Sekunden)"
+        },
+        "data_description": {
+          "polling_interval": "Wie oft Geräteupdates überprüft werden sollen (60-3600 Sekunden, Standard: 300)"
+        }
       }
     }
   },
@@ -54,9 +54,8 @@
       "connectivity_status": { "name": "Verbindung" },
       "daily_energy_consumption": { "name": "Täglicher Energieverbrauch" },
       "holiday_mode": { "name": "Urlaubsmodus" },
-      "holiday_schedule_from": { "name": "Urlaubsplan von" },
       "holiday_schedule_until": { "name": "Urlaubsplan bis" },
-      "holiday_target_temperature": { "name": "Urlaubs-Zieltemperatur" }
+      "holiday_target_temperature": { "name": "Zieltemperatur im Urlaub" }
     }
   },
   "services": {

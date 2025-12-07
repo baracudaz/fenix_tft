@@ -24,19 +24,16 @@
     }
   },
   "options": {
-    "error": {
-      "invalid_auth": "Email a/nebo heslo je neplatné.",
-      "unknown": "Došlo k neočekávané chybě.",
-      "username_exists": "Účet s poskytnutým e-mailem je již připojen."
-    },
     "step": {
       "init": {
+        "title": "Fenix TFT - Možnosti",
+        "description": "Nakonfigurujte možnosti integrace",
         "data": {
-          "username": "Email",
-          "password": "Heslo"
+          "polling_interval": "Interval dotazování (sekundy)"
         },
-        "title": "Fenix - Rekonfigurace účtu",
-        "description": "Změňte údaje účtu a znovu se připojte k Fenix API"
+        "data_description": {
+          "polling_interval": "Jak často kontrolovat aktualizace zařízení (60-3600 sekund, výchozí: 300)"
+        }
       }
     }
   },
