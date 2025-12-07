@@ -456,12 +456,17 @@ class FenixTFTApi:
                         # H2 = Holiday schedule end date/time (DD/MM/YYYY HH:MM:SS)
                         # H3 = Holiday mode array [mode, 0, 0, ...]
                         #      Often all zeros when using manual holiday activation
+                        # H4 = Currently active holiday mode - real-time indicator
+                        #      (0=no active holiday, 1=Off, 2=Reduce/Eco, 5=Defrost,
+                        #      8=Sunday). This is the PRIMARY indicator for active
+                        #      holiday state, regardless of Cm value.
 
                         preset_mode_val = props.get("Cm", {}).get("value")
                         hvac_state_val = props.get("Hs", {}).get("value")
                         h1_val = props.get("H1", {}).get("value")
                         h2_val = props.get("H2", {}).get("value")
                         h3_val = props.get("H3", {}).get("value")
+                        h4_val = props.get("H4", {}).get("value")  # Active holiday mode
 
                         # Parse H3 array to get holiday_mode (first element if present)
                         holiday_mode = (
@@ -472,13 +477,14 @@ class FenixTFTApi:
 
                         _LOGGER.debug(
                             "Device %s API fields: Cm=%s, Hs=%s, H1=%s, H2=%s, "
-                            "H3=%s, parsed_holiday_mode=%s",
+                            "H3=%s, H4=%s, parsed_holiday_mode=%s",
                             dev_id,
                             preset_mode_val,
                             hvac_state_val,
                             h1_val,
                             h2_val,
                             h3_val,
+                            h4_val,
                             holiday_mode,
                         )
                         device_data = {
@@ -498,6 +504,9 @@ class FenixTFTApi:
                             "holiday_start": h1_val,  # H1 value
                             "holiday_end": h2_val,  # H2 value
                             "holiday_mode": holiday_mode,  # H3[0] value
+                            "active_holiday_mode": HOLIDAY_MODE_NONE
+                            if h4_val is None
+                            else h4_val,  # H4 value - real-time indicator
                             "holiday_target_temp": decode_temp_from_entry(
                                 props.get("Sp")
                             ),  # Sp value - active target when in holiday mode

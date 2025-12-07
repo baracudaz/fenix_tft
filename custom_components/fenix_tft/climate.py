@@ -18,6 +18,7 @@ from . import FenixTFTConfigEntry
 from .api import FenixTFTApiError
 from .const import (
     HOLIDAY_LOCKED_MSG,
+    HOLIDAY_MODE_NONE,
     PRESET_MODE_BOOST,
     PRESET_MODE_DEFROST,
     PRESET_MODE_HOLIDAYS,
@@ -119,12 +120,20 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         return None if raw_preset is None else PRESET_MAP.get(raw_preset)
 
     def _is_holiday_active(self) -> bool:
-        """Return True if device is currently in holiday mode."""
+        """
+        Return True if device is currently in active holiday mode.
+
+        Uses H4 (active_holiday_mode) as the primary indicator, which reflects
+        the real-time holiday state regardless of the preset_mode setting.
+        Only when H4 is HOLIDAY_MODE_NONE is the device truly available for control.
+        """
         dev = self._device
         if not dev:
             return False
-        # Holiday is active when preset_mode is HOLIDAYS
-        return dev.get("preset_mode") == PRESET_MODE_HOLIDAYS
+        # Holiday is active when H4 (active_holiday_mode) is not "none"
+        # This is more reliable than checking preset_mode == HOLIDAYS
+        active_holiday_mode = dev.get("active_holiday_mode")
+        return active_holiday_mode not in (None, HOLIDAY_MODE_NONE)
 
     @property
     def current_temperature(self) -> float | None:
