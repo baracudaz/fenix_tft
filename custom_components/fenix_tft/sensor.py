@@ -444,7 +444,7 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
             holiday_end,
         )
 
-        # Validate holiday mode is actually active (H4 != 0)
+        # Validate holiday mode is actually active (H4 != HOLIDAY_MODE_NONE)
         if not active_holiday_mode or active_holiday_mode == HOLIDAY_MODE_NONE:
             _LOGGER.debug(
                 "Device %s has no active holiday: active_holiday_mode=%s",
@@ -562,7 +562,7 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
             holiday_end,
         )
 
-        # Check if holiday mode is actually active (H4 != 0)
+        # Check if holiday mode is actually active (H4 != HOLIDAY_MODE_NONE)
         if not active_holiday_mode or active_holiday_mode == HOLIDAY_MODE_NONE:
             _LOGGER.debug(
                 "Device %s has no active holiday: active_holiday_mode=%s",
@@ -590,7 +590,7 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
         active_holiday_mode = dev.get("active_holiday_mode")
         holiday_end = dev.get("holiday_end")
 
-        # Only show mode if holiday is currently active (H4 != 0)
+        # Only show mode if holiday is currently active (H4 != HOLIDAY_MODE_NONE)
         if not active_holiday_mode or active_holiday_mode == HOLIDAY_MODE_NONE:
             return {}
 
@@ -639,7 +639,7 @@ class FenixHolidayTargetTempSensor(FenixTFTEntity, SensorEntity):
         active_holiday_mode = dev.get("active_holiday_mode")
         holiday_target_temp = dev.get("holiday_target_temp")
 
-        # Only show value when holiday is actually active (H4 != 0)
+        # Only show value when holiday is actually active (H4 != HOLIDAY_MODE_NONE)
         return (
             None
             if not active_holiday_mode or active_holiday_mode == HOLIDAY_MODE_NONE

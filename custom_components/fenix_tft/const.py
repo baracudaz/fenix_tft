@@ -99,6 +99,8 @@ VALID_HOLIDAY_MODES: Final[dict[str, int]] = {
 }
 
 # Unix epoch date used to indicate no holiday schedule
+# Note: This is an invalid date string used as a sentinel value by the API
+# It is only compared as a string before parsing, never actually parsed
 HOLIDAY_EPOCH_DATE: Final[str] = "00/00/1970 00:00:00"
 
 # Holiday date string format used by API (H1/H2 values)
