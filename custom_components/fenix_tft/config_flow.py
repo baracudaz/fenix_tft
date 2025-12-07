@@ -7,17 +7,17 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.data_entry_flow import AbortFlow, FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import FenixTFTApi
+from .api import (
+    FenixTFTApi,
+    FenixTFTAuthenticationError,
+    FenixTFTConnectionError,
+)
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class AuthenticationError(Exception):
-    """Raised when authentication with Fenix TFT fails."""
 
 
 async def validate_input(
@@ -33,7 +33,7 @@ async def validate_input(
         _LOGGER.error(
             "Authentication failed for username: %s", user_input[CONF_USERNAME]
         )
-        raise AuthenticationError
+        raise FenixTFTAuthenticationError("Authentication failed")
 
     _LOGGER.debug(
         "Authentication successful for username: %s", user_input[CONF_USERNAME]
@@ -62,9 +62,14 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(
                     title=user_input[CONF_USERNAME], data=info
                 )
-            except AuthenticationError:
+            except AbortFlow:
+                raise  # Let abort flows propagate
+            except FenixTFTAuthenticationError:
                 _LOGGER.exception("Config flow authentication error")
                 errors["base"] = "invalid_auth"
+            except FenixTFTConnectionError:
+                _LOGGER.exception("Config flow connection error")
+                errors["base"] = "cannot_connect"
             except Exception:
                 _LOGGER.exception("Unexpected config flow error")
                 errors["base"] = "unknown"
@@ -98,8 +103,10 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     reauth_entry,
                     data_updates=user_input,
                 )
-            except AuthenticationError:
+            except FenixTFTAuthenticationError:
                 errors["base"] = "invalid_auth"
+            except FenixTFTConnectionError:
+                errors["base"] = "cannot_connect"
             except Exception:
                 _LOGGER.exception("Unexpected reauthentication error")
                 errors["base"] = "unknown"
@@ -130,7 +137,7 @@ class FenixTFTOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -145,7 +152,7 @@ class FenixTFTOptionsFlow(config_entries.OptionsFlow):
                 {
                     vol.Optional(
                         "polling_interval",
-                        default=self.config_entry.options.get("polling_interval", 300),
+                        default=self._config_entry.options.get("polling_interval", 300),
                     ): vol.All(vol.Coerce(int), vol.Range(min=60, max=3600)),
                 }
             ),

@@ -1,0 +1,9 @@
+# Ruff configuration for tests
+# Tests have different requirements than production code
+
+[lint]
+ignore = [
+    "S101",      # Allow assert usage in tests (pytest requirement)
+    "PLR2004",   # Allow magic values in tests
+    "ARG001",    # Allow unused function arguments (fixtures)
+]

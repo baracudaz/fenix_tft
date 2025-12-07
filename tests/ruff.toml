@@ -1,0 +1,9 @@
+# Ruff configuration for test files
+# Tests have different linting requirements than production code
+
+[lint]
+ignore = [
+    "S101",      # Use of assert is standard in pytest
+    "ARG001",    # Unused function arguments are common in pytest fixtures
+    "PLR2004",   # Magic values are acceptable in tests
+]

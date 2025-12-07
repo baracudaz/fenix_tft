@@ -1,0 +1,125 @@
+[
+  {
+    "id": "12345678-1234-1234-1234-123456789012",
+    "In": "12345678-1234-1234-1234-123456789012",
+    "It": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "Il": "Test Installation",
+    "Ii": "",
+    "installerName": null,
+    "A1": "TESTSUBID01",
+    "mainAdministratorName": null,
+    "I1": null,
+    "users": null,
+    "rooms": [
+      {
+        "Zn": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "Zt": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "Rn": "Test Room 1",
+        "I2": 1,
+        "Rt": 14,
+        "sensors": [
+          {
+            "S1": "TESTDEV0001",
+            "S2": "test_device",
+            "S3": 1,
+            "Zn": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "Id_deviceId": "TESTDEV0001"
+          }
+        ],
+        "devices": [
+          {
+            "Id_deviceId": "TESTDEV0001",
+            "Dn": "Test Thermostat",
+            "Zn": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "Zt": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "fc": 1,
+            "Ty": "503037353432",
+            "sensors": [
+              {
+                "S1": "TESTDEV0001",
+                "S2": "test_device",
+                "S3": 1,
+                "Zn": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "Id_deviceId": "TESTDEV0001"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Zn": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+        "Zt": "dddddddddddddddddddddddddddddddd",
+        "Rn": "Test Room 2",
+        "I2": 1,
+        "Rt": 14,
+        "sensors": [
+          {
+            "S1": "TESTDEV0002",
+            "S2": "test_device",
+            "S3": 1,
+            "Zn": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            "Id_deviceId": "TESTDEV0002"
+          }
+        ],
+        "devices": [
+          {
+            "Id_deviceId": "TESTDEV0002",
+            "Dn": "Test Thermostat",
+            "Zn": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            "Zt": "dddddddddddddddddddddddddddddddd",
+            "fc": 1,
+            "Ty": "503037353432",
+            "sensors": [
+              {
+                "S1": "TESTDEV0002",
+                "S2": "test_device",
+                "S3": 1,
+                "Zn": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+                "Id_deviceId": "TESTDEV0002"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Zn": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+        "Zt": "ffffffffffffffffffffffffffffffff",
+        "Rn": "Test Room 3",
+        "I2": 1,
+        "Rt": 14,
+        "sensors": [
+          {
+            "S1": "TESTDEV0003",
+            "S2": "test_device",
+            "S3": 1,
+            "Zn": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+            "Id_deviceId": "TESTDEV0003"
+          }
+        ],
+        "devices": [
+          {
+            "Id_deviceId": "TESTDEV0003",
+            "Dn": "Test Thermostat",
+            "Zn": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+            "Zt": "ffffffffffffffffffffffffffffffff",
+            "fc": 1,
+            "Ty": "503037353432",
+            "sensors": [
+              {
+                "S1": "TESTDEV0003",
+                "S2": "test_device",
+                "S3": 1,
+                "Zn": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+                "Id_deviceId": "TESTDEV0003"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "Gp": null,
+    "address": null,
+    "addressGPS": null,
+    "St": 1
+  }
+]

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Run tests for Fenix TFT integration
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+echo "Installing test dependencies..."
+uv pip install -e ".[test]"
+
+echo ""
+echo "Running tests with coverage..."
+uv run pytest tests/ \
+    --cov=custom_components.fenix_tft \
+    --cov-report=term-missing \
+    --cov-report=html \
+    --cov-report=xml \
+    --durations=10 \
+    -v \
+    "$@"
+
+echo ""
+echo "Coverage report generated in htmlcov/index.html"
