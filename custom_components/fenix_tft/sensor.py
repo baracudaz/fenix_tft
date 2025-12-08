@@ -370,6 +370,7 @@ class FenixEnergyConsumptionSensor(FenixTFTEntity, SensorEntity):
         """Initialize a Fenix TFT energy consumption sensor."""
         super().__init__(coordinator, device_id)
         self._attr_unique_id = f"{device_id}_daily_energy_consumption"
+        self._last_logged_value: float | None = None
 
     @property
     def available(self) -> bool:
@@ -386,7 +387,41 @@ class FenixEnergyConsumptionSensor(FenixTFTEntity, SensorEntity):
     def native_value(self) -> float | None:
         """Return the daily energy consumption."""
         dev = self._device
-        return dev.get("daily_energy_consumption") if dev else None
+        value = dev.get("daily_energy_consumption") if dev else None
+
+        # Log value changes for troubleshooting
+        if value != self._last_logged_value:
+            if value is None:
+                _LOGGER.debug(
+                    "Energy consumption for %s: unavailable",
+                    self._device_id,
+                )
+            # Log reset detection (value decrease)
+            elif (
+                self._last_logged_value is not None
+                and value < self._last_logged_value
+            ):
+                _LOGGER.warning(
+                    "Energy consumption for %s decreased from %.1f to %.1f Wh "
+                    "(daily counter reset detected)",
+                    self._device_id,
+                    self._last_logged_value,
+                    value,
+                )
+            else:
+                _LOGGER.debug(
+                    "Energy consumption for %s: %.1f Wh",
+                    self._device_id,
+                    value,
+                )
+            self._last_logged_value = value
+
+        return value
+
+    @property
+    def last_reset(self) -> datetime | None:
+        """Return the time when the daily counter was reset (start of today)."""
+        return dt_util.start_of_local_day()
 
 
 class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):

@@ -667,10 +667,12 @@ class FenixTFTApi:
 
         _LOGGER.debug(
             "Fetching energy consumption: installation_id=%s, room_id=%s, "
-            "subscription_id=%s, UTC_range=%s to %s",
+            "subscription_id=%s, local_range=%s to %s, UTC_range=%s to %s",
             installation_id,
             room_id,
             subscription_id,
+            start_local.isoformat(),
+            end_local.isoformat(),
             start_date.isoformat(),
             end_date.isoformat(),
         )
@@ -785,6 +787,13 @@ class FenixTFTApi:
 
         async with semaphore:  # Limit concurrent requests
             try:
+                _LOGGER.debug(
+                    "Fetching energy data for device %s (installation %s, room %s)",
+                    device_id,
+                    installation_id,
+                    room_id,
+                )
+
                 # Use subscription ID (self._sub) for room-level energy data
                 energy_data = await self.get_room_energy_consumption(
                     installation_id, room_id, self._sub
@@ -793,17 +802,43 @@ class FenixTFTApi:
                 # Process the energy data - use processedDataWithAggregator
                 if energy_data and isinstance(energy_data, list):
                     total_consumption = 0
-                    for item in energy_data:
+                    items_count = len(energy_data)
+
+                    for idx, item in enumerate(energy_data):
                         if isinstance(item, dict):
                             consumption_value = item.get(
                                 "processedDataWithAggregator", 0
                             )
+                            start_date = item.get("startDateOfMetric")
+                            end_date = item.get("endDateOfMetric")
+                            message_count = item.get("processedMessages", 0)
+
+                            _LOGGER.debug(
+                                "Energy data [%d/%d]: %s to %s = %.1f Wh "
+                                "(messages: %d)",
+                                idx + 1,
+                                items_count,
+                                start_date,
+                                end_date,
+                                consumption_value,
+                                message_count,
+                            )
+
                             total_consumption += consumption_value
+
                     device["daily_energy_consumption"] = total_consumption
+                    _LOGGER.info(
+                        "Energy data updated for device %s: %.1f Wh "
+                        "(from %d hourly aggregates)",
+                        device_id,
+                        total_consumption,
+                        items_count,
+                    )
                 else:
                     device["daily_energy_consumption"] = 0
+                    _LOGGER.warning("No energy data returned for device %s", device_id)
             except FenixTFTApiError as err:
-                _LOGGER.debug(
+                _LOGGER.exception(
                     "Failed to fetch energy data for device %s: %s", device_id, err
                 )
                 # Don't fail the entire update if energy data fails
