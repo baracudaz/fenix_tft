@@ -839,7 +839,7 @@ class FenixTFTApi:
                     _LOGGER.warning("No energy data returned for device %s", device_id)
             except FenixTFTApiError as err:
                 _LOGGER.exception(
-                    "Failed to fetch energy data for device %s: %s", device_id, err
+                    "Failed to fetch energy data for device %s", device_id
                 )
                 # Don't fail the entire update if energy data fails
                 device["daily_energy_consumption"] = None

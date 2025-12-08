@@ -398,8 +398,7 @@ class FenixEnergyConsumptionSensor(FenixTFTEntity, SensorEntity):
                 )
             # Log reset detection (value decrease)
             elif (
-                self._last_logged_value is not None
-                and value < self._last_logged_value
+                self._last_logged_value is not None and value < self._last_logged_value
             ):
                 _LOGGER.warning(
                     "Energy consumption for %s decreased from %.1f to %.1f Wh "
