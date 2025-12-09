@@ -417,11 +417,6 @@ class FenixEnergyConsumptionSensor(FenixTFTEntity, SensorEntity):
 
         return value
 
-    @property
-    def last_reset(self) -> datetime | None:
-        """Return the time when the daily counter was reset (start of today)."""
-        return dt_util.start_of_local_day()
-
 
 class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT holiday mode sensor."""
