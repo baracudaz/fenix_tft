@@ -611,7 +611,17 @@ class FenixTFTApi:
             if device.get("installation_id")
         }
         for installation_id in installation_ids:
-            await self.trigger_device_updates(installation_id)
+            try:
+                await self.trigger_device_updates(installation_id)
+            except FenixTFTApiError as err:
+                # Do not fail the entire refresh if the backend rejects the
+                # trigger request (often returns sporadic 500 responses). We
+                # already have fresh device data, so treat this as best effort.
+                _LOGGER.warning(
+                    "Skipping failed device update trigger for installation %s: %s",
+                    installation_id,
+                    err,
+                )
 
     async def trigger_device_updates(self, installation_id: str) -> dict[str, Any]:
         """Trigger device updates for a specific installation."""
@@ -651,10 +661,13 @@ class FenixTFTApi:
         # (e.g., in containers)
         start_local = dt_util.start_of_local_day()
 
-        # End: last moment of today in local time (23:59:59.999999)
-        end_local = dt_util.start_of_local_day() + dt_util.dt.timedelta(
+        # End: clamp to now to avoid querying future time (which some backends
+        # treat as no data) while still bounded by end of day
+        end_of_day_local = dt_util.start_of_local_day() + dt_util.dt.timedelta(
             days=1, microseconds=-1
         )
+        now_local = dt_util.now()
+        end_local = min(end_of_day_local, now_local)
 
         # Convert to UTC for API
         start_date = start_local.astimezone(UTC)
@@ -676,6 +689,13 @@ class FenixTFTApi:
         )
 
         async with self._session.get(url, headers=self._headers()) as resp:
+            if resp.status == HTTP_NO_CONTENT:
+                _LOGGER.debug(
+                    "No energy data: installation_id=%s, room_id=%s",
+                    installation_id,
+                    room_id,
+                )
+                return []
             if resp.status != HTTP_OK:
                 _LOGGER.error(
                     "Get energy consumption failed: installation_id=%s, room_id=%s, "
