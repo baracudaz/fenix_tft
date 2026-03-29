@@ -154,6 +154,12 @@
       }
     }
   },
+  "issues": {
+    "coordinator_unavailable": {
+      "title": "Impossible de se connecter à Fenix TFT",
+      "description": "L'intégration n'a pas pu se connecter à l'API cloud Fenix TFT {consecutive_failures} fois de suite. Pour résoudre ce problème :\n1. Vérifiez votre connexion Internet.\n2. Vérifiez que le service cloud Fenix est accessible.\n3. Rechargez l'intégration depuis **Paramètres → Appareils et services → Fenix TFT → ⋮ → Recharger**.\n4. Si le problème persiste, reconfigurez vos identifiants."
+    }
+  },
   "exceptions": {
     "end_date_before_start": {
       "message": "La date de fin doit être postérieure à la date de début."

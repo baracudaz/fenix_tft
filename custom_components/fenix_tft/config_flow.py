@@ -7,7 +7,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.data_entry_flow import AbortFlow, FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FenixTFTApi
@@ -64,6 +64,8 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except AuthenticationError:
                 _LOGGER.exception("Config flow authentication error")
                 errors["base"] = "invalid_auth"
+            except AbortFlow:
+                raise
             except Exception:
                 _LOGGER.exception("Unexpected config flow error")
                 errors["base"] = "unknown"
@@ -99,6 +101,8 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             except AuthenticationError:
                 errors["base"] = "invalid_auth"
+            except AbortFlow:
+                raise
             except Exception:
                 _LOGGER.exception("Unexpected reauthentication error")
                 errors["base"] = "unknown"
@@ -134,6 +138,8 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             except AuthenticationError:
                 errors["base"] = "invalid_auth"
+            except AbortFlow:
+                raise
             except Exception:
                 _LOGGER.exception("Unexpected reconfiguration error")
                 errors["base"] = "unknown"

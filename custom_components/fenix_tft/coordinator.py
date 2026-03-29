@@ -5,11 +5,12 @@ from datetime import timedelta
 from typing import Any
 
 import aiohttp
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryAuthFailed
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import FenixTFTApi, FenixTFTApiError
+from .api import FenixTFTApi, FenixTFTApiError, FenixTFTAuthError
 from .const import (
     DOMAIN,
     HVAC_ACTION_HEATING,
@@ -19,6 +20,8 @@ from .const import (
     POLLING_INTERVAL,
     PRESET_MODE_OFF,
 )
+
+CONSECUTIVE_FAILURES_BEFORE_ISSUE = 3
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,6 +54,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
 
     api: FenixTFTApi
     _optimistic_updates: dict[str, tuple[int, int, float]]
+    _consecutive_failures: int
 
     def __init__(
         self, hass: HomeAssistant, api: FenixTFTApi, config_entry: ConfigEntry
@@ -65,6 +69,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         )
         self.api = api
         self._optimistic_updates: dict[str, tuple[int, int, float]] = {}
+        self._consecutive_failures: int = 0
 
     async def _async_update_data(self) -> list[dict[str, Any]]:
         """Fetch data from Fenix TFT API."""
@@ -77,10 +82,33 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 "Coordinator data update successful: fetched %d device(s)",
                 len(fresh_data) if fresh_data else 0,
             )
+        except FenixTFTAuthError as err:
+            _LOGGER.exception("Authentication failure during coordinator update")
+            raise ConfigEntryAuthFailed(str(err)) from err
         except (TimeoutError, FenixTFTApiError, aiohttp.ClientError) as err:
-            _LOGGER.exception("Coordinator data update failed")
+            self._consecutive_failures += 1
+            _LOGGER.exception(
+                "Coordinator data update failed (consecutive failures: %d)",
+                self._consecutive_failures,
+            )
+            if self._consecutive_failures >= CONSECUTIVE_FAILURES_BEFORE_ISSUE:
+                ir.async_create_issue(
+                    self.hass,
+                    DOMAIN,
+                    "coordinator_unavailable",
+                    is_fixable=False,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key="coordinator_unavailable",
+                    translation_placeholders={
+                        "consecutive_failures": str(self._consecutive_failures),
+                    },
+                )
             msg = f"Error fetching Fenix TFT data: {err}"
             raise UpdateFailed(msg) from err
+
+        if self._consecutive_failures >= CONSECUTIVE_FAILURES_BEFORE_ISSUE:
+            ir.async_delete_issue(self.hass, DOMAIN, "coordinator_unavailable")
+        self._consecutive_failures = 0
 
         current_time: float = self.hass.loop.time()
         expired_updates: list[str] = []

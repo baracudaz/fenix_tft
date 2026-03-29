@@ -46,6 +46,10 @@ class FenixTFTApiError(Exception):
     """Exception raised for Fenix TFT API errors."""
 
 
+class FenixTFTAuthError(FenixTFTApiError):
+    """Exception raised when authentication with the Fenix TFT API fails."""
+
+
 def decode_temp_from_entry(entry: dict[str, Any] | None) -> float | None:
     """Decode temperature from API entry (Fahrenheit + divFactor)."""
     if not entry:
@@ -139,7 +143,7 @@ class FenixTFTApi:
                 success = await self.login()
                 if not success:
                     msg = "Login failed"
-                    raise FenixTFTApiError(msg)
+                    raise FenixTFTAuthError(msg)
             finally:
                 self._login_in_progress = False
             return
@@ -160,12 +164,12 @@ class FenixTFTApi:
             if resp.status != HTTP_OK:
                 _LOGGER.error("Token refresh failed: HTTP status %s", resp.status)
                 msg = f"Token refresh failed: {resp.status}"
-                raise FenixTFTApiError(msg)
+                raise FenixTFTAuthError(msg)
             tokens = await resp.json()
             if "access_token" not in tokens:
                 _LOGGER.error("Token refresh response missing access_token")
                 msg = "No access_token in response"
-                raise FenixTFTApiError(msg)
+                raise FenixTFTAuthError(msg)
             self._access_token = tokens["access_token"]
             self._refresh_token = tokens.get("refresh_token", self._refresh_token)
             self._token_expires = time.time() + tokens.get("expires_in", 3600)

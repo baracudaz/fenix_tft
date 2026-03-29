@@ -154,6 +154,12 @@
       }
     }
   },
+  "issues": {
+    "coordinator_unavailable": {
+      "title": "Keine Verbindung zu Fenix TFT",
+      "description": "Die Integration konnte {consecutive_failures} Mal hintereinander keine Verbindung zur Fenix TFT Cloud-API herstellen. So beheben Sie das Problem:\n1. Überprüfen Sie Ihre Internetverbindung.\n2. Stellen Sie sicher, dass der Fenix Cloud-Dienst erreichbar ist.\n3. Laden Sie die Integration neu: **Einstellungen → Geräte & Dienste → Fenix TFT → ⋮ → Neu laden**.\n4. Wenn das Problem weiterhin besteht, konfigurieren Sie Ihre Zugangsdaten neu."
+    }
+  },
   "exceptions": {
     "end_date_before_start": {
       "message": "Das Enddatum muss nach dem Startdatum liegen."
