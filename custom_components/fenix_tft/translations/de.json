@@ -28,6 +28,12 @@
         },
         "description": "Kontodaten aktualisieren und erneut mit der Fenix API verbinden"
       }
+    },
+    "abort": {
+      "already_configured": "Dieses Konto ist bereits konfiguriert.",
+      "reconfigure_successful": "Kontodaten erfolgreich aktualisiert.",
+      "reauth_successful": "Erneute Authentifizierung erfolgreich.",
+      "username_exists": "Ein Konto mit dieser E-Mail ist bereits konfiguriert."
     }
   },
   "options": {

@@ -28,6 +28,12 @@
         },
         "description": "Update your account credentials to reconnect to the Fenix API"
       }
+    },
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "reconfigure_successful": "Account credentials updated successfully.",
+      "reauth_successful": "Reauthentication was successful.",
+      "username_exists": "An account with this email is already configured."
     }
   },
   "options": {

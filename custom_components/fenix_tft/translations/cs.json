@@ -28,6 +28,12 @@
         },
         "description": "Aktualizujte přihlašovací údaje a znovu se připojte k Fenix API"
       }
+    },
+    "abort": {
+      "already_configured": "Tento účet je již nakonfigurován.",
+      "reconfigure_successful": "Přihlašovací údaje účtu byly úspěšně aktualizovány.",
+      "reauth_successful": "Opětovné ověření proběhlo úspěšně.",
+      "username_exists": "Účet s tímto e-mailem je již nakonfigurován."
     }
   },
   "options": {

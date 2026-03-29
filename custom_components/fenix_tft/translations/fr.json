@@ -28,6 +28,12 @@
         },
         "description": "Mettez à jour vos identifiants pour vous reconnecter à l'API Fenix"
       }
+    },
+    "abort": {
+      "already_configured": "Ce compte est déjà configuré.",
+      "reconfigure_successful": "Les identifiants du compte ont été mis à jour avec succès.",
+      "reauth_successful": "La réauthentification a réussi.",
+      "username_exists": "Un compte avec cet email est déjà configuré."
     }
   },
   "options": {
