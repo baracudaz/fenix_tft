@@ -7,7 +7,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.data_entry_flow import AbortFlow, FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FenixTFTApi
@@ -56,15 +56,16 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 info = await validate_input(self.hass, user_input)
-                # Optionally, set unique_id based on username or API user id
                 await self.async_set_unique_id(user_input[CONF_USERNAME])
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=user_input[CONF_USERNAME], data=info
                 )
             except AuthenticationError:
-                _LOGGER.exception("Config flow authentication error")
+                _LOGGER.warning("Authentication failed during config flow")
                 errors["base"] = "invalid_auth"
+            except AbortFlow:
+                raise
             except Exception:
                 _LOGGER.exception("Unexpected config flow error")
                 errors["base"] = "unknown"
@@ -100,6 +101,8 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             except AuthenticationError:
                 errors["base"] = "invalid_auth"
+            except AbortFlow:
+                raise
             except Exception:
                 _LOGGER.exception("Unexpected reauthentication error")
                 errors["base"] = "unknown"
@@ -110,6 +113,44 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(
                         CONF_USERNAME, default=reauth_entry.data[CONF_USERNAME]
+                    ): str,
+                    vol.Required(CONF_PASSWORD): str,
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle reconfiguration flow (update credentials without removing entry)."""
+        reconfigure_entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            try:
+                await validate_input(self.hass, user_input)
+                await self.async_set_unique_id(user_input[CONF_USERNAME])
+                self._abort_if_unique_id_mismatch(reason="username_exists")
+                return self.async_update_reload_and_abort(
+                    reconfigure_entry,
+                    data_updates=user_input,
+                )
+            except AuthenticationError:
+                errors["base"] = "invalid_auth"
+            except AbortFlow:
+                raise
+            except Exception:
+                _LOGGER.exception("Unexpected reconfiguration error")
+                errors["base"] = "unknown"
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_USERNAME,
+                        default=reconfigure_entry.data.get(CONF_USERNAME, ""),
                     ): str,
                     vol.Required(CONF_PASSWORD): str,
                 }

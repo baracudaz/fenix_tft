@@ -20,7 +20,20 @@
           "password": "Heslo"
         },
         "description": "Znovu se ověřte u Fenix API"
+      },
+      "reconfigure": {
+        "data": {
+          "username": "Email",
+          "password": "Heslo"
+        },
+        "description": "Aktualizujte přihlašovací údaje a znovu se připojte k Fenix API"
       }
+    },
+    "abort": {
+      "already_configured": "Tento účet je již nakonfigurován.",
+      "reconfigure_successful": "Přihlašovací údaje účtu byly úspěšně aktualizovány.",
+      "reauth_successful": "Opětovné ověření proběhlo úspěšně.",
+      "username_exists": "Účet s tímto e-mailem je již nakonfigurován."
     }
   },
   "options": {
@@ -141,6 +154,12 @@
       }
     }
   },
+  "issues": {
+    "coordinator_unavailable": {
+      "title": "Nelze se připojit k Fenix TFT",
+      "description": "Integraci se {consecutive_failures}-krát za sebou nepodařilo připojit k Fenix TFT cloudovému API. Jak problém vyřešit:\n1. Zkontrolujte připojení k internetu.\n2. Ověřte, že cloudová služba Fenix je dostupná.\n3. Znovu načtěte integraci z **Nastavení → Zařízení a služby → Fenix TFT → ⋮ → Znovu načíst**.\n4. Pokud problém přetrvává, překonfigurujte přihlašovací údaje."
+    }
+  },
   "exceptions": {
     "end_date_before_start": {
       "message": "Datum ukončení musí být po datu zahájení."
@@ -180,6 +199,12 @@
     },
     "missing_subscription_id": {
       "message": "ID předplatného chybí; nelze importovat historická data. Prosím znovu se ověřte nebo zkontrolujte oprávnění vašeho účtu."
+    },
+    "temperature_out_of_range": {
+      "message": "Teplota {temp}°C je mimo povolený rozsah. Musí být mezi {min}°C a {max}°C."
+    },
+    "temperature_step_invalid": {
+      "message": "Temperature {temp}°C is not aligned to the {step}°C step size."
     }
   }
 }

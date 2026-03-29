@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import hashlib
+import json
 import logging
 import secrets
 import time
@@ -21,9 +22,13 @@ from .const import (
     CLIENT_ID,
     HOLIDAY_EPOCH_DATE,
     HOLIDAY_MODE_NONE,
+    HTTP_CLIENT_ERROR,
+    HTTP_CLIENT_ERROR_MAX,
     HTTP_NO_CONTENT,
     HTTP_OK,
     HTTP_REDIRECT,
+    HTTP_SERVER_ERROR,
+    HTTP_SUCCESS_MAX,
     REDIRECT_URI,
     SCOPES,
     VALID_PRESET_MODES,
@@ -43,6 +48,10 @@ MAX_CONCURRENT_ENERGY_REQUESTS = 5
 
 class FenixTFTApiError(Exception):
     """Exception raised for Fenix TFT API errors."""
+
+
+class FenixTFTAuthError(FenixTFTApiError):
+    """Exception raised when authentication with the Fenix TFT API fails."""
 
 
 def decode_temp_from_entry(entry: dict[str, Any] | None) -> float | None:
@@ -138,7 +147,7 @@ class FenixTFTApi:
                 success = await self.login()
                 if not success:
                     msg = "Login failed"
-                    raise FenixTFTApiError(msg)
+                    raise FenixTFTAuthError(msg)
             finally:
                 self._login_in_progress = False
             return
@@ -159,12 +168,12 @@ class FenixTFTApi:
             if resp.status != HTTP_OK:
                 _LOGGER.error("Token refresh failed: HTTP status %s", resp.status)
                 msg = f"Token refresh failed: {resp.status}"
-                raise FenixTFTApiError(msg)
+                raise FenixTFTAuthError(msg)
             tokens = await resp.json()
             if "access_token" not in tokens:
                 _LOGGER.error("Token refresh response missing access_token")
                 msg = "No access_token in response"
-                raise FenixTFTApiError(msg)
+                raise FenixTFTAuthError(msg)
             self._access_token = tokens["access_token"]
             self._refresh_token = tokens.get("refresh_token", self._refresh_token)
             self._token_expires = time.time() + tokens.get("expires_in", 3600)
@@ -524,6 +533,85 @@ class FenixTFTApi:
         _LOGGER.debug("Successfully fetched %d devices", len(devices))
         return devices
 
+    async def _put_with_retry(
+        self,
+        url: str,
+        payload: dict[str, Any],
+        description: str = "PUT request",
+        max_retries: int = 2,
+    ) -> dict[str, Any]:
+        """
+        Make a PUT request with exponential backoff retry for 5xx errors.
+
+        Logs response body (truncated) on failures to aid debugging.
+        4xx and other non-retriable errors are logged at error level.
+        """
+        for attempt in range(max_retries + 1):
+            async with self._session.put(
+                url, headers=self._headers(), json=payload
+            ) as resp:
+                status = resp.status
+                body_text = await resp.text()
+                truncated_body = body_text[:512]
+
+                if HTTP_OK <= status < HTTP_SUCCESS_MAX:
+                    try:
+                        return json.loads(body_text)
+                    except Exception as err:
+                        _LOGGER.exception(
+                            "%s (HTTP %s) invalid JSON response. Body: %s",
+                            description,
+                            status,
+                            truncated_body,
+                        )
+                        msg = f"{description} failed: invalid JSON response"
+                        raise FenixTFTApiError(msg) from err
+
+                is_server_error = status >= HTTP_SERVER_ERROR
+                if is_server_error and attempt < max_retries:
+                    delay = 2**attempt  # 1 s, then 2 s
+                    _LOGGER.warning(
+                        "%s: HTTP %s (attempt %d/%d), retrying in %ds. Body: %s",
+                        description,
+                        status,
+                        attempt + 1,
+                        max_retries + 1,
+                        delay,
+                        truncated_body,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+
+                if HTTP_CLIENT_ERROR <= status < HTTP_CLIENT_ERROR_MAX:
+                    _LOGGER.error(
+                        "%s failed with non-retriable HTTP %s. Body: %s",
+                        description,
+                        status,
+                        truncated_body,
+                    )
+                elif is_server_error:
+                    _LOGGER.error(
+                        "%s failed with HTTP %s after %d attempts. Body: %s",
+                        description,
+                        status,
+                        max_retries + 1,
+                        truncated_body,
+                    )
+                else:
+                    _LOGGER.error(
+                        "%s failed with unexpected HTTP %s. Body: %s",
+                        description,
+                        status,
+                        truncated_body,
+                    )
+
+                msg = f"{description} failed: HTTP {status}"
+                raise FenixTFTApiError(msg)
+
+        # Unreachable but satisfies type checker
+        msg = f"{description}: retry limit exceeded"
+        raise FenixTFTApiError(msg)
+
     async def set_device_temperature(
         self, device_id: str, temp_c: float
     ) -> dict[str, Any]:
@@ -540,24 +628,15 @@ class FenixTFTApi:
             ],
         }
         url = f"{API_BASE}/iotmanagement/v1/devices/twin/properties/config/replace"
-        async with self._session.put(
-            url, headers=self._headers(), json=payload
-        ) as resp:
-            if resp.status != HTTP_OK:
-                _LOGGER.error(
-                    "Set temperature failed for device %s: temp=%.1f°C, HTTP status %s",
-                    device_id,
-                    temp_c,
-                    resp.status,
-                )
-                msg = f"Failed to set temp: {resp.status}"
-                raise FenixTFTApiError(msg)
-            _LOGGER.debug(
-                "Temperature set successfully for device %s: %.1f°C",
-                device_id,
-                temp_c,
-            )
-            return await resp.json()
+        result = await self._put_with_retry(
+            url,
+            payload,
+            description=f"Set temperature for device {device_id} to {temp_c:.1f}°C",
+        )
+        _LOGGER.debug(
+            "Temperature set successfully for device %s: %.1f°C", device_id, temp_c
+        )
+        return result
 
     async def set_device_preset_mode(
         self, device_id: str, preset_mode: int
@@ -582,24 +661,17 @@ class FenixTFTApi:
             "data": [{"wattsType": "Dm", "wattsTypeValue": preset_mode}],
         }
         url = f"{API_BASE}/iotmanagement/v1/devices/twin/properties/config/replace"
-        async with self._session.put(
-            url, headers=self._headers(), json=payload
-        ) as resp:
-            if resp.status != HTTP_OK:
-                _LOGGER.error(
-                    "Set preset mode failed for device %s: mode=%s, HTTP status %s",
-                    device_id,
-                    preset_mode,
-                    resp.status,
-                )
-                msg = f"Failed to set preset mode: {resp.status}"
-                raise FenixTFTApiError(msg)
-            _LOGGER.debug(
-                "Preset mode set successfully for device %s: mode=%s",
-                device_id,
-                preset_mode,
-            )
-            return await resp.json()
+        result = await self._put_with_retry(
+            url,
+            payload,
+            description=f"Set preset mode for device {device_id} to {preset_mode}",
+        )
+        _LOGGER.debug(
+            "Preset mode set successfully for device %s: mode=%s",
+            device_id,
+            preset_mode,
+        )
+        return result
 
     async def update_all_devices(self, devices: list[dict[str, Any]]) -> None:
         """Update all devices by triggering updates for each installation."""
@@ -633,18 +705,11 @@ class FenixTFTApi:
         url = f"{API_BASE}/iotmanagement/v1/devices/userconnected"
 
         _LOGGER.debug("Triggering device updates for installation: %s", installation_id)
-        async with self._session.put(
-            url, headers=self._headers(), json=payload
-        ) as resp:
-            if resp.status != HTTP_OK:
-                _LOGGER.error(
-                    "Trigger device updates failed for installation %s: HTTP status %s",
-                    installation_id,
-                    resp.status,
-                )
-                msg = f"Failed to trigger device updates: {resp.status}"
-                raise FenixTFTApiError(msg)
-            return await resp.json()
+        return await self._put_with_retry(
+            url,
+            payload,
+            description=f"Trigger device updates for installation {installation_id}",
+        )
 
     async def get_room_energy_consumption(
         self,
@@ -916,20 +981,11 @@ class FenixTFTApi:
             mode,
         )
         _LOGGER.debug("Holiday schedule payload: %s", payload)
-
-        async with self._session.put(
-            url, headers=self._headers(), json=payload
-        ) as resp:
-            if resp.status != HTTP_OK:
-                response_text = await resp.text()
-                _LOGGER.error(
-                    "Failed to set holiday schedule: HTTP %s, Response: %s",
-                    resp.status,
-                    response_text,
-                )
-                msg = f"Failed to set holiday schedule: {resp.status}"
-                raise FenixTFTApiError(msg)
-            return await resp.json()
+        return await self._put_with_retry(
+            url,
+            payload,
+            description=f"Set holiday schedule for installation {installation_id}",
+        )
 
     async def cancel_holiday_schedule(
         self,
@@ -980,17 +1036,8 @@ class FenixTFTApi:
             "Canceling holiday schedule for installation %s",
             installation_id,
         )
-
-        async with self._session.put(
-            url, headers=self._headers(), json=payload
-        ) as resp:
-            if resp.status != HTTP_OK:
-                response_text = await resp.text()
-                _LOGGER.error(
-                    "Failed to cancel holiday schedule: HTTP %s, Response: %s",
-                    resp.status,
-                    response_text,
-                )
-                msg = f"Failed to cancel holiday schedule: {resp.status}"
-                raise FenixTFTApiError(msg)
-            return await resp.json()
+        return await self._put_with_retry(
+            url,
+            payload,
+            description=f"Cancel holiday schedule for installation {installation_id}",
+        )

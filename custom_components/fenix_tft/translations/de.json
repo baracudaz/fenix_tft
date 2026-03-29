@@ -8,13 +8,32 @@
     },
     "step": {
       "user": {
-        "data": { "username": "E-Mail", "password": "Passwort" },
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
         "description": "Mit der Fenix API verbinden"
       },
       "reauth_confirm": {
-        "data": { "username": "E-Mail", "password": "Passwort" },
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
         "description": "Erneut mit der Fenix API authentifizieren"
+      },
+      "reconfigure": {
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
+        "description": "Kontodaten aktualisieren und erneut mit der Fenix API verbinden"
       }
+    },
+    "abort": {
+      "already_configured": "Dieses Konto ist bereits konfiguriert.",
+      "reconfigure_successful": "Kontodaten erfolgreich aktualisiert.",
+      "reauth_successful": "Erneute Authentifizierung erfolgreich.",
+      "username_exists": "Ein Konto mit dieser E-Mail ist bereits konfiguriert."
     }
   },
   "options": {
@@ -25,20 +44,37 @@
     },
     "step": {
       "init": {
-        "data": { "username": "E-Mail", "password": "Passwort" },
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
         "title": "Fenix - Konto-Rekonfiguration",
         "description": "Kontodaten neu konfigurieren und erneut mit der Fenix API verbinden"
       }
     }
   },
   "entity": {
-    "climate": { "thermostat": { "name": "Thermostat" } },
+    "climate": {
+      "thermostat": {
+        "name": "Thermostat"
+      }
+    },
     "sensor": {
-      "floor_temperature": { "name": "Bodentemperatur" },
-      "ambient_temperature": { "name": "Raumtemperatur" },
-      "target_temperature": { "name": "Zieltemperatur" },
-      "temperature_difference": { "name": "Temperaturdifferenz" },
-      "hvac_state": { "name": "Heizungsstatus" },
+      "floor_temperature": {
+        "name": "Bodentemperatur"
+      },
+      "ambient_temperature": {
+        "name": "Raumtemperatur"
+      },
+      "target_temperature": {
+        "name": "Zieltemperatur"
+      },
+      "temperature_difference": {
+        "name": "Temperaturdifferenz"
+      },
+      "hvac_state": {
+        "name": "Heizungsstatus"
+      },
       "preset_mode": {
         "name": "Voreinstellungsmodus",
         "state": {
@@ -50,13 +86,24 @@
           "manual": "Manuell"
         }
       },
-      "floor_air_difference": { "name": "Boden-Luft-Differenz" },
-      "connectivity_status": { "name": "Verbindung" },
-      "daily_energy_consumption": { "name": "Täglicher Energieverbrauch" },
-      "holiday_mode": { "name": "Urlaubsmodus" },
-      "holiday_schedule_from": { "name": "Urlaubsplan von" },
-      "holiday_schedule_until": { "name": "Urlaubsplan bis" },
-      "holiday_target_temperature": { "name": "Urlaubs-Zieltemperatur" }
+      "floor_air_difference": {
+        "name": "Boden-Luft-Differenz"
+      },
+      "connectivity_status": {
+        "name": "Verbindung"
+      },
+      "daily_energy_consumption": {
+        "name": "Täglicher Energieverbrauch"
+      },
+      "holiday_mode": {
+        "name": "Urlaubsmodus"
+      },
+      "holiday_schedule_until": {
+        "name": "Urlaubsplan bis"
+      },
+      "holiday_target_temperature": {
+        "name": "Urlaubs-Zieltemperatur"
+      }
     }
   },
   "services": {
@@ -107,6 +154,12 @@
       }
     }
   },
+  "issues": {
+    "coordinator_unavailable": {
+      "title": "Keine Verbindung zu Fenix TFT",
+      "description": "Die Integration konnte {consecutive_failures} Mal hintereinander keine Verbindung zur Fenix TFT Cloud-API herstellen. So beheben Sie das Problem:\n1. Überprüfen Sie Ihre Internetverbindung.\n2. Stellen Sie sicher, dass der Fenix Cloud-Dienst erreichbar ist.\n3. Laden Sie die Integration neu: **Einstellungen → Geräte & Dienste → Fenix TFT → ⋮ → Neu laden**.\n4. Wenn das Problem weiterhin besteht, konfigurieren Sie Ihre Zugangsdaten neu."
+    }
+  },
   "exceptions": {
     "end_date_before_start": {
       "message": "Das Enddatum muss nach dem Startdatum liegen."
@@ -146,6 +199,12 @@
     },
     "missing_subscription_id": {
       "message": "Abonnement-ID fehlt; historische Daten können nicht importiert werden. Bitte authentifizieren Sie sich erneut oder überprüfen Sie Ihre Kontoberechtigungen."
+    },
+    "temperature_out_of_range": {
+      "message": "Temperatur {temp}°C liegt außerhalb des zulässigen Bereichs. Erlaubt sind {min}°C bis {max}°C."
+    },
+    "temperature_step_invalid": {
+      "message": "Temperature {temp}°C is not aligned to the {step}°C step size."
     }
   }
 }

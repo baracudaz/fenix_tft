@@ -26,20 +26,52 @@ Here is the thermostat integration in action.
 
 ### ✅ Current Features
 
-- **Climate Control**: Temperature control, heating modes (Off/Manual/Program), real-time monitoring
+- **Climate Control**: Temperature control (5–35 °C, 0.5 °C precision), heating modes (Off/Manual/Program), real-time monitoring
 - **Energy Monitoring**: Daily consumption tracking with Home Assistant Energy Dashboard integration
 - **Holiday Mode**: Set and cancel holiday schedules with automatic control locking during holidays
 - **Multi-Sensor Support**: Room/floor temperatures, target & difference metrics, HVAC status, connectivity, energy, holiday state & end timestamp
 - **Multi-Device**: Supports multiple thermostats across different rooms
+- **Reconfigure**: Update credentials without removing and re-adding the integration
+- **Diagnostics**: Built-in diagnostics panel for troubleshooting (redacts sensitive data)
+- **Repair Issues**: Automatic repair notification after repeated cloud connectivity failures
+- **API Resilience**: Automatic retry with exponential backoff for transient server errors
 
 ### 🚧 Planned & Ideas
 
 - **Smart Scheduling**: Full scheduling system, calendar integration
 - **Enhanced Diagnostics**: Additional device sensors and operational data
+- **Energy Import Deduplication**: Smarter re-import detection to skip already-imported periods
 
 ### 💡 Contributing
 
 Help wanted with testing, translations, documentation, and feature requests!
+
+## Development
+
+### Prerequisites
+
+- Python 3.13+
+- [uv](https://docs.astral.sh/uv/) package manager
+
+### Quick start
+
+```bash
+make setup    # Create .venv and install all dependencies
+make develop  # Start Home Assistant dev server (opens browser automatically)
+```
+
+### Common tasks
+
+| Command | Description |
+|---------|-------------|
+| `make setup` | Install dependencies into `.venv` via `uv sync` |
+| `make develop` | Start HA dev server, opens `http://localhost:8123` |
+| `make open` | Open browser (if HA is already running) |
+| `make lint` | Format and lint code with Ruff |
+| `make test` | Run all tests |
+| `make test-cov` | Run tests with HTML coverage report |
+| `make translations` | Sync translations from `strings.json` |
+| `make clean` | Remove cache files and build artifacts |
 
 ## Getting started
 

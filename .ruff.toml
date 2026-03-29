@@ -23,3 +23,17 @@ keep-runtime-typing = true
 
 [lint.mccabe]
 max-complexity = 25
+
+[lint.per-file-ignores]
+"tests/**/*.py" = [
+    "ANN",      # Type annotations not required for test functions/fixtures
+    "ARG001",   # Fixtures used for side-effects only (pytest pattern)
+    "ARG002",   # Same for method arguments
+    "S101",     # Use of assert is expected in tests
+    "S105",     # Hardcoded test passwords are fine
+    "SLF001",   # Accessing private members is needed for unit testing
+    "SIM105",   # contextlib.suppress not required in tests
+    "PLC0415",  # Imports inside functions allowed in tests
+    "PLR2004",  # Magic values are fine in test assertions
+    "PT012",    # pytest.raises with multiple statements is acceptable
+]

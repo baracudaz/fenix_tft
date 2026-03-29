@@ -20,7 +20,20 @@
           "password": "Mot de passe"
         },
         "description": "Réauthentification avec l'API Fenix"
+      },
+      "reconfigure": {
+        "data": {
+          "username": "Email",
+          "password": "Mot de passe"
+        },
+        "description": "Mettez à jour vos identifiants pour vous reconnecter à l'API Fenix"
       }
+    },
+    "abort": {
+      "already_configured": "Ce compte est déjà configuré.",
+      "reconfigure_successful": "Les identifiants du compte ont été mis à jour avec succès.",
+      "reauth_successful": "La réauthentification a réussi.",
+      "username_exists": "Un compte avec cet email est déjà configuré."
     }
   },
   "options": {
@@ -141,6 +154,12 @@
       }
     }
   },
+  "issues": {
+    "coordinator_unavailable": {
+      "title": "Impossible de se connecter à Fenix TFT",
+      "description": "L'intégration n'a pas pu se connecter à l'API cloud Fenix TFT {consecutive_failures} fois de suite. Pour résoudre ce problème :\n1. Vérifiez votre connexion Internet.\n2. Vérifiez que le service cloud Fenix est accessible.\n3. Rechargez l'intégration depuis **Paramètres → Appareils et services → Fenix TFT → ⋮ → Recharger**.\n4. Si le problème persiste, reconfigurez vos identifiants."
+    }
+  },
   "exceptions": {
     "end_date_before_start": {
       "message": "La date de fin doit être postérieure à la date de début."
@@ -180,6 +199,12 @@
     },
     "missing_subscription_id": {
       "message": "L'ID d'abonnement est manquant ; impossible d'importer les données historiques. Veuillez vous réauthentifier ou vérifier les autorisations de votre compte."
+    },
+    "temperature_out_of_range": {
+      "message": "La température {temp}°C est hors de la plage autorisée. Elle doit être comprise entre {min}°C et {max}°C."
+    },
+    "temperature_step_invalid": {
+      "message": "La température {temp}°C n'est pas alignée sur le pas de {step}°C."
     }
   }
 }

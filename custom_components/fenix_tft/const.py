@@ -26,10 +26,14 @@ SCOPES: Final[str] = (
     "TermOfUse.Read TermOfUse.Write"
 )
 
-# HTTP codes
+# HTTP status codes
 HTTP_OK: Final[int] = 200
 HTTP_NO_CONTENT: Final[int] = 204
 HTTP_REDIRECT: Final[int] = 302
+HTTP_SUCCESS_MAX: Final[int] = 300  # Exclusive upper bound for 2xx range
+HTTP_CLIENT_ERROR: Final[int] = 400  # Inclusive lower bound for 4xx range
+HTTP_CLIENT_ERROR_MAX: Final[int] = 500  # Exclusive upper bound for 4xx range
+HTTP_SERVER_ERROR: Final[int] = 500  # Threshold for server-side errors (5xx)
 
 # API timeout configuration
 API_TIMEOUT_SECONDS: Final[int] = 10
@@ -126,3 +130,9 @@ ATTR_ENERGY_ENTITY: Final[str] = "energy_entity"
 
 # Historical data import configuration
 API_RATE_LIMIT_DELAY: Final[int] = 1  # Delay in seconds between API calls
+
+# Temperature bounds for the thermostat
+TEMP_MIN: Final[float] = 5.0  # Minimum settable temperature (°C)
+TEMP_MAX: Final[float] = 35.0  # Maximum settable temperature (°C)
+TEMP_STEP: Final[float] = 0.5  # Temperature adjustment step (°C)
+TEMP_STEP_EPSILON: Final[float] = 1e-9  # Floating-point tolerance for step validation

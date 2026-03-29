@@ -818,6 +818,53 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
     return True
 
 
+async def async_migrate_entry(_hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate a config entry to the current version."""
+    _LOGGER.debug(
+        "Migrating config entry from version %s.%s",
+        config_entry.version,
+        config_entry.minor_version,
+    )
+
+    if config_entry.version > 1:
+        _LOGGER.error(
+            "Cannot migrate config entry: unknown version %s", config_entry.version
+        )
+        return False
+
+    # Version 1 is the current version — nothing to migrate yet.
+    # Future migrations will be added here as additional elif branches.
+    _LOGGER.debug("Config entry migration complete (already at current version)")
+    return True
+
+
+async def async_remove_config_entry_device(
+    _hass: HomeAssistant,
+    config_entry: FenixTFTConfigEntry,
+    device_entry: dr.DeviceEntry,
+) -> bool:
+    """
+    Allow removal of an individual thermostat device from this config entry.
+
+    Returns True if the device can safely be removed (it is no longer present
+    in the coordinator data, i.e., it was deleted from the Fenix account).
+    Returns False if the device is still active, preventing accidental removal.
+    """
+    runtime_data = getattr(config_entry, "runtime_data", None)
+    if not runtime_data:
+        return True
+    coordinator = (
+        runtime_data.get("coordinator") if isinstance(runtime_data, dict) else None
+    )
+    if not coordinator or not coordinator.data:
+        return True
+    for dev in coordinator.data:
+        if (DOMAIN, dev.get("id")) in device_entry.identifiers:
+            # Device is still active in the account — block removal
+            return False
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: FenixTFTConfigEntry) -> bool:
     """Set up Fenix TFT from a config entry."""
     session = async_get_clientsession(hass)

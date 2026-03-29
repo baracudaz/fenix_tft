@@ -20,7 +20,20 @@
           "password": "Password"
         },
         "description": "Reauthenticate with the Fenix API"
+      },
+      "reconfigure": {
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        },
+        "description": "Update your account credentials to reconnect to the Fenix API"
       }
+    },
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "reconfigure_successful": "Account credentials updated successfully.",
+      "reauth_successful": "Reauthentication was successful.",
+      "username_exists": "An account with this email is already configured."
     }
   },
   "options": {
@@ -141,6 +154,12 @@
       }
     }
   },
+  "issues": {
+    "coordinator_unavailable": {
+      "title": "Cannot connect to Fenix TFT",
+      "description": "The integration has failed to connect to the Fenix TFT cloud API {consecutive_failures} times in a row. To resolve this:\n1. Check your internet connection.\n2. Verify the Fenix cloud service is accessible.\n3. Reload the integration from **Settings → Devices & Services → Fenix TFT → ⋮ → Reload**.\n4. If the problem persists, reconfigure your account credentials."
+    }
+  },
   "exceptions": {
     "end_date_before_start": {
       "message": "The end date must be after the start date."
@@ -180,6 +199,12 @@
     },
     "missing_subscription_id": {
       "message": "Subscription ID is missing; cannot import historical data. Please re-authenticate or check your account permissions."
+    },
+    "temperature_out_of_range": {
+      "message": "Temperature {temp}°C is out of range. Must be between {min}°C and {max}°C."
+    },
+    "temperature_step_invalid": {
+      "message": "Temperature {temp}°C is not aligned to the {step}°C step size."
     }
   }
 }

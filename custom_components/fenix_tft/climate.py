@@ -12,11 +12,12 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from . import FenixTFTConfigEntry
 from .api import FenixTFTApiError
 from .const import (
+    DOMAIN,
     HOLIDAY_LOCKED_MSG,
     HOLIDAY_MODE_NONE,
     PRESET_MODE_BOOST,
@@ -25,6 +26,10 @@ from .const import (
     PRESET_MODE_MANUAL,
     PRESET_MODE_OFF,
     PRESET_MODE_PROGRAM,
+    TEMP_MAX,
+    TEMP_MIN,
+    TEMP_STEP,
+    TEMP_STEP_EPSILON,
 )
 from .entity import FenixTFTEntity
 
@@ -97,6 +102,9 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     ]
 
     _attr_temperature_unit: ClassVar[str] = UnitOfTemperature.CELSIUS
+    _attr_min_temp: ClassVar[float] = TEMP_MIN
+    _attr_max_temp: ClassVar[float] = TEMP_MAX
+    _attr_target_temperature_step: ClassVar[float] = TEMP_STEP
     _attr_translation_key: str = "thermostat"  # Translation key for entity name
 
     def __init__(self, api: Any, device_id: str, coordinator: Any) -> None:
@@ -232,6 +240,28 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             )
             msg = HOLIDAY_LOCKED_MSG
             raise HomeAssistantError(msg)
+
+        if not TEMP_MIN <= temp <= TEMP_MAX:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="temperature_out_of_range",
+                translation_placeholders={
+                    "min": str(TEMP_MIN),
+                    "max": str(TEMP_MAX),
+                    "temp": str(temp),
+                },
+            )
+
+        steps = (temp - TEMP_MIN) / TEMP_STEP
+        if abs(steps - round(steps)) > TEMP_STEP_EPSILON:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="temperature_step_invalid",
+                translation_placeholders={
+                    "step": str(TEMP_STEP),
+                    "temp": str(temp),
+                },
+            )
 
         _LOGGER.debug(
             "Setting temperature for device %s: %.1f°C",
