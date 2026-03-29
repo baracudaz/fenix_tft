@@ -8,8 +8,8 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' | \
 		sort
 
-setup: ## Install dependencies
-	scripts/setup
+setup: ## Install all dependencies into .venv using uv
+	uv sync --all-extras
 
 develop: ## Start Home Assistant dev server and open browser
 	@echo "Starting Home Assistant at $(HA_URL) ..."
