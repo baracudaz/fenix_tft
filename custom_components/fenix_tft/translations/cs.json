@@ -20,6 +20,13 @@
           "password": "Heslo"
         },
         "description": "Znovu se ověřte u Fenix API"
+      },
+      "reconfigure": {
+        "data": {
+          "username": "Email",
+          "password": "Heslo"
+        },
+        "description": "Aktualizujte přihlašovací údaje a znovu se připojte k Fenix API"
       }
     }
   },

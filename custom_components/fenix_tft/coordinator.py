@@ -4,13 +4,15 @@ import logging
 from datetime import timedelta
 from typing import Any
 
+import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import FenixTFTApi
+from .api import FenixTFTApi, FenixTFTApiError
 from .const import (
     DOMAIN,
+    HVAC_ACTION_HEATING,
     HVAC_ACTION_IDLE,
     HVAC_ACTION_OFF,
     OPTIMISTIC_UPDATE_DURATION,
@@ -21,17 +23,27 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def _predict_hvac_action(preset_mode: int) -> int:
+def _predict_hvac_action(
+    preset_mode: int,
+    target_temp: float | None = None,
+    current_temp: float | None = None,
+) -> int:
     """
-    Predict hvac_action based on preset_mode.
+    Predict hvac_action based on preset_mode and temperatures.
 
-    Based on typical thermostat behavior:
-    - PRESET_MODE_OFF: hvac_action should be HVAC_ACTION_OFF
-    - PRESET_MODE_MANUAL: hvac_action should be HVAC_ACTION_IDLE or HVAC_ACTION_HEATING
-    - PRESET_MODE_PROGRAM: hvac_action should be HVAC_ACTION_IDLE or HVAC_ACTION_HEATING
-    - For active modes, we predict IDLE as a safe default
+    - PRESET_MODE_OFF → HVAC_ACTION_OFF
+    - Active mode with target > current → HVAC_ACTION_HEATING (device likely heating)
+    - Active mode otherwise → HVAC_ACTION_IDLE (safe default)
     """
-    return HVAC_ACTION_OFF if preset_mode == PRESET_MODE_OFF else HVAC_ACTION_IDLE
+    if preset_mode == PRESET_MODE_OFF:
+        return HVAC_ACTION_OFF
+    if (
+        target_temp is not None
+        and current_temp is not None
+        and target_temp > current_temp
+    ):
+        return HVAC_ACTION_HEATING
+    return HVAC_ACTION_IDLE
 
 
 class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
@@ -65,7 +77,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 "Coordinator data update successful: fetched %d device(s)",
                 len(fresh_data) if fresh_data else 0,
             )
-        except Exception as err:  # Broad allowed: external I/O layer
+        except (TimeoutError, FenixTFTApiError, aiohttp.ClientError) as err:
             _LOGGER.exception("Coordinator data update failed")
             msg = f"Error fetching Fenix TFT data: {err}"
             raise UpdateFailed(msg) from err
@@ -115,26 +127,31 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             )
             return
 
-        predicted_hvac_action: int = _predict_hvac_action(preset_mode)
-        current_time: float = self.hass.loop.time()
-        self._optimistic_updates[device_id] = (
-            preset_mode,
-            predicted_hvac_action,
-            current_time,
-        )
-
         device_found = False
         for device in self.data:
             if device.get("id") == device_id:
+                target_temp: float | None = device.get("target_temp")
+                current_temp: float | None = device.get("current_temp")
+                predicted_hvac_action: int = _predict_hvac_action(
+                    preset_mode, target_temp, current_temp
+                )
+                current_time: float = self.hass.loop.time()
+                self._optimistic_updates[device_id] = (
+                    preset_mode,
+                    predicted_hvac_action,
+                    current_time,
+                )
                 device["preset_mode"] = preset_mode
                 device["hvac_action"] = predicted_hvac_action
                 device_found = True
                 _LOGGER.debug(
                     "Optimistic update applied for device %s: preset_mode=%s, "
-                    "predicted_hvac_action=%s",
+                    "predicted_hvac_action=%s (target=%.1f, current=%.1f)",
                     device_id,
                     preset_mode,
                     predicted_hvac_action,
+                    target_temp if target_temp is not None else float("nan"),
+                    current_temp if current_temp is not None else float("nan"),
                 )
                 break
 
@@ -143,5 +160,10 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 "Device %s not found in coordinator data for optimistic update",
                 device_id,
             )
+
+    @property
+    def pending_optimistic_update_count(self) -> int:
+        """Return the number of devices with pending optimistic updates."""
+        return len(self._optimistic_updates)
 
     # Adaptive polling removed: fixed update_interval is used.

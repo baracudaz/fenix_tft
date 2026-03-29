@@ -8,12 +8,25 @@
     },
     "step": {
       "user": {
-        "data": { "username": "E-Mail", "password": "Passwort" },
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
         "description": "Mit der Fenix API verbinden"
       },
       "reauth_confirm": {
-        "data": { "username": "E-Mail", "password": "Passwort" },
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
         "description": "Erneut mit der Fenix API authentifizieren"
+      },
+      "reconfigure": {
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
+        "description": "Kontodaten aktualisieren und erneut mit der Fenix API verbinden"
       }
     }
   },
@@ -25,20 +38,37 @@
     },
     "step": {
       "init": {
-        "data": { "username": "E-Mail", "password": "Passwort" },
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
         "title": "Fenix - Konto-Rekonfiguration",
         "description": "Kontodaten neu konfigurieren und erneut mit der Fenix API verbinden"
       }
     }
   },
   "entity": {
-    "climate": { "thermostat": { "name": "Thermostat" } },
+    "climate": {
+      "thermostat": {
+        "name": "Thermostat"
+      }
+    },
     "sensor": {
-      "floor_temperature": { "name": "Bodentemperatur" },
-      "ambient_temperature": { "name": "Raumtemperatur" },
-      "target_temperature": { "name": "Zieltemperatur" },
-      "temperature_difference": { "name": "Temperaturdifferenz" },
-      "hvac_state": { "name": "Heizungsstatus" },
+      "floor_temperature": {
+        "name": "Bodentemperatur"
+      },
+      "ambient_temperature": {
+        "name": "Raumtemperatur"
+      },
+      "target_temperature": {
+        "name": "Zieltemperatur"
+      },
+      "temperature_difference": {
+        "name": "Temperaturdifferenz"
+      },
+      "hvac_state": {
+        "name": "Heizungsstatus"
+      },
       "preset_mode": {
         "name": "Voreinstellungsmodus",
         "state": {
@@ -50,13 +80,27 @@
           "manual": "Manuell"
         }
       },
-      "floor_air_difference": { "name": "Boden-Luft-Differenz" },
-      "connectivity_status": { "name": "Verbindung" },
-      "daily_energy_consumption": { "name": "Täglicher Energieverbrauch" },
-      "holiday_mode": { "name": "Urlaubsmodus" },
-      "holiday_schedule_from": { "name": "Urlaubsplan von" },
-      "holiday_schedule_until": { "name": "Urlaubsplan bis" },
-      "holiday_target_temperature": { "name": "Urlaubs-Zieltemperatur" }
+      "floor_air_difference": {
+        "name": "Boden-Luft-Differenz"
+      },
+      "connectivity_status": {
+        "name": "Verbindung"
+      },
+      "daily_energy_consumption": {
+        "name": "Täglicher Energieverbrauch"
+      },
+      "holiday_mode": {
+        "name": "Urlaubsmodus"
+      },
+      "holiday_schedule_from": {
+        "name": "Urlaubsplan von"
+      },
+      "holiday_schedule_until": {
+        "name": "Urlaubsplan bis"
+      },
+      "holiday_target_temperature": {
+        "name": "Urlaubs-Zieltemperatur"
+      }
     }
   },
   "services": {

@@ -56,7 +56,6 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 info = await validate_input(self.hass, user_input)
-                # Optionally, set unique_id based on username or API user id
                 await self.async_set_unique_id(user_input[CONF_USERNAME])
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
@@ -110,6 +109,42 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(
                         CONF_USERNAME, default=reauth_entry.data[CONF_USERNAME]
+                    ): str,
+                    vol.Required(CONF_PASSWORD): str,
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle reconfiguration flow (update credentials without removing entry)."""
+        reconfigure_entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            try:
+                await validate_input(self.hass, user_input)
+                await self.async_set_unique_id(user_input[CONF_USERNAME])
+                self._abort_if_unique_id_mismatch(reason="username_exists")
+                return self.async_update_reload_and_abort(
+                    reconfigure_entry,
+                    data_updates=user_input,
+                )
+            except AuthenticationError:
+                errors["base"] = "invalid_auth"
+            except Exception:
+                _LOGGER.exception("Unexpected reconfiguration error")
+                errors["base"] = "unknown"
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_USERNAME,
+                        default=reconfigure_entry.data.get(CONF_USERNAME, ""),
                     ): str,
                     vol.Required(CONF_PASSWORD): str,
                 }

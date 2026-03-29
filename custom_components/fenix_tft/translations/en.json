@@ -20,6 +20,13 @@
           "password": "Password"
         },
         "description": "Reauthenticate with the Fenix API"
+      },
+      "reconfigure": {
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        },
+        "description": "Update your account credentials to reconnect to the Fenix API"
       }
     }
   },
