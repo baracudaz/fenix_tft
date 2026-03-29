@@ -91,7 +91,8 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 "Coordinator data update failed (consecutive failures: %d)",
                 self._consecutive_failures,
             )
-            if self._consecutive_failures >= CONSECUTIVE_FAILURES_BEFORE_ISSUE:
+            # Only create the repair issue once when the threshold is crossed
+            if self._consecutive_failures == CONSECUTIVE_FAILURES_BEFORE_ISSUE:
                 ir.async_create_issue(
                     self.hass,
                     DOMAIN,
