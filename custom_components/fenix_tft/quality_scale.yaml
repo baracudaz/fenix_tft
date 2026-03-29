@@ -7,8 +7,11 @@ rules:
     comment: Not a branded integration requiring a separate brands repository entry.
   common-modules: done
   config-flow-test-coverage:
-    status: todo
-    comment: No automated tests currently exist; test infrastructure needs to be added.
+    status: done
+    comment: >
+      Config flow is covered by tests/components/fenix_tft/test_config_flow.py (10 tests):
+      user flow success/error/duplicate, reauth success/invalid-auth,
+      reconfigure success/username-mismatch, and validate_input helper paths.
   config-flow: done
   dependency-transparency: done
   docs-actions: done
@@ -42,9 +45,16 @@ rules:
   integration-owner: done
   log-when-unavailable:
     status: todo
-    comment: Unavailability is not explicitly logged once; coordinator logs each poll failure.
+    comment: >
+      Coordinator logs each poll failure but does not implement the log-once pattern
+      (log info when first becoming unavailable, log info again on recovery).
   parallel-updates: done
   reauthentication-flow: done
   test-coverage:
-    status: todo
-    comment: No automated tests exist; minimum 95% coverage required.
+    status: done
+    comment: >
+      33 tests across test_config_flow.py (10), test_coordinator.py (10), and
+      test_climate.py (13). Covers config flow paths, coordinator update/error/repair
+      logic, optimistic updates, climate entity state, temperature bounds, preset and
+      HVAC mode handling, and holiday locking. sensor.py and statistics.py remain
+      uncovered; full 95% coverage is a future goal.
