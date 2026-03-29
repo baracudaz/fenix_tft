@@ -29,6 +29,7 @@ from .const import (
     TEMP_MAX,
     TEMP_MIN,
     TEMP_STEP,
+    TEMP_STEP_EPSILON,
 )
 from .entity import FenixTFTEntity
 
@@ -247,6 +248,17 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
                 translation_placeholders={
                     "min": str(TEMP_MIN),
                     "max": str(TEMP_MAX),
+                    "temp": str(temp),
+                },
+            )
+
+        steps = (temp - TEMP_MIN) / TEMP_STEP
+        if abs(steps - round(steps)) > TEMP_STEP_EPSILON:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="temperature_step_invalid",
+                translation_placeholders={
+                    "step": str(TEMP_STEP),
                     "temp": str(temp),
                 },
             )

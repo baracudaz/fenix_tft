@@ -202,6 +202,9 @@
     },
     "temperature_out_of_range": {
       "message": "Temperatur {temp}°C liegt außerhalb des zulässigen Bereichs. Erlaubt sind {min}°C bis {max}°C."
+    },
+    "temperature_step_invalid": {
+      "message": "Temperature {temp}°C is not aligned to the {step}°C step size."
     }
   }
 }

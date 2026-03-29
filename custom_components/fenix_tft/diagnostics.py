@@ -5,14 +5,27 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.diagnostics import async_redact_data
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_ACCESS_TOKEN, CONF_PASSWORD, CONF_USERNAME
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
     from . import FenixTFTConfigEntry
 
-TO_REDACT = {CONF_PASSWORD, CONF_USERNAME}
+TO_REDACT: set[str] = {
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    CONF_ACCESS_TOKEN,
+    # Integration-specific sensitive keys
+    "email",
+    "token",
+    "access_token",
+    "refresh_token",
+    "client_id",
+    "client_secret",
+    "account_id",
+    "subscription_id",
+}
 
 
 async def async_get_config_entry_diagnostics(
@@ -44,15 +57,18 @@ async def async_get_config_entry_diagnostics(
         for dev in coordinator.data or []
     ]
 
+    last_update_time = getattr(coordinator, "last_update_success_time", None)
+    update_interval = getattr(coordinator, "update_interval", None)
+
     return {
         "entry": async_redact_data(entry.data, TO_REDACT),
         "coordinator": {
             "last_update_success": coordinator.last_update_success,
-            "last_update_time": coordinator.last_update_success_time.isoformat()
-            if coordinator.last_update_success_time
+            "last_update_time": last_update_time.isoformat()
+            if last_update_time
             else None,
-            "update_interval_seconds": coordinator.update_interval.total_seconds()
-            if coordinator.update_interval
+            "update_interval_seconds": update_interval.total_seconds()
+            if update_interval
             else None,
             "device_count": len(coordinator.data) if coordinator.data else 0,
             "pending_optimistic_updates": coordinator.pending_optimistic_update_count,

@@ -1,6 +1,16 @@
 .DEFAULT_GOAL := help
 HA_URL := http://localhost:8123
 
+# Cross-platform browser open command
+UNAME := $(shell uname -s)
+ifeq ($(UNAME),Darwin)
+  OPEN_CMD := open
+else ifeq ($(UNAME),Linux)
+  OPEN_CMD := xdg-open
+else
+  OPEN_CMD := start
+endif
+
 .PHONY: help setup develop open lint test translations clean
 
 help: ## Show this help message
@@ -13,11 +23,11 @@ setup: ## Install all dependencies into .venv using uv
 
 develop: ## Start Home Assistant dev server and open browser
 	@echo "Starting Home Assistant at $(HA_URL) ..."
-	@(sleep 5 && open "$(HA_URL)") &
+	@(sleep 5 && $(OPEN_CMD) "$(HA_URL)") &
 	scripts/develop
 
 open: ## Open Home Assistant in browser (if already running)
-	open "$(HA_URL)"
+	$(OPEN_CMD) "$(HA_URL)"
 
 lint: ## Format and lint source code
 	scripts/lint

@@ -202,6 +202,9 @@
     },
     "temperature_out_of_range": {
       "message": "Teplota {temp}°C je mimo povolený rozsah. Musí byť medzi {min}°C a {max}°C."
+    },
+    "temperature_step_invalid": {
+      "message": "Temperature {temp}°C is not aligned to the {step}°C step size."
     }
   }
 }

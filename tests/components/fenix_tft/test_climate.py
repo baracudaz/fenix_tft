@@ -58,6 +58,51 @@ async def test_climate_min_max_temp(hass, setup_integration):
     assert float(state.attributes["target_temp_step"]) == 0.5
 
 
+async def test_set_temperature_at_min_bound(hass, setup_integration, mock_api):
+    """Allow setting temperature exactly at TEMP_MIN."""
+    entity_id = _get_climate_entity_id(hass)
+
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {"entity_id": entity_id, ATTR_TEMPERATURE: TEMP_MIN},
+        blocking=True,
+    )
+
+    mock_api.set_device_temperature.assert_called_once_with(MOCK_DEVICE_ID, TEMP_MIN)
+
+
+async def test_set_temperature_at_max_bound(hass, setup_integration, mock_api):
+    """Allow setting temperature exactly at TEMP_MAX."""
+    entity_id = _get_climate_entity_id(hass)
+
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {"entity_id": entity_id, ATTR_TEMPERATURE: TEMP_MAX},
+        blocking=True,
+    )
+
+    mock_api.set_device_temperature.assert_called_once_with(MOCK_DEVICE_ID, TEMP_MAX)
+
+
+async def test_set_temperature_non_step_aligned_raises(
+    hass, setup_integration, mock_api
+):
+    """Reject temperatures not aligned to TEMP_STEP (0.5°C)."""
+    entity_id = _get_climate_entity_id(hass)
+
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            "climate",
+            "set_temperature",
+            {"entity_id": entity_id, ATTR_TEMPERATURE: TEMP_MIN + 0.3},
+            blocking=True,
+        )
+
+    mock_api.set_device_temperature.assert_not_called()
+
+
 async def test_set_temperature_calls_api(hass, setup_integration, mock_api):
     """Test that setting temperature calls the API."""
     entity_id = _get_climate_entity_id(hass)

@@ -850,12 +850,18 @@ async def async_remove_config_entry_device(
     in the coordinator data, i.e., it was deleted from the Fenix account).
     Returns False if the device is still active, preventing accidental removal.
     """
-    coordinator = config_entry.runtime_data["coordinator"]
-    if coordinator.data:
-        for dev in coordinator.data:
-            if (DOMAIN, dev.get("id")) in device_entry.identifiers:
-                # Device is still active in the account — block removal
-                return False
+    runtime_data = getattr(config_entry, "runtime_data", None)
+    if not runtime_data:
+        return True
+    coordinator = (
+        runtime_data.get("coordinator") if isinstance(runtime_data, dict) else None
+    )
+    if not coordinator or not coordinator.data:
+        return True
+    for dev in coordinator.data:
+        if (DOMAIN, dev.get("id")) in device_entry.identifiers:
+            # Device is still active in the account — block removal
+            return False
     return True
 
 

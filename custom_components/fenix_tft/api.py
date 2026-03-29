@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import hashlib
+import json
 import logging
 import secrets
 import time
@@ -21,10 +22,13 @@ from .const import (
     CLIENT_ID,
     HOLIDAY_EPOCH_DATE,
     HOLIDAY_MODE_NONE,
+    HTTP_CLIENT_ERROR,
+    HTTP_CLIENT_ERROR_MAX,
     HTTP_NO_CONTENT,
     HTTP_OK,
     HTTP_REDIRECT,
     HTTP_SERVER_ERROR,
+    HTTP_SUCCESS_MAX,
     REDIRECT_URI,
     SCOPES,
     VALID_PRESET_MODES,
@@ -536,29 +540,72 @@ class FenixTFTApi:
         description: str = "PUT request",
         max_retries: int = 2,
     ) -> dict[str, Any]:
-        """Make a PUT request with exponential backoff retry for 5xx errors."""
+        """
+        Make a PUT request with exponential backoff retry for 5xx errors.
+
+        Logs response body (truncated) on failures to aid debugging.
+        4xx and other non-retriable errors are logged at error level.
+        """
         for attempt in range(max_retries + 1):
             async with self._session.put(
                 url, headers=self._headers(), json=payload
             ) as resp:
-                if resp.status == HTTP_OK:
-                    return await resp.json()
+                status = resp.status
+                body_text = await resp.text()
+                truncated_body = body_text[:512]
 
-                is_server_error = resp.status >= HTTP_SERVER_ERROR
+                if HTTP_OK <= status < HTTP_SUCCESS_MAX:
+                    try:
+                        return json.loads(body_text)
+                    except Exception as err:
+                        _LOGGER.exception(
+                            "%s (HTTP %s) invalid JSON response. Body: %s",
+                            description,
+                            status,
+                            truncated_body,
+                        )
+                        msg = f"{description} failed: invalid JSON response"
+                        raise FenixTFTApiError(msg) from err
+
+                is_server_error = status >= HTTP_SERVER_ERROR
                 if is_server_error and attempt < max_retries:
                     delay = 2**attempt  # 1 s, then 2 s
                     _LOGGER.warning(
-                        "%s: HTTP %s (attempt %d/%d), retrying in %ds",
+                        "%s: HTTP %s (attempt %d/%d), retrying in %ds. Body: %s",
                         description,
-                        resp.status,
+                        status,
                         attempt + 1,
                         max_retries + 1,
                         delay,
+                        truncated_body,
                     )
                     await asyncio.sleep(delay)
                     continue
 
-                msg = f"{description} failed: HTTP {resp.status}"
+                if HTTP_CLIENT_ERROR <= status < HTTP_CLIENT_ERROR_MAX:
+                    _LOGGER.error(
+                        "%s failed with non-retriable HTTP %s. Body: %s",
+                        description,
+                        status,
+                        truncated_body,
+                    )
+                elif is_server_error:
+                    _LOGGER.error(
+                        "%s failed with HTTP %s after %d attempts. Body: %s",
+                        description,
+                        status,
+                        max_retries + 1,
+                        truncated_body,
+                    )
+                else:
+                    _LOGGER.error(
+                        "%s failed with unexpected HTTP %s. Body: %s",
+                        description,
+                        status,
+                        truncated_body,
+                    )
+
+                msg = f"{description} failed: HTTP {status}"
                 raise FenixTFTApiError(msg)
 
         # Unreachable but satisfies type checker
