@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.2.0] - Unreleased
+## [1.2.0] - 2026-03-29
 
 ### Added
 - **Reconfigure flow**: Update email/password credentials without removing and re-adding the integration
