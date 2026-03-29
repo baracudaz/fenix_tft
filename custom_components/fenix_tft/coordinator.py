@@ -55,6 +55,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     api: FenixTFTApi
     _optimistic_updates: dict[str, tuple[int, int, float]]
     _consecutive_failures: int
+    _unavailable_logged: bool
 
     def __init__(
         self, hass: HomeAssistant, api: FenixTFTApi, config_entry: ConfigEntry
@@ -70,6 +71,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.api = api
         self._optimistic_updates: dict[str, tuple[int, int, float]] = {}
         self._consecutive_failures: int = 0
+        self._unavailable_logged: bool = False
 
     async def _async_update_data(self) -> list[dict[str, Any]]:
         """Fetch data from Fenix TFT API."""
@@ -87,10 +89,18 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             raise ConfigEntryAuthFailed(str(err)) from err
         except (TimeoutError, FenixTFTApiError, aiohttp.ClientError) as err:
             self._consecutive_failures += 1
-            _LOGGER.exception(
-                "Coordinator data update failed (consecutive failures: %d)",
-                self._consecutive_failures,
-            )
+            if not self._unavailable_logged:
+                _LOGGER.warning(
+                    "Fenix TFT cloud API is unavailable: %s",
+                    err,
+                )
+                self._unavailable_logged = True
+            else:
+                _LOGGER.debug(
+                    "Coordinator data update failed (consecutive failures: %d): %s",
+                    self._consecutive_failures,
+                    err,
+                )
             # Only create the repair issue once when the threshold is crossed
             if self._consecutive_failures == CONSECUTIVE_FAILURES_BEFORE_ISSUE:
                 ir.async_create_issue(
@@ -107,6 +117,9 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             msg = f"Error fetching Fenix TFT data: {err}"
             raise UpdateFailed(msg) from err
 
+        if self._unavailable_logged:
+            _LOGGER.info("Fenix TFT cloud API is back online")
+            self._unavailable_logged = False
         if self._consecutive_failures >= CONSECUTIVE_FAILURES_BEFORE_ISSUE:
             ir.async_delete_issue(self.hass, DOMAIN, "coordinator_unavailable")
         self._consecutive_failures = 0
