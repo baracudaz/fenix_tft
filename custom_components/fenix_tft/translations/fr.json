@@ -193,6 +193,9 @@
     },
     "missing_subscription_id": {
       "message": "L'ID d'abonnement est manquant ; impossible d'importer les données historiques. Veuillez vous réauthentifier ou vérifier les autorisations de votre compte."
+    },
+    "temperature_out_of_range": {
+      "message": "La température {temp}°C est hors de la plage autorisée. Elle doit être comprise entre {min}°C et {max}°C."
     }
   }
 }

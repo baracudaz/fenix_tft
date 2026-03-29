@@ -193,6 +193,9 @@
     },
     "missing_subscription_id": {
       "message": "ID predplatného chýba; nie je možné importovať historické údaje. Prosím znovu sa overte alebo skontrolujte oprávnenia vášho účtu."
+    },
+    "temperature_out_of_range": {
+      "message": "Teplota {temp}°C je mimo povolený rozsah. Musí byť medzi {min}°C a {max}°C."
     }
   }
 }

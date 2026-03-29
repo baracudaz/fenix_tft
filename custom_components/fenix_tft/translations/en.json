@@ -193,6 +193,9 @@
     },
     "missing_subscription_id": {
       "message": "Subscription ID is missing; cannot import historical data. Please re-authenticate or check your account permissions."
+    },
+    "temperature_out_of_range": {
+      "message": "Temperature {temp}°C is out of range. Must be between {min}°C and {max}°C."
     }
   }
 }
