@@ -88,35 +88,43 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             _LOGGER.exception("Authentication failure during coordinator update")
             raise ConfigEntryAuthFailed(str(err)) from err
         except (TimeoutError, FenixTFTApiError, aiohttp.ClientError) as err:
-            self._consecutive_failures += 1
-            if not self._unavailable_logged:
-                _LOGGER.warning(
-                    "Fenix TFT cloud API is unavailable: %s",
-                    err,
-                )
-                self._unavailable_logged = True
-            else:
-                _LOGGER.debug(
-                    "Coordinator data update failed (consecutive failures: %d): %s",
-                    self._consecutive_failures,
-                    err,
-                )
-            # Only create the repair issue once when the threshold is crossed
-            if self._consecutive_failures == CONSECUTIVE_FAILURES_BEFORE_ISSUE:
-                ir.async_create_issue(
-                    self.hass,
-                    DOMAIN,
-                    "coordinator_unavailable",
-                    is_fixable=False,
-                    severity=ir.IssueSeverity.WARNING,
-                    translation_key="coordinator_unavailable",
-                    translation_placeholders={
-                        "consecutive_failures": str(CONSECUTIVE_FAILURES_BEFORE_ISSUE),
-                    },
-                )
-            msg = f"Error fetching Fenix TFT data: {err}"
-            raise UpdateFailed(msg) from err
+            self._handle_update_failure(err)
 
+        self._handle_update_success()
+        self._apply_optimistic_updates(fresh_data)
+        return fresh_data
+
+    def _handle_update_failure(
+        self, err: TimeoutError | FenixTFTApiError | aiohttp.ClientError
+    ) -> None:
+        """Handle a failed data update: log, track failures, and raise."""
+        self._consecutive_failures += 1
+        if not self._unavailable_logged:
+            _LOGGER.warning("Fenix TFT cloud API is unavailable: %s", err)
+            self._unavailable_logged = True
+        else:
+            _LOGGER.debug(
+                "Coordinator data update failed (consecutive failures: %d): %s",
+                self._consecutive_failures,
+                err,
+            )
+        if self._consecutive_failures == CONSECUTIVE_FAILURES_BEFORE_ISSUE:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                "coordinator_unavailable",
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="coordinator_unavailable",
+                translation_placeholders={
+                    "consecutive_failures": str(CONSECUTIVE_FAILURES_BEFORE_ISSUE),
+                },
+            )
+        msg = f"Error fetching Fenix TFT data: {err}"
+        raise UpdateFailed(msg) from err
+
+    def _handle_update_success(self) -> None:
+        """Reset failure state and clear any repair issue on a successful update."""
         if self._unavailable_logged:
             _LOGGER.info("Fenix TFT cloud API is back online")
             self._unavailable_logged = False
@@ -124,6 +132,8 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             ir.async_delete_issue(self.hass, DOMAIN, "coordinator_unavailable")
         self._consecutive_failures = 0
 
+    def _apply_optimistic_updates(self, fresh_data: list[dict[str, Any]]) -> None:
+        """Overlay in-flight optimistic updates onto freshly fetched device data."""
         current_time: float = self.hass.loop.time()
         expired_updates: list[str] = []
 
@@ -157,8 +167,6 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             _LOGGER.debug(
                 "Removed %d expired optimistic update(s)", len(expired_updates)
             )
-
-        return fresh_data
 
     def update_device_preset_mode(self, device_id: str, preset_mode: int) -> None:
         """Optimistically update device preset mode in coordinator data."""
