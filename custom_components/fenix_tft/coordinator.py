@@ -101,7 +101,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                     severity=ir.IssueSeverity.WARNING,
                     translation_key="coordinator_unavailable",
                     translation_placeholders={
-                        "consecutive_failures": str(self._consecutive_failures),
+                        "consecutive_failures": str(CONSECUTIVE_FAILURES_BEFORE_ISSUE),
                     },
                 )
             msg = f"Error fetching Fenix TFT data: {err}"
