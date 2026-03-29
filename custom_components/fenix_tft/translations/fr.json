@@ -204,7 +204,7 @@
       "message": "La température {temp}°C est hors de la plage autorisée. Elle doit être comprise entre {min}°C et {max}°C."
     },
     "temperature_step_invalid": {
-      "message": "Temperature {temp}°C is not aligned to the {step}°C step size."
+      "message": "La température {temp}°C n'est pas alignée sur le pas de {step}°C."
     }
   }
 }
