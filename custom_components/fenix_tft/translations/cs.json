@@ -157,7 +157,7 @@
   "issues": {
     "coordinator_unavailable": {
       "title": "Nelze se připojit k Fenix TFT",
-      "description": "Integraci se {consecutive_failures}krát za sebou nepodařilo připojit k Fenix TFT cloudovému API. Jak problém vyřešit:\n1. Zkontrolujte připojení k internetu.\n2. Ověřte, že cloudová služba Fenix je dostupná.\n3. Znovu načtěte integraci z **Nastavení → Zařízení a služby → Fenix TFT → ⋮ → Znovu načíst**.\n4. Pokud problém přetrvává, překonfigurujte přihlašovací údaje."
+      "description": "Integraci se {consecutive_failures}-krát za sebou nepodařilo připojit k Fenix TFT cloudovému API. Jak problém vyřešit:\n1. Zkontrolujte připojení k internetu.\n2. Ověřte, že cloudová služba Fenix je dostupná.\n3. Znovu načtěte integraci z **Nastavení → Zařízení a služby → Fenix TFT → ⋮ → Znovu načíst**.\n4. Pokud problém přetrvává, překonfigurujte přihlašovací údaje."
     }
   },
   "exceptions": {
