@@ -62,7 +62,7 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     title=user_input[CONF_USERNAME], data=info
                 )
             except AuthenticationError:
-                _LOGGER.exception("Config flow authentication error")
+                _LOGGER.warning("Authentication failed during config flow")
                 errors["base"] = "invalid_auth"
             except AbortFlow:
                 raise
