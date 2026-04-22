@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] - 2026-04-22
+
+### Added
+
+- Diagnostic sensors for open-window investigation: `Device status (St)` and `Error codes (Er)`
+
+### Changed
+
+- Device payload now includes raw `St` and `Er` fields (`device_status`, `error_codes`)
+
+### Fixed
+
+- Added missing translations for new diagnostic sensors in all supported locales
+
+---
+
 ## [1.2.0] - 2026-03-29
 
 ### Added
@@ -14,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reconfigure flow**: Update email/password credentials without removing and re-adding the integration
 - **Diagnostics panel**: Built-in HA diagnostics page for troubleshooting; sensitive fields (password) are automatically redacted
 - **Repair issues**: Automatic repair notification created after 3 consecutive cloud connectivity failures; cleared automatically on recovery
-- **Temperature bounds validation**: Set temperature now enforces 5–35 °C range and 0.5 °C step; raises a translatable error if out of range
+- **Temperature bounds validation**: Set temperature now enforces 5-35 °C range and 0.5 °C step; raises a translatable error if out of range
 - **API retry logic**: Transient HTTP 5xx server errors are retried up to 2 times with exponential backoff (1 s, 2 s)
 - **Auth error differentiation**: Authentication failures now raise `ConfigEntryAuthFailed`, triggering the reauthentication flow instead of silently failing
 - **`async_migrate_entry`**: Migration framework in place for future config entry schema upgrades
