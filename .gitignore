@@ -1,4 +1,4 @@
-# artifacts
+# python
 __pycache__
 .pytest*
 *.egg-info
@@ -9,9 +9,14 @@ __pycache__
 Pipfile*
 pyproject.toml
 uv.lock
+
+# artifacts
 artifacts/api-captures/
+artifacts/documentation/
 
 # misc
+.ansible/
+.claude/
 .coverage
 .vscode
 coverage.xml
@@ -22,6 +27,3 @@ coverage.xml
 config*
 !config/configuration.yaml
 custom_components/watts_vision/*
-
-.ansible/
-.claude/

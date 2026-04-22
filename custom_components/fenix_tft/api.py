@@ -519,6 +519,11 @@ class FenixTFTApi:
                             "holiday_target_temp": decode_temp_from_entry(
                                 props.get("Sp")
                             ),  # Sp value - active target when in holiday mode
+                            # Diagnostic fields - purpose under investigation:
+                            # St may indicate open window or other device status
+                            # Er array may encode error/event codes (e.g. open window)
+                            "device_status": props.get("St", {}).get("value"),
+                            "error_codes": props.get("Er", {}).get("value", []),
                         }
                         devices.append(device_data)
                     except FenixTFTApiError:

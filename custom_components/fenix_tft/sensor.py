@@ -95,6 +95,8 @@ async def async_setup_entry(
 
         # Diagnostic sensors
         entities.append(FenixConnectivitySensor(coordinator, device_id))
+        entities.append(FenixDeviceStatusSensor(coordinator, device_id))
+        entities.append(FenixErrorCodesSensor(coordinator, device_id))
 
     if entities:
         async_add_entities(entities)
@@ -329,6 +331,69 @@ class FenixFloorAirDifferenceSensor(FenixTFTEntity, SensorEntity):
         if floor_temp is not None and current_temp is not None:
             return round(floor_temp - current_temp, 1)
         return None
+
+
+class FenixDeviceStatusSensor(FenixTFTEntity, SensorEntity):
+    """
+    Diagnostic sensor exposing the raw St (device status) field.
+
+    This field's meaning is not fully documented. It may change value during
+    open window detection or other device events. Enable this sensor and trigger
+    an open window event to observe which value St takes.
+    """
+
+    _attr_translation_key = "device_status"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
+        """Initialize a Fenix TFT device status sensor."""
+        super().__init__(coordinator, device_id)
+        self._attr_unique_id = f"{device_id}_device_status"
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the raw device status value (St field)."""
+        dev = self._device
+        return dev.get("device_status") if dev else None
+
+
+class FenixErrorCodesSensor(FenixTFTEntity, SensorEntity):
+    """
+    Diagnostic sensor exposing the raw Er (error codes) array.
+
+    The Er array contains 10 integer values whose meaning is not fully documented.
+    One or more of these values may change during open window detection or other
+    device events. Enable this sensor and trigger an open window event to observe
+    which index changes. Individual values are exposed as extra state attributes.
+    """
+
+    _attr_translation_key = "error_codes"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
+        """Initialize a Fenix TFT error codes sensor."""
+        super().__init__(coordinator, device_id)
+        self._attr_unique_id = f"{device_id}_error_codes"
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the sum of all error code values (non-zero when any code is set)."""
+        dev = self._device
+        if not dev:
+            return None
+        codes = dev.get("error_codes") or []
+        return sum(codes) if codes else 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return individual error code values as attributes for investigation."""
+        dev = self._device
+        if not dev:
+            return {}
+        codes = dev.get("error_codes") or []
+        return {f"er_{i}": v for i, v in enumerate(codes)}
 
 
 class FenixConnectivitySensor(FenixTFTEntity, SensorEntity):

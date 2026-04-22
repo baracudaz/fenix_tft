@@ -103,6 +103,12 @@
       },
       "holiday_target_temperature": {
         "name": "Holiday Target Temperature"
+      },
+      "device_status": {
+        "name": "Device status (St)"
+      },
+      "error_codes": {
+        "name": "Error codes (Er)"
       }
     }
   },

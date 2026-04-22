@@ -103,6 +103,12 @@
       },
       "holiday_target_temperature": {
         "name": "Température cible en vacances"
+      },
+      "device_status": {
+        "name": "Statut de l'appareil (St)"
+      },
+      "error_codes": {
+        "name": "Codes d'erreur (Er)"
       }
     }
   },

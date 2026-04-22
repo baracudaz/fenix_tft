@@ -103,6 +103,12 @@
       },
       "holiday_target_temperature": {
         "name": "Cieľová teplota počas dovolenky"
+      },
+      "device_status": {
+        "name": "Stav zariadenia (St)"
+      },
+      "error_codes": {
+        "name": "Chybové kódy (Er)"
       }
     }
   },

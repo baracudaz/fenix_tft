@@ -103,6 +103,12 @@
       },
       "holiday_target_temperature": {
         "name": "Cílová teplota během prázdnin"
+      },
+      "device_status": {
+        "name": "Stav zařízení (St)"
+      },
+      "error_codes": {
+        "name": "Chybové kódy (Er)"
       }
     }
   },
