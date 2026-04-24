@@ -106,7 +106,7 @@ Alternatively, add it manually:
 5. Restart Home Assistant.
 6. Add the integration via **Settings → Devices & Services → Add Integration** and provide your **email** and **password**.
 
-> **Note:** Make sure you are adding this repository through **HACS** (not through HA's built-in Settings → Add-ons or Settings → Apps store, which is a different system and will show "not a valid app repository").
+> **Note:** Make sure you are adding this repository through **HACS** (not through Home Assistant's built-in **Settings → Add-ons → Add-on Store**, which is a different system and will show "not a valid add-on repository").
 
 ### Configuration
 
