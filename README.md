@@ -1,5 +1,6 @@
 ![GitHub release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/baracudaz/fenix_tft?include_prereleases)
- [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=baracudaz&repository=fenix_tft&category=integration)
 
 # FENIX TFT WiFi Home Assistant Integration
 
@@ -94,12 +95,18 @@ To use this integration, you only need your **FENIX account email and password**
 
 #### Installation via HACS
 
+The easiest way is to use the quick-add button at the top of this page (the "Open your Home Assistant instance" badge), which opens HACS directly with this repository pre-filled.
+
+Alternatively, add it manually:
+
 1. Open [HACS](https://www.hacs.xyz) in your Home Assistant instance.
-2. Go to "Integrations" and click the three dots in the top right, then select "Custom repositories".
-3. Add `https://github.com/baracudaz/fenix_tft` as a custom repository and select "Integration" as the category.
-4. Install the integration from HACS.
+2. Click the three-dot menu **⋮** in the top right and select **Custom repositories**.
+3. Enter `https://github.com/baracudaz/fenix_tft` as the repository URL and select **Integration** as the category, then click **Add**.
+4. Search for **Fenix TFT** in HACS and install it.
 5. Restart Home Assistant.
-6. Add the integration via the Home Assistant and provide your **email** and **password**.
+6. Add the integration via **Settings → Devices & Services → Add Integration** and provide your **email** and **password**.
+
+> **Note:** Make sure you are adding this repository through **HACS** (not through HA's built-in Settings → Add-ons or Settings → Apps store, which is a different system and will show "not a valid app repository").
 
 ### Configuration
 
