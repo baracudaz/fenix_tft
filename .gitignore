@@ -10,6 +10,7 @@ Pipfile*
 pyproject.toml
 uv.lock
 artifacts/api-captures/
+artifacts/documentation/
 
 # misc
 .coverage
