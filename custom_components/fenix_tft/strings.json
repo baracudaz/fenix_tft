@@ -93,7 +93,7 @@
         "name": "Connectivity"
       },
       "daily_energy_consumption": {
-        "name": "Daily Energy Consumption"
+        "name": "Daily energy consumption"
       },
       "holiday_mode": {
         "name": "Holiday Mode"
