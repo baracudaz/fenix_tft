@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.2.1] - 2026-04-24
+## [1.2.1] - 2026-04-28
+
+### Changed
+
+- Clarified the custom integration translation workflow in the README: `translations/en.json` is the English runtime source, and `make translations` validates other locale files against it
 
 ### Fixed
 

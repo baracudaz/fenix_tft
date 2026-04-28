@@ -71,8 +71,16 @@ make develop  # Start Home Assistant dev server (opens browser automatically)
 | `make lint` | Format and lint code with Ruff |
 | `make test` | Run all tests |
 | `make test-cov` | Run tests with HTML coverage report |
-| `make translations` | Sync translations from `strings.json` |
+| `make translations` | Check translation files against `translations/en.json` |
 | `make clean` | Remove cache files and build artifacts |
+
+### Translations
+
+This integration follows the Home Assistant custom integration translation model.
+
+- `custom_components/fenix_tft/translations/en.json` is the English source used by Home Assistant at runtime
+- Additional locale files in `custom_components/fenix_tft/translations/` should stay aligned with `en.json`
+- `make translations` runs the repository check script and reports missing or extra translation keys
 
 ## Getting started
 
