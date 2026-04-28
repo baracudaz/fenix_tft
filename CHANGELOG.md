@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] - 2026-04-28
+
+### Changed
+
+- Clarified the custom integration translation workflow in the README: `translations/en.json` is the English runtime source, and `make translations` validates other locale files against it
+
+### Fixed
+
+- Clarified installation instructions to avoid confusion between HACS custom repositories and Home Assistant's Add-on Store
+- Updated wording to match Home Assistant UI labels and corrected the repository error phrasing to "not a valid add-on repository"
+
+---
+
 ## [1.2.0] - 2026-03-29
 
 ### Added

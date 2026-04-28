@@ -39,7 +39,7 @@ test-cov: ## Run tests with coverage report
 	uv run pytest tests/ -v --cov=custom_components/fenix_tft --cov-report=term-missing --cov-report=html
 	@echo "HTML report: htmlcov/index.html"
 
-translations: ## Sync translations from strings.json to all language files
+translations: ## Check translation files against translations/en.json
 	scripts/translations.py
 
 clean: ## Remove Python cache files and coverage artifacts
