@@ -56,14 +56,36 @@ HVAC_MODE_MAP: dict[int, str] = {
     PRESET_MODE_MANUAL: "manual",  # Manual temperature control
 }
 
-# Map device preset_mode values to Home Assistant preset mode strings
-# Note: PRESET_MODE_PROGRAM (2) appears in both maps - shows as AUTO + "program"
+# Map device preset_mode values to Home Assistant preset mode strings.
+# Note: PRESET_MODE_PROGRAM (2) appears in both maps - shows as AUTO + "program".
 PRESET_MAP: dict[int, str] = {
-    PRESET_MODE_PROGRAM: "program",  # Follow programmed schedule
-    PRESET_MODE_DEFROST: "defrost",  # Defrost cycle
-    PRESET_MODE_BOOST: "boost",  # Boost heating mode
+    PRESET_MODE_PROGRAM: "home",  # Follow programmed schedule
+    PRESET_MODE_DEFROST: "eco",  # Eco hold (15°C)
+    PRESET_MODE_BOOST: "comfort",  # Comfort hold (23°C)
 }
-PRESET_INVERTED: dict[str, int] = {v: k for k, v in PRESET_MAP.items()}
+PRESET_INVERTED: dict[str, int] = {
+    "home": PRESET_MODE_PROGRAM,
+    "program": PRESET_MODE_PROGRAM,
+    "eco": PRESET_MODE_DEFROST,
+    "defrost": PRESET_MODE_DEFROST,
+    "comfort": PRESET_MODE_BOOST,
+    "boost": PRESET_MODE_BOOST,
+}
+
+PRESET_CANONICAL_MAP: dict[str, str] = {
+    "home": "home",
+    "program": "home",
+    "eco": "eco",
+    "defrost": "eco",
+    "comfort": "comfort",
+    "boost": "comfort",
+}
+
+PRESET_ICON_MAP: dict[str, str] = {
+    "home": "mdi:home",
+    "eco": "mdi:leaf",
+    "comfort": "mdi:sofa",
+}
 
 
 async def async_setup_entry(
@@ -96,10 +118,11 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
 
     # Define supported preset modes for special operations
     _attr_preset_modes: ClassVar[list[str]] = [
-        "program",  # Follow programmed schedule
-        "defrost",  # Defrost cycle
-        "boost",  # Boost heating
+        "home",  # Follow programmed schedule
+        "eco",  # Eco hold (15°C)
+        "comfort",  # Comfort hold (23°C)
     ]
+    _normalized_preset_modes: ClassVar[frozenset[str]] = frozenset(PRESET_INVERTED)
 
     _attr_temperature_unit: ClassVar[str] = UnitOfTemperature.CELSIUS
     _attr_min_temp: ClassVar[float] = TEMP_MIN
@@ -174,6 +197,16 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         preset = self._get_preset_mode()
         # Only return preset if it's in our supported modes list
         return preset if preset in self._attr_preset_modes else None
+
+    @property
+    def icon(self) -> str | None:
+        """Return an icon that reflects the active preset mode in auto operation."""
+        preset = self.preset_mode
+        if preset is not None:
+            icon = PRESET_ICON_MAP.get(preset.lower())
+            if icon is not None:
+                return icon
+        return super().icon
 
     @property
     def supported_features(self) -> ClimateEntityFeature:
@@ -340,6 +373,12 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         # Force entity state update in Home Assistant
         self.async_write_ha_state()
 
+    async def async_handle_set_preset_mode_service(self, preset_mode: str) -> None:
+        """Handle preset mode service calls with backward-compatible aliases."""
+        normalized_preset = preset_mode.lower()
+        canonical_preset = PRESET_CANONICAL_MAP.get(normalized_preset, preset_mode)
+        await super().async_handle_set_preset_mode_service(canonical_preset)
+
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode for special operations."""
         if self._is_holiday_active():
@@ -350,17 +389,18 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             msg = HOLIDAY_LOCKED_MSG
             raise HomeAssistantError(msg)
 
-        if preset_mode not in self._attr_preset_modes:
+        normalized_preset = preset_mode.lower()
+        if normalized_preset not in self._normalized_preset_modes:
             _LOGGER.warning(
                 "Unsupported preset mode for device %s: %s (valid: %s)",
                 self._device_id,
                 preset_mode,
-                self._attr_preset_modes,
+                sorted(self._normalized_preset_modes),
             )
             return
 
         # Convert preset mode string to device value
-        preset_value = PRESET_INVERTED[preset_mode]
+        preset_value = PRESET_INVERTED[normalized_preset]
         _LOGGER.debug(
             "Setting preset mode for device %s: %s (preset_mode=%s)",
             self._device_id,

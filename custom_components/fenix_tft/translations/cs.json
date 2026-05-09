@@ -56,7 +56,16 @@
   "entity": {
     "climate": {
       "thermostat": {
-        "name": "Termostat"
+        "name": "Termostat",
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "home": "Program",
+              "eco": "Eco 15°C",
+              "comfort": "Komfort 23°C"
+            }
+          }
+        }
       }
     },
     "sensor": {
@@ -81,8 +90,8 @@
           "off": "Vypnuto",
           "holidays": "Prázdniny",
           "program": "Program",
-          "defrost": "Odmrazování",
-          "boost": "Boost",
+          "defrost": "Eco 15°C",
+          "boost": "Komfort 23°C",
           "manual": "Manuální"
         }
       },

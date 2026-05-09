@@ -10,6 +10,8 @@ from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from custom_components.fenix_tft.const import (
+    PRESET_MODE_BOOST,
+    PRESET_MODE_DEFROST,
     PRESET_MODE_MANUAL,
     PRESET_MODE_OFF,
     PRESET_MODE_PROGRAM,
@@ -204,12 +206,45 @@ async def test_set_preset_mode(hass, setup_integration, mock_api):
     await hass.services.async_call(
         "climate",
         "set_preset_mode",
-        {"entity_id": entity_id, "preset_mode": "program"},
+        {"entity_id": entity_id, "preset_mode": "home"},
         blocking=True,
     )
 
     mock_api.set_device_preset_mode.assert_called_once_with(
         MOCK_DEVICE_ID, PRESET_MODE_PROGRAM
+    )
+
+
+@pytest.mark.parametrize(
+    ("preset_mode", "expected_preset_value"),
+    [
+        ("home", PRESET_MODE_PROGRAM),
+        ("program", PRESET_MODE_PROGRAM),
+        ("eco", PRESET_MODE_DEFROST),
+        ("defrost", PRESET_MODE_DEFROST),
+        ("comfort", PRESET_MODE_BOOST),
+        ("boost", PRESET_MODE_BOOST),
+    ],
+)
+async def test_set_preset_mode_legacy_and_new_names(
+    hass,
+    setup_integration,
+    mock_api,
+    preset_mode,
+    expected_preset_value,
+):
+    """Test legacy and new preset names map to the expected device value."""
+    entity_id = _get_climate_entity_id(hass)
+
+    await hass.services.async_call(
+        "climate",
+        "set_preset_mode",
+        {"entity_id": entity_id, "preset_mode": preset_mode},
+        blocking=True,
+    )
+
+    mock_api.set_device_preset_mode.assert_called_once_with(
+        MOCK_DEVICE_ID, expected_preset_value
     )
 
 

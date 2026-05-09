@@ -56,7 +56,16 @@
   "entity": {
     "climate": {
       "thermostat": {
-        "name": "Thermostat"
+        "name": "Thermostat",
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "home": "Programm",
+              "eco": "Eco 15°C",
+              "comfort": "Komfort 23°C"
+            }
+          }
+        }
       }
     },
     "sensor": {
@@ -81,8 +90,8 @@
           "off": "Aus",
           "holidays": "Urlaub",
           "program": "Programm",
-          "defrost": "Abtauen",
-          "boost": "Boost",
+          "defrost": "Eco 15°C",
+          "boost": "Komfort 23°C",
           "manual": "Manuell"
         }
       },
