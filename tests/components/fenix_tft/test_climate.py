@@ -204,7 +204,7 @@ async def test_set_preset_mode(hass, setup_integration, mock_api):
     await hass.services.async_call(
         "climate",
         "set_preset_mode",
-        {"entity_id": entity_id, "preset_mode": "program"},
+        {"entity_id": entity_id, "preset_mode": "home"},
         blocking=True,
     )
 

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.2] - 2026-05-09
+
+### Changed
+
+- Updated climate preset presentation in Auto mode to use clearer names and icons:
+  - `program` is shown as **Program** with a home icon
+  - `defrost` behavior is shown as **Eco 15°C** with a leaf icon
+  - `boost` behavior is shown as **Comfort 23°C** with a comfort icon
+- Updated localized translations (EN/DE/FR/CS/SK) for climate preset labels and sensor preset labels to match the new naming
+
+### Fixed
+
+- Fixed preset picker icon behavior in Home Assistant by mapping exposed climate preset keys to icon-aware semantic values (`home`, `eco`, `comfort`)
+- Kept backward compatibility for service calls by accepting legacy preset aliases (`program`, `defrost`, `boost`)
+
+---
+
 ## [1.2.1] - 2026-04-28
 
 ### Changed
