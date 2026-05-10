@@ -25,8 +25,6 @@ Here is the thermostat integration in action.
 
 ## Features
 
-### ✅ Current Features
-
 - **Climate Control**: Temperature control (5–35 °C, 0.5 °C precision), heating modes (Off/Manual/Program), real-time monitoring
 - **Energy Monitoring**: Daily consumption tracking with Home Assistant Energy Dashboard integration
 - **Holiday Mode**: Set and cancel holiday schedules with automatic control locking during holidays
@@ -36,12 +34,7 @@ Here is the thermostat integration in action.
 - **Diagnostics**: Built-in diagnostics panel for troubleshooting (redacts sensitive data)
 - **Repair Issues**: Automatic repair notification after repeated cloud connectivity failures
 - **API Resilience**: Automatic retry with exponential backoff for transient server errors
-
-### 🚧 Planned & Ideas
-
-- **Smart Scheduling**: Full scheduling system, calendar integration
-- **Enhanced Diagnostics**: Additional device sensors and operational data
-- **Energy Import Deduplication**: Smarter re-import detection to skip already-imported periods
+- **Energy Import Deduplication**: Re-import aware historical import that backfills only missing older periods to prevent duplicate statistics and double-counting
 
 ### 💡 Contributing
 
@@ -196,13 +189,15 @@ Import historical energy consumption data as external statistics. This service i
 **Parameters:**
 
 - `energy_entity` (required): Energy sensor to import data for (e.g., `sensor.bedroom_daily_energy_consumption`)
-- `days_back` (required): Number of days of historical data to import (1-365)
+- `days_back` (optional): Number of days of historical data to import (1-365). Ignored when `import_all_history: true`
+- `import_all_history` (optional): Import all available historical data in progressive yearly batches instead of a fixed day range
 
 **Behavior:**
 
 - If no statistics exist: Imports data starting from the requested number of days ago, ending at midnight of today (start of current day in your timezone) to avoid overlap with today's sensor data
 - If statistics exist: Detects the first recorded data point and imports the requested number of days ending at midnight of the day when existing data begins, ensuring no overlap
 - Example: If data exists from Oct 25 10:00 and you request 30 days, it imports Sept 25 00:00 to Oct 25 00:00 (midnight boundaries)
+- If `import_all_history` is enabled: Walks backwards in yearly batches, prepending older statistics and rebasing later cumulative sums so the imported history stays continuous
 
 **Example service call:**
 
@@ -211,6 +206,15 @@ service: fenix_tft.import_historical_statistics
 data:
   energy_entity: sensor.bedroom_daily_energy_consumption
   days_back: 30
+```
+
+**Example full-history import:**
+
+```yaml
+service: fenix_tft.import_historical_statistics
+data:
+  energy_entity: sensor.bedroom_daily_energy_consumption
+  import_all_history: true
 ```
 
 **Use cases:**

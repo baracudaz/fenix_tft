@@ -150,7 +150,7 @@
     },
     "import_historical_statistics": {
       "name": "Historische Statistiken importieren",
-      "description": "Importiert historische Energieverbrauchsdaten in die Langzeitstatistiken von Home Assistant. Verwendet intelligente dynamische Aggregation: stündlich für die letzten 7 Tage, täglich für 8-90 Tage zurück, monatlich für ältere Daten.",
+      "description": "Importiert historische Energieverbrauchsdaten in die Langzeitstatistiken von Home Assistant. Unterstützt gezielte Backfills mit `days_back` oder den Import der gesamten Historie in Jahresblöcken.",
       "fields": {
         "energy_entity": {
           "name": "Energie-Entität",
@@ -158,7 +158,11 @@
         },
         "days_back": {
           "name": "Tage zum Importieren",
-          "description": "Anzahl der Tage historischer Daten zum Importieren (1-365). Aktuelle Daten werden stündlich detailliert, ältere Daten grober aggregiert."
+          "description": "Anzahl der Tage historischer Daten zum Importieren (1-365). Wird ignoriert, wenn die gesamte verfügbare Historie importiert wird."
+        },
+        "import_all_history": {
+          "name": "Gesamte verfügbare Historie importieren",
+          "description": "Importiert alle in Fenix verfügbaren historischen Energiedaten in fortlaufenden Jahresblöcken. Wenn aktiviert, wird `days_back` ignoriert."
         }
       }
     }

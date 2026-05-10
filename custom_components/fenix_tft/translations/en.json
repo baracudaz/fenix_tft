@@ -150,7 +150,7 @@
     },
     "import_historical_statistics": {
       "name": "Import historical statistics",
-      "description": "Import historical energy consumption data as external statistics. Data will appear as a separate external statistic (e.g., fenix_tft:device_name_history) that can be added to the Energy Dashboard without interfering with the main sensor's current data. Uses intelligent dynamic aggregation: hourly for last 7 days, daily for 8-90 days ago, monthly for older data.",
+      "description": "Import historical energy consumption data as external statistics. Data will appear as a separate external statistic (e.g., fenix_tft:device_name_history) that can be added to the Energy Dashboard without interfering with the main sensor's current data. Supports targeted backfills with `days_back` or full-history imports in yearly batches.",
       "fields": {
         "energy_entity": {
           "name": "Energy entity",
@@ -158,7 +158,11 @@
         },
         "days_back": {
           "name": "Days to import",
-          "description": "Number of days of historical data to import (1-365). Recent data gets hourly detail, older data uses coarser aggregation."
+          "description": "Number of days of historical data to import (1-365). Ignored when importing all available history."
+        },
+        "import_all_history": {
+          "name": "Import all available history",
+          "description": "Import all historical energy data available from Fenix in progressive yearly batches. When enabled, `days_back` is ignored."
         }
       }
     }
