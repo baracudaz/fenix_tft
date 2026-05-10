@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import voluptuous as vol
@@ -75,6 +76,50 @@ FULL_HISTORY_BATCH_DAYS = 365  # Import "all history" in yearly chunks
 FULL_HISTORY_EARLIEST_DATE = dt_util.dt.datetime(
     2000, 1, 1, tzinfo=dt_util.UTC
 )  # Practical lower bound for progressive backfills
+
+
+@dataclass(slots=True)
+class HistoricalImportSummary:
+    """Track imported statistics, raw points, batches, and overall date range."""
+
+    imported_stat_count: int = 0
+    imported_raw_points: int = 0
+    imported_batches: int = 0
+    imported_range_start: dt_util.dt.datetime | None = None
+    imported_range_end: dt_util.dt.datetime | None = None
+
+    def track_range(
+        self,
+        batch_start_time: dt_util.dt.datetime | None,
+        batch_end_time: dt_util.dt.datetime | None,
+    ) -> None:
+        """Expand the tracked overall import range to include a batch."""
+        if batch_start_time and (
+            self.imported_range_start is None
+            or batch_start_time < self.imported_range_start
+        ):
+            self.imported_range_start = batch_start_time
+        if batch_end_time and (
+            self.imported_range_end is None or batch_end_time > self.imported_range_end
+        ):
+            self.imported_range_end = batch_end_time
+
+
+@dataclass(slots=True)
+class HistoricalImportPlan:
+    """Describe the date range a historical import should use."""
+
+    end_date: dt_util.dt.datetime
+    start_date: dt_util.dt.datetime | None = None
+    days_to_import: int | None = None
+    import_all_history: bool = False
+
+    def fixed_range(self) -> tuple[dt_util.dt.datetime, dt_util.dt.datetime, int]:
+        """Return the validated fixed-range import window."""
+        if self.start_date is None or self.days_to_import is None:
+            raise ValueError
+        return self.start_date, self.end_date, self.days_to_import
+
 
 # Service schemas
 SET_HOLIDAY_SCHEDULE_SCHEMA = vol.Schema(
@@ -284,6 +329,105 @@ def _calculate_import_end_date(
     return dt_util.as_utc(dt_util.start_of_local_day())
 
 
+def _prepare_historical_import_plan(
+    device_name: str,
+    days_back: int,
+    first_stat_time: dt_util.dt.datetime | None,
+    *,
+    import_all_history: bool,
+) -> HistoricalImportPlan:
+    """Build and log the date plan for a historical import request."""
+    if import_all_history:
+        end_date = _calculate_import_end_date(first_stat_time)
+        _LOGGER.info(
+            "Import strategy for '%s': progressive backfill before %s until %s",
+            device_name,
+            end_date.strftime("%Y-%m-%d %H:%M:%S"),
+            FULL_HISTORY_EARLIEST_DATE.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+        return HistoricalImportPlan(end_date=end_date, import_all_history=True)
+
+    start_date, end_date, days_to_import = _calculate_import_date_range(
+        days_back, first_stat_time
+    )
+    if first_stat_time:
+        _LOGGER.info(
+            "Import strategy for '%s': backfilling %d days before existing data "
+            "(first statistic: %s, import range: %s to %s)",
+            device_name,
+            days_back,
+            first_stat_time.strftime("%Y-%m-%d %H:%M:%S"),
+            start_date.strftime("%Y-%m-%d %H:%M:%S"),
+            end_date.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+    else:
+        _LOGGER.info(
+            "Import strategy for '%s': no existing statistics found, "
+            "importing %d days from present (import range: %s to %s)",
+            device_name,
+            days_back,
+            start_date.strftime("%Y-%m-%d %H:%M:%S"),
+            end_date.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+    return HistoricalImportPlan(
+        end_date=end_date,
+        start_date=start_date,
+        days_to_import=days_to_import,
+    )
+
+
+def _build_historical_import_start_message(
+    device_name: str,
+    plan: HistoricalImportPlan,
+    first_stat_time: dt_util.dt.datetime | None,
+) -> str:
+    """Create the start notification message for a historical import."""
+    if plan.import_all_history:
+        return (
+            f"Starting full historical data import for {device_name}. "
+            "Older energy history will be imported in yearly batches until no more "
+            "data is available. This may take a while."
+        )
+
+    import_msg = (
+        f"Starting historical data import for {device_name}. Importing "
+        f"{plan.days_to_import} days of energy data"
+    )
+    if first_stat_time:
+        import_msg += (
+            f" (before existing data from {first_stat_time.strftime('%Y-%m-%d')})"
+        )
+    return f"{import_msg}. This may take a while."
+
+
+def _build_historical_import_success_message(
+    device_name: str,
+    statistic_id: str,
+    summary: HistoricalImportSummary,
+) -> str:
+    """Create the completion notification message for a historical import."""
+    if not summary.imported_stat_count:
+        return (
+            f"No additional historical energy data was available for {device_name}. "
+            f"The external statistic ({statistic_id}) is up to date."
+        )
+
+    range_msg = ""
+    if summary.imported_range_start and summary.imported_range_end:
+        range_msg = (
+            f" Imported {summary.imported_stat_count} statistic point(s) covering "
+            f"{summary.imported_range_start.date()} to "
+            f"{summary.imported_range_end.date()} from "
+            f"{summary.imported_batches} batch(es)."
+        )
+    return (
+        f"Successfully imported historical energy data for {device_name}."
+        f"{range_msg} Data is available as an external statistic ({statistic_id}) "
+        "and can be added to the Energy Dashboard."
+    )
+
+
 async def _import_energy_statistics_batch(  # noqa: PLR0913
     hass: HomeAssistant,
     energy_entity_id: str,
@@ -322,6 +466,126 @@ async def _import_energy_statistics_batch(  # noqa: PLR0913
         energy_stats[0]["start"],
         energy_stats[-1]["start"],
     )
+
+
+async def _import_full_history_statistics(  # noqa: PLR0913
+    hass: HomeAssistant,
+    api: FenixTFTApi,
+    energy_entity_id: str,
+    energy_metadata: Any,
+    statistic_id: str,
+    installation_id: str,
+    room_id: str,
+    subscription_id: str,
+    device_name: str,
+    end_date: dt_util.dt.datetime,
+    first_stat_time: dt_util.dt.datetime | None,
+) -> HistoricalImportSummary:
+    """Import all available older history in yearly batches."""
+    summary = HistoricalImportSummary()
+    current_end = end_date
+    has_future_stats = first_stat_time is not None
+
+    while current_end > FULL_HISTORY_EARLIEST_DATE:
+        batch_start = max(
+            FULL_HISTORY_EARLIEST_DATE,
+            current_end - dt_util.dt.timedelta(days=FULL_HISTORY_BATCH_DAYS),
+        )
+        batch_days = (current_end - batch_start).days
+
+        all_energy_data = await _fetch_historical_energy_data(
+            api,
+            installation_id,
+            room_id,
+            subscription_id,
+            batch_start,
+            current_end,
+            batch_days,
+            device_name,
+            aggregation_reference_end_date=end_date,
+        )
+
+        if all_energy_data:
+            summary.imported_batches += 1
+            summary.imported_raw_points += len(all_energy_data)
+            (
+                batch_stat_count,
+                _batch_sum,
+                batch_range_start,
+                batch_range_end,
+            ) = await _import_energy_statistics_batch(
+                hass,
+                energy_entity_id,
+                energy_metadata,
+                statistic_id,
+                all_energy_data,
+                current_end if has_future_stats else None,
+            )
+            summary.imported_stat_count += batch_stat_count
+            summary.track_range(batch_range_start, batch_range_end)
+            has_future_stats = True
+
+        current_end = batch_start
+
+    return summary
+
+
+async def _import_fixed_range_statistics(  # noqa: PLR0913
+    hass: HomeAssistant,
+    api: FenixTFTApi,
+    energy_entity_id: str,
+    energy_metadata: Any,
+    statistic_id: str,
+    installation_id: str,
+    room_id: str,
+    subscription_id: str,
+    device_name: str,
+    start_date: dt_util.dt.datetime,
+    end_date: dt_util.dt.datetime,
+    days_to_import: int,
+    first_stat_time: dt_util.dt.datetime | None,
+) -> HistoricalImportSummary:
+    """Import one bounded historical range before the current horizon."""
+    summary = HistoricalImportSummary()
+
+    all_energy_data = await _fetch_historical_energy_data(
+        api,
+        installation_id,
+        room_id,
+        subscription_id,
+        start_date,
+        end_date,
+        days_to_import,
+        device_name,
+    )
+
+    if not all_energy_data:
+        _LOGGER.warning(
+            "No data fetched for '%s' in the requested date range (%s to %s). "
+            "The device may not have been active during this period.",
+            device_name,
+            start_date.strftime("%Y-%m-%d"),
+            end_date.strftime("%Y-%m-%d"),
+        )
+        return summary
+
+    summary.imported_batches = 1
+    summary.imported_raw_points = len(all_energy_data)
+    (
+        summary.imported_stat_count,
+        _batch_sum,
+        batch_range_start,
+        batch_range_end,
+    ) = await _import_energy_statistics_batch(
+        hass,
+        energy_entity_id,
+        energy_metadata,
+        statistic_id,
+        all_energy_data,
+        end_date if first_stat_time else None,
+    )
+    summary.track_range(batch_range_start, batch_range_end)
+    return summary
 
 
 def _determine_aggregation_period(
@@ -503,7 +767,7 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913
     return all_energy_data
 
 
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG001, C901, PLR0915
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG001, PLR0915
     """Set up the Fenix TFT integration and register services."""
 
     async def async_set_holiday_schedule(call: ServiceCall) -> None:
@@ -628,7 +892,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             installation_id,
         )
 
-    async def async_import_historical_statistics(  # noqa: PLR0912, PLR0915
+    async def async_import_historical_statistics(
         call: ServiceCall,
     ) -> None:
         """Handle import_historical_statistics service call."""
@@ -668,65 +932,18 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
 
         # Check if we have existing statistics in the external statistic
         first_stat_time = await get_first_statistic_time(hass, statistic_id)
-        end_date = _calculate_import_end_date(first_stat_time)
-
-        # Log import strategy
-        if import_all_history:
-            _LOGGER.info(
-                "Import strategy for '%s': progressive backfill before %s until %s",
-                device_name,
-                end_date.strftime("%Y-%m-%d %H:%M:%S"),
-                FULL_HISTORY_EARLIEST_DATE.strftime("%Y-%m-%d %H:%M:%S"),
-            )
-        elif first_stat_time:
-            start_date, _, days_to_import = _calculate_import_date_range(
-                days_back, first_stat_time
-            )
-            _LOGGER.info(
-                "Import strategy for '%s': backfilling %d days before existing data "
-                "(first statistic: %s, import range: %s to %s)",
-                device_name,
-                days_back,
-                first_stat_time.strftime("%Y-%m-%d %H:%M:%S"),
-                start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                end_date.strftime("%Y-%m-%d %H:%M:%S"),
-            )
-        else:
-            start_date, _, days_to_import = _calculate_import_date_range(
-                days_back, first_stat_time
-            )
-            _LOGGER.info(
-                "Import strategy for '%s': no existing statistics found, "
-                "importing %d days from present (import range: %s to %s)",
-                device_name,
-                days_back,
-                start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                end_date.strftime("%Y-%m-%d %H:%M:%S"),
-            )
+        plan = _prepare_historical_import_plan(
+            device_name,
+            days_back,
+            first_stat_time,
+            import_all_history=import_all_history,
+        )
 
         # Create start notification
         notification_id = f"fenix_import_{energy_entity_id.replace('.', '_')}"
-        if import_all_history:
-            import_msg = (
-                f"Starting full historical data import for {device_name}. "
-                "Older energy history will be imported in yearly batches until no "
-                "more data is available."
-            )
-        else:
-            import_msg = (
-                f"Starting historical data import for {device_name}. "
-                f"Importing {days_to_import} days of energy data"
-            )
-            if first_stat_time:
-                import_msg += (
-                    " (before existing data from "
-                    f"{first_stat_time.strftime('%Y-%m-%d')})"
-                )
-        import_msg += ". This may take a while."
-
         async_create(
             hass,
-            import_msg,
+            _build_historical_import_start_message(device_name, plan, first_stat_time),
             title="Fenix TFT Historical Import",
             notification_id=notification_id,
         )
@@ -765,138 +982,44 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 energy_entity_id, energy_entity_name
             )
 
-            imported_stat_count = 0
-            imported_raw_points = 0
-            imported_batches = 0
-            imported_range_start: dt_util.dt.datetime | None = None
-            imported_range_end: dt_util.dt.datetime | None = None
-
-            def _track_imported_range(
-                batch_start_time: dt_util.dt.datetime | None,
-                batch_end_time: dt_util.dt.datetime | None,
-            ) -> None:
-                nonlocal imported_range_start, imported_range_end
-                if batch_start_time and (
-                    imported_range_start is None
-                    or batch_start_time < imported_range_start
-                ):
-                    imported_range_start = batch_start_time
-                if batch_end_time and (
-                    imported_range_end is None or batch_end_time > imported_range_end
-                ):
-                    imported_range_end = batch_end_time
-
             if import_all_history:
-                current_end = end_date
-                has_future_stats = first_stat_time is not None
-
-                while current_end > FULL_HISTORY_EARLIEST_DATE:
-                    batch_start = max(
-                        FULL_HISTORY_EARLIEST_DATE,
-                        current_end
-                        - dt_util.dt.timedelta(days=FULL_HISTORY_BATCH_DAYS),
-                    )
-                    batch_days = (current_end - batch_start).days
-
-                    all_energy_data = await _fetch_historical_energy_data(
-                        api,
-                        installation_id,
-                        room_id,
-                        subscription_id,
-                        batch_start,
-                        current_end,
-                        batch_days,
-                        device_name,
-                        aggregation_reference_end_date=end_date,
-                    )
-
-                    if all_energy_data:
-                        imported_batches += 1
-                        imported_raw_points += len(all_energy_data)
-                        (
-                            batch_stat_count,
-                            _batch_sum,
-                            batch_range_start,
-                            batch_range_end,
-                        ) = await _import_energy_statistics_batch(
-                            hass,
-                            energy_entity_id,
-                            energy_metadata,
-                            statistic_id,
-                            all_energy_data,
-                            current_end if has_future_stats else None,
-                        )
-                        imported_stat_count += batch_stat_count
-                        _track_imported_range(batch_range_start, batch_range_end)
-                        has_future_stats = True
-
-                    current_end = batch_start
-            else:
-                start_date, end_date, days_to_import = _calculate_import_date_range(
-                    days_back, first_stat_time
-                )
-                all_energy_data = await _fetch_historical_energy_data(
+                summary = await _import_full_history_statistics(
+                    hass,
                     api,
+                    energy_entity_id,
+                    energy_metadata,
+                    statistic_id,
                     installation_id,
                     room_id,
                     subscription_id,
-                    start_date,
-                    end_date,
-                    days_back,
                     device_name,
-                )
-
-                if all_energy_data:
-                    imported_batches = 1
-                    imported_raw_points = len(all_energy_data)
-                    (
-                        imported_stat_count,
-                        _batch_sum,
-                        batch_range_start,
-                        batch_range_end,
-                    ) = await _import_energy_statistics_batch(
-                        hass,
-                        energy_entity_id,
-                        energy_metadata,
-                        statistic_id,
-                        all_energy_data,
-                        end_date if first_stat_time else None,
-                    )
-                    _track_imported_range(batch_range_start, batch_range_end)
-                else:
-                    _LOGGER.warning(
-                        "No data fetched for '%s' in the requested date range "
-                        "(%s to %s). "
-                        "The device may not have been active during this period.",
-                        device_name,
-                        start_date.strftime("%Y-%m-%d"),
-                        end_date.strftime("%Y-%m-%d"),
-                    )
-
-            # Success notification
-            if imported_stat_count:
-                range_msg = ""
-                if imported_range_start and imported_range_end:
-                    range_msg = (
-                        f" Imported {imported_stat_count} statistic point(s) "
-                        f"covering {imported_range_start.date()} to "
-                        f"{imported_range_end.date()} from "
-                        f"{imported_batches} batch(es)."
-                    )
-                success_msg = (
-                    f"Successfully imported historical energy data for {device_name}."
-                    f"{range_msg} Data is available as an external statistic "
-                    f"({statistic_id}) and can be added to the Energy Dashboard."
+                    plan.end_date,
+                    first_stat_time,
                 )
             else:
-                success_msg = (
-                    f"No additional historical energy data was available for "
-                    f"{device_name}. The external statistic ({statistic_id}) "
-                    "is up to date."
+                start_date, end_date, days_to_import = plan.fixed_range()
+                summary = await _import_fixed_range_statistics(
+                    hass,
+                    api,
+                    energy_entity_id,
+                    energy_metadata,
+                    statistic_id,
+                    installation_id,
+                    room_id,
+                    subscription_id,
+                    device_name,
+                    start_date,
+                    end_date,
+                    days_to_import,
+                    first_stat_time,
                 )
+
+            # Success notification
             async_create(
                 hass,
-                success_msg,
+                _build_historical_import_success_message(
+                    device_name, statistic_id, summary
+                ),
                 title="Fenix TFT Historical Import Complete",
                 notification_id=notification_id,
             )
@@ -905,9 +1028,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 "Historical import completed successfully for '%s': %d raw point(s), "
                 "%d statistic(s), %d batch(es)",
                 device_name,
-                imported_raw_points,
-                imported_stat_count,
-                imported_batches,
+                summary.imported_raw_points,
+                summary.imported_stat_count,
+                summary.imported_batches,
             )
 
         except (FenixTFTApiError, ServiceValidationError) as err:

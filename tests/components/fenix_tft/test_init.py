@@ -127,7 +127,7 @@ async def test_import_historical_statistics_rebases_future_sums(
                 {"startDateOfMetric": "2025-02-01T00:00:00+00:00", "sum": 10.0},
                 {"startDateOfMetric": "2025-02-02T00:00:00+00:00", "sum": 5.0},
             ],
-        ),
+        ) as fetch_history,
         patch("custom_components.fenix_tft.async_add_external_statistics"),
         patch("custom_components.fenix_tft.get_instance", return_value=recorder),
     ):
@@ -141,6 +141,7 @@ async def test_import_historical_statistics_rebases_future_sums(
             blocking=True,
         )
 
+    assert fetch_history.await_args.args[6] == 28
     recorder.async_adjust_statistics.assert_called_once_with(
         "fenix_tft:home_living_room_daily_energy_consumption_history",
         import_end,
@@ -179,7 +180,7 @@ async def test_import_historical_statistics_without_existing_stats_skips_rebase(
             return_value=[
                 {"startDateOfMetric": "2025-02-01T00:00:00+00:00", "sum": 10.0},
             ],
-        ),
+        ) as fetch_history,
         patch("custom_components.fenix_tft.async_add_external_statistics"),
         patch("custom_components.fenix_tft.get_instance", return_value=recorder),
     ):
@@ -193,6 +194,7 @@ async def test_import_historical_statistics_without_existing_stats_skips_rebase(
             blocking=True,
         )
 
+    assert fetch_history.await_args.args[6] == 28
     recorder.async_adjust_statistics.assert_not_called()
 
 
