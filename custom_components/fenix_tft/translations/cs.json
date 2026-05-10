@@ -150,7 +150,7 @@
     },
     "import_historical_statistics": {
       "name": "Importovat historické statistiky",
-      "description": "Importovat historická data o spotřebě energie do dlouhodobých statistik Home Assistant. Používá inteligentní dynamické seskupování: hodinové pro posledních 7 dní, denní pro 8-90 dní dozadu, měsíční pro starší data.",
+      "description": "Importovat historická data o spotřebě energie do dlouhodobých statistik Home Assistant. Podporuje cílený import pomocí `days_back` i import celé historie v ročních dávkách.",
       "fields": {
         "energy_entity": {
           "name": "Entita spotřeby energie",
@@ -158,7 +158,11 @@
         },
         "days_back": {
           "name": "Počet dní k importu",
-          "description": "Počet dní historických dat k importu (1-365). Nedávná data budou s hodinovým detailem, starší s hrubším seskupením."
+          "description": "Počet dní historických dat k importu (1-365). Při zapnutí importu celé historie se ignoruje."
+        },
+        "import_all_history": {
+          "name": "Importovat celou dostupnou historii",
+          "description": "Importovat všechna historická energetická data dostupná z Fenixu v postupných ročních dávkách. Pokud je zapnuto, `days_back` se ignoruje."
         }
       }
     }

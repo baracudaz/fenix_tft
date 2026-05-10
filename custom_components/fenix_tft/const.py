@@ -126,6 +126,7 @@ ATTR_START_DATE: Final[str] = "start_date"
 ATTR_END_DATE: Final[str] = "end_date"
 ATTR_MODE: Final[str] = "mode"
 ATTR_DAYS_BACK: Final[str] = "days_back"
+ATTR_IMPORT_ALL_HISTORY: Final[str] = "import_all_history"
 ATTR_ENERGY_ENTITY: Final[str] = "energy_entity"
 
 # Historical data import configuration

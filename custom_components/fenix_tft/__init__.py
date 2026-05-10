@@ -4,15 +4,21 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import voluptuous as vol
 from homeassistant.components.persistent_notification import async_create
+from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.statistics import (
     async_add_external_statistics,
 )
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
-from homeassistant.const import ATTR_ENTITY_ID, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import (
+    ATTR_ENTITY_ID,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    UnitOfEnergy,
+)
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
@@ -29,6 +35,7 @@ from .const import (
     ATTR_DAYS_BACK,
     ATTR_END_DATE,
     ATTR_ENERGY_ENTITY,
+    ATTR_IMPORT_ALL_HISTORY,
     ATTR_MODE,
     ATTR_START_DATE,
     DOMAIN,
@@ -44,7 +51,6 @@ from .statistics import (
     convert_energy_api_data_to_statistics,
     create_energy_statistic_metadata,
     get_first_statistic_time,
-    get_last_statistic_sum,
 )
 
 
@@ -64,6 +70,11 @@ HOURLY_AGGREGATION_MAX_DAYS = 7  # Use hourly for last 7 days
 DAILY_AGGREGATION_MAX_DAYS = 90  # Use daily up to 90 days back
 DAILY_AGGREGATION_CHUNK_DAYS = 30  # Max days are included in each daily API call
 MONTHLY_AGGREGATION_MAX_DAYS = 365  # Use monthly beyond 90 days back
+YEARLY_AGGREGATION_CHUNK_DAYS = 365  # Use yearly requests for very old data
+FULL_HISTORY_BATCH_DAYS = 365  # Import "all history" in yearly chunks
+FULL_HISTORY_EARLIEST_DATE = dt_util.dt.datetime(
+    2000, 1, 1, tzinfo=dt_util.UTC
+)  # Practical lower bound for progressive backfills
 
 # Service schemas
 SET_HOLIDAY_SCHEDULE_SCHEMA = vol.Schema(
@@ -84,9 +95,10 @@ CANCEL_HOLIDAY_SCHEDULE_SCHEMA = vol.Schema(
 SERVICE_IMPORT_HISTORICAL_STATISTICS_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_ENERGY_ENTITY): cv.entity_id,
-        vol.Required(ATTR_DAYS_BACK): vol.All(
+        vol.Optional(ATTR_DAYS_BACK, default=30): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=365)
         ),
+        vol.Optional(ATTR_IMPORT_ALL_HISTORY, default=False): cv.boolean,
     }
 )
 
@@ -259,8 +271,61 @@ def _calculate_import_date_range(
     return start_date, end_date, actual_days
 
 
+def _calculate_import_end_date(
+    first_stat_time: dt_util.dt.datetime | None,
+) -> dt_util.dt.datetime:
+    """Return the exclusive end boundary for historical imports."""
+    if first_stat_time:
+        existing_day_start_local = dt_util.as_local(first_stat_time).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        return dt_util.as_utc(existing_day_start_local)
+
+    return dt_util.as_utc(dt_util.start_of_local_day())
+
+
+async def _import_energy_statistics_batch(  # noqa: PLR0913
+    hass: HomeAssistant,
+    energy_entity_id: str,
+    energy_metadata: Any,
+    statistic_id: str,
+    energy_data: list[dict[str, object]],
+    rebase_future_from: dt_util.dt.datetime | None,
+) -> tuple[int, float, dt_util.dt.datetime | None, dt_util.dt.datetime | None]:
+    """Convert and queue one imported batch of external statistics."""
+    energy_stats = convert_energy_api_data_to_statistics(energy_data)
+    if not energy_stats:
+        return 0, 0.0, None, None
+
+    async_add_external_statistics(hass, energy_metadata, energy_stats)
+    imported_sum = float(energy_stats[-1]["sum"] or 0.0)
+
+    if rebase_future_from and imported_sum > 0:
+        get_instance(hass).async_adjust_statistics(
+            statistic_id,
+            rebase_future_from,
+            imported_sum,
+            UnitOfEnergy.WATT_HOUR,
+        )
+
+    _LOGGER.debug(
+        "Queued %d imported statistic(s) for '%s' (sum %.2f Wh, rebase_from=%s)",
+        len(energy_stats),
+        energy_entity_id,
+        imported_sum,
+        rebase_future_from.isoformat() if rebase_future_from else None,
+    )
+
+    return (
+        len(energy_stats),
+        imported_sum,
+        energy_stats[0]["start"],
+        energy_stats[-1]["start"],
+    )
+
+
 def _determine_aggregation_period(
-    days_back_from_end: int, remaining_days: int
+    days_back_from_reference: int, remaining_days: int
 ) -> tuple[str, int]:
     """
     Determine the aggregation period and chunk size based on how far back in time.
@@ -268,31 +333,37 @@ def _determine_aggregation_period(
     Uses dynamic aggregation:
     - Last 7 days: hourly aggregation for detail
     - 8-90 days ago: daily aggregation
-    - 91+ days ago: monthly aggregation
+    - 91-365 days ago: monthly aggregation
+    - 366+ days ago: yearly aggregation
 
     Args:
-        days_back_from_end: Number of days back from the end date
+        days_back_from_reference: Number of days back from the latest import horizon
         remaining_days: Number of remaining days to process
 
     Returns:
-        Tuple of (period, chunk_days) where period is "Hour", "Day", or "Month"
+        Tuple of (period, chunk_days) where period is "Hour", "Day", "Month",
+        or "Year"
 
     """
-    if days_back_from_end < HOURLY_AGGREGATION_MAX_DAYS:
+    if days_back_from_reference < HOURLY_AGGREGATION_MAX_DAYS:
         # Recent data: use hourly aggregation
         period = "Hour"
         chunk_days = min(
-            HOURLY_AGGREGATION_MAX_DAYS - days_back_from_end,
+            HOURLY_AGGREGATION_MAX_DAYS - days_back_from_reference,
             remaining_days,
         )
-    elif days_back_from_end < DAILY_AGGREGATION_MAX_DAYS:
+    elif days_back_from_reference < DAILY_AGGREGATION_MAX_DAYS:
         # Medium range: use daily aggregation
         period = "Day"
         chunk_days = min(DAILY_AGGREGATION_CHUNK_DAYS, remaining_days)
-    else:
+    elif days_back_from_reference < MONTHLY_AGGREGATION_MAX_DAYS:
         # Older data: use monthly aggregation
         period = "Month"
         chunk_days = min(MONTHLY_AGGREGATION_MAX_DAYS, remaining_days)
+    else:
+        # Very old data: use yearly aggregation to skip empty historical ranges fast
+        period = "Year"
+        chunk_days = min(YEARLY_AGGREGATION_CHUNK_DAYS, remaining_days)
 
     return period, chunk_days
 
@@ -306,6 +377,7 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913
     end_date: dt_util.dt.datetime,
     days_back: int,
     device_name: str,
+    aggregation_reference_end_date: dt_util.dt.datetime | None = None,
 ) -> list[dict]:
     """
     Fetch historical energy data with dynamic aggregation.
@@ -324,6 +396,8 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913
         end_date: End date for data fetch
         days_back: Total days to import
         device_name: Device name for logging
+        aggregation_reference_end_date: Horizon to measure data age from when
+            choosing Hour/Day/Month/Year aggregation. Defaults to ``end_date``.
 
     Returns:
         List of all fetched energy data points
@@ -345,14 +419,15 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913
     remaining_days = days_back
     chunk_count = 0
     failed_chunks = 0
+    aggregation_reference_end_date = aggregation_reference_end_date or end_date
 
     while remaining_days > 0 and current_date > start_date:
         chunk_count += 1
 
         # Determine period and chunk size based on how far back we are
-        days_back_from_end = (end_date - current_date).days
+        days_back_from_reference = (aggregation_reference_end_date - current_date).days
         period, chunk_days = _determine_aggregation_period(
-            days_back_from_end, remaining_days
+            days_back_from_reference, remaining_days
         )
 
         # Calculate chunk boundaries
@@ -428,7 +503,7 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913
     return all_energy_data
 
 
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG001, PLR0915
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG001, C901, PLR0915
     """Set up the Fenix TFT integration and register services."""
 
     async def async_set_holiday_schedule(call: ServiceCall) -> None:
@@ -553,16 +628,22 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             installation_id,
         )
 
-    async def async_import_historical_statistics(call: ServiceCall) -> None:  # noqa: PLR0915
+    async def async_import_historical_statistics(  # noqa: PLR0912, PLR0915
+        call: ServiceCall,
+    ) -> None:
         """Handle import_historical_statistics service call."""
         energy_entity_id = call.data[ATTR_ENERGY_ENTITY]
         days_back = call.data[ATTR_DAYS_BACK]
+        import_all_history = call.data[ATTR_IMPORT_ALL_HISTORY]
 
         _LOGGER.info(
-            "Historical import service called for entity '%s': requesting %d days "
-            "of data",
+            "Historical import service called for entity '%s': %s",
             energy_entity_id,
-            days_back,
+            (
+                "requesting all available history"
+                if import_all_history
+                else f"requesting {days_back} day(s) of data"
+            ),
         )
 
         # Extract device context from entity
@@ -587,14 +668,20 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
 
         # Check if we have existing statistics in the external statistic
         first_stat_time = await get_first_statistic_time(hass, statistic_id)
-
-        # Calculate date range based on existing statistics
-        start_date, end_date, days_to_import = _calculate_import_date_range(
-            days_back, first_stat_time
-        )
+        end_date = _calculate_import_end_date(first_stat_time)
 
         # Log import strategy
-        if first_stat_time:
+        if import_all_history:
+            _LOGGER.info(
+                "Import strategy for '%s': progressive backfill before %s until %s",
+                device_name,
+                end_date.strftime("%Y-%m-%d %H:%M:%S"),
+                FULL_HISTORY_EARLIEST_DATE.strftime("%Y-%m-%d %H:%M:%S"),
+            )
+        elif first_stat_time:
+            start_date, _, days_to_import = _calculate_import_date_range(
+                days_back, first_stat_time
+            )
             _LOGGER.info(
                 "Import strategy for '%s': backfilling %d days before existing data "
                 "(first statistic: %s, import range: %s to %s)",
@@ -605,6 +692,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 end_date.strftime("%Y-%m-%d %H:%M:%S"),
             )
         else:
+            start_date, _, days_to_import = _calculate_import_date_range(
+                days_back, first_stat_time
+            )
             _LOGGER.info(
                 "Import strategy for '%s': no existing statistics found, "
                 "importing %d days from present (import range: %s to %s)",
@@ -616,15 +706,23 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
 
         # Create start notification
         notification_id = f"fenix_import_{energy_entity_id.replace('.', '_')}"
-        import_msg = (
-            f"Starting historical data import for {device_name}. "
-            f"Importing {days_to_import} days of energy data"
-        )
-        if first_stat_time:
-            import_msg += (
-                f" (before existing data from {first_stat_time.strftime('%Y-%m-%d')})"
+        if import_all_history:
+            import_msg = (
+                f"Starting full historical data import for {device_name}. "
+                "Older energy history will be imported in yearly batches until no "
+                "more data is available."
             )
-        import_msg += ". This will take about a minute."
+        else:
+            import_msg = (
+                f"Starting historical data import for {device_name}. "
+                f"Importing {days_to_import} days of energy data"
+            )
+            if first_stat_time:
+                import_msg += (
+                    " (before existing data from "
+                    f"{first_stat_time.strftime('%Y-%m-%d')})"
+                )
+        import_msg += ". This may take a while."
 
         async_create(
             hass,
@@ -656,110 +754,160 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
         )
 
         try:
-            # Fetch historical energy data with dynamic aggregation
-            all_energy_data = await _fetch_historical_energy_data(
-                api,
-                installation_id,
-                room_id,
-                subscription_id,
-                start_date,
-                end_date,
-                days_back,
-                device_name,
+            # Get entity friendly name from state which includes device name
+            energy_state = hass.states.get(energy_entity_id)
+            energy_entity_name = (
+                energy_state.name
+                if energy_state
+                else energy_entity_id.replace("_", " ").title()
+            )
+            energy_metadata = create_energy_statistic_metadata(
+                energy_entity_id, energy_entity_name
             )
 
-            # Process and import the data if available
-            if all_energy_data:
-                _LOGGER.info(
-                    "Processing %d raw data points for '%s' into statistics",
-                    len(all_energy_data),
-                    device_name,
-                )
+            imported_stat_count = 0
+            imported_raw_points = 0
+            imported_batches = 0
+            imported_range_start: dt_util.dt.datetime | None = None
+            imported_range_end: dt_util.dt.datetime | None = None
 
-                # Get entity friendly name from state which includes device name
-                energy_state = hass.states.get(energy_entity_id)
-                energy_entity_name = (
-                    energy_state.name
-                    if energy_state
-                    else energy_entity_id.replace("_", " ").title()
-                )
-                energy_metadata = create_energy_statistic_metadata(
-                    energy_entity_id, energy_entity_name
-                )
+            def _track_imported_range(
+                batch_start_time: dt_util.dt.datetime | None,
+                batch_end_time: dt_util.dt.datetime | None,
+            ) -> None:
+                nonlocal imported_range_start, imported_range_end
+                if batch_start_time and (
+                    imported_range_start is None
+                    or batch_start_time < imported_range_start
+                ):
+                    imported_range_start = batch_start_time
+                if batch_end_time and (
+                    imported_range_end is None or batch_end_time > imported_range_end
+                ):
+                    imported_range_end = batch_end_time
 
-                # Determine starting sum based on import strategy
-                # When backfilling BEFORE existing data, start from 0
-                # When importing without existing data, also start from 0
-                if first_stat_time:
-                    # Backfilling: start from 0 since importing BEFORE existing stats
-                    starting_sum = 0.0
-                    _LOGGER.debug(
-                        "Backfilling before existing data: starting cumulative sum "
-                        "at 0.0 Wh"
+            if import_all_history:
+                current_end = end_date
+                has_future_stats = first_stat_time is not None
+
+                while current_end > FULL_HISTORY_EARLIEST_DATE:
+                    batch_start = max(
+                        FULL_HISTORY_EARLIEST_DATE,
+                        current_end
+                        - dt_util.dt.timedelta(days=FULL_HISTORY_BATCH_DAYS),
                     )
-                else:
-                    # No existing stats: check if sensor has current state to
-                    # continue from
-                    starting_sum = await get_last_statistic_sum(
-                        hass, energy_metadata["statistic_id"]
+                    batch_days = (current_end - batch_start).days
+
+                    all_energy_data = await _fetch_historical_energy_data(
+                        api,
+                        installation_id,
+                        room_id,
+                        subscription_id,
+                        batch_start,
+                        current_end,
+                        batch_days,
+                        device_name,
+                        aggregation_reference_end_date=end_date,
                     )
-                    if starting_sum > 0:
-                        _LOGGER.debug(
-                            "Continuing from existing cumulative sum: %.2f Wh",
-                            starting_sum,
+
+                    if all_energy_data:
+                        imported_batches += 1
+                        imported_raw_points += len(all_energy_data)
+                        (
+                            batch_stat_count,
+                            _batch_sum,
+                            batch_range_start,
+                            batch_range_end,
+                        ) = await _import_energy_statistics_batch(
+                            hass,
+                            energy_entity_id,
+                            energy_metadata,
+                            statistic_id,
+                            all_energy_data,
+                            current_end if has_future_stats else None,
                         )
-                    else:
-                        _LOGGER.debug(
-                            "No existing statistics: starting cumulative sum at 0.0 Wh"
-                        )
+                        imported_stat_count += batch_stat_count
+                        _track_imported_range(batch_range_start, batch_range_end)
+                        has_future_stats = True
 
-                # Convert all data at once to maintain cumulative sum
-                all_energy_stats = convert_energy_api_data_to_statistics(
-                    all_energy_data, starting_sum
-                )
-
-                _LOGGER.debug(
-                    "Converted %d data points into %d statistics entries for '%s'",
-                    len(all_energy_data),
-                    len(all_energy_stats),
-                    device_name,
-                )
-
-                # Import statistics as external statistics
-                # This makes the data appear as a separate external statistic (e.g.,
-                # fenix_tft:victory_port_x_history) instead of interfering with the
-                # main sensor entity's current data
-                async_add_external_statistics(hass, energy_metadata, all_energy_stats)
-
-                _LOGGER.info(
-                    "Successfully imported %d statistics to external statistic '%s' "
-                    "(statistic_id: %s)",
-                    len(all_energy_stats),
-                    device_name,
-                    energy_metadata["statistic_id"],
-                )
+                    current_end = batch_start
             else:
-                _LOGGER.warning(
-                    "No data fetched for '%s' in the requested date range (%s to %s). "
-                    "The device may not have been active during this period.",
-                    device_name,
-                    start_date.strftime("%Y-%m-%d"),
-                    end_date.strftime("%Y-%m-%d"),
+                start_date, end_date, days_to_import = _calculate_import_date_range(
+                    days_back, first_stat_time
                 )
+                all_energy_data = await _fetch_historical_energy_data(
+                    api,
+                    installation_id,
+                    room_id,
+                    subscription_id,
+                    start_date,
+                    end_date,
+                    days_back,
+                    device_name,
+                )
+
+                if all_energy_data:
+                    imported_batches = 1
+                    imported_raw_points = len(all_energy_data)
+                    (
+                        imported_stat_count,
+                        _batch_sum,
+                        batch_range_start,
+                        batch_range_end,
+                    ) = await _import_energy_statistics_batch(
+                        hass,
+                        energy_entity_id,
+                        energy_metadata,
+                        statistic_id,
+                        all_energy_data,
+                        end_date if first_stat_time else None,
+                    )
+                    _track_imported_range(batch_range_start, batch_range_end)
+                else:
+                    _LOGGER.warning(
+                        "No data fetched for '%s' in the requested date range "
+                        "(%s to %s). "
+                        "The device may not have been active during this period.",
+                        device_name,
+                        start_date.strftime("%Y-%m-%d"),
+                        end_date.strftime("%Y-%m-%d"),
+                    )
 
             # Success notification
+            if imported_stat_count:
+                range_msg = ""
+                if imported_range_start and imported_range_end:
+                    range_msg = (
+                        f" Imported {imported_stat_count} statistic point(s) "
+                        f"covering {imported_range_start.date()} to "
+                        f"{imported_range_end.date()} from "
+                        f"{imported_batches} batch(es)."
+                    )
+                success_msg = (
+                    f"Successfully imported historical energy data for {device_name}."
+                    f"{range_msg} Data is available as an external statistic "
+                    f"({statistic_id}) and can be added to the Energy Dashboard."
+                )
+            else:
+                success_msg = (
+                    f"No additional historical energy data was available for "
+                    f"{device_name}. The external statistic ({statistic_id}) "
+                    "is up to date."
+                )
             async_create(
                 hass,
-                f"Successfully imported historical energy data for {device_name}. "
-                f"Data is available as an external statistic ({statistic_id}) "
-                f"and can be added to the Energy Dashboard.",
+                success_msg,
                 title="Fenix TFT Historical Import Complete",
                 notification_id=notification_id,
             )
 
             _LOGGER.info(
-                "Historical import completed successfully for '%s'",
+                "Historical import completed successfully for '%s': %d raw point(s), "
+                "%d statistic(s), %d batch(es)",
                 device_name,
+                imported_raw_points,
+                imported_stat_count,
+                imported_batches,
             )
 
         except (FenixTFTApiError, ServiceValidationError) as err:

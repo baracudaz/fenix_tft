@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-05-10
+
+### Added
+
+- Full-history energy statistics import via `fenix_tft.import_historical_statistics` with the new `import_all_history` option
+- Yearly batching for very old history ranges so long backfills can progress efficiently
+
+### Changed
+
+- `days_back` is now optional with a default of 30 days for targeted historical backfills
+- Updated service descriptions, README documentation, and localized translations for the new full-history import flow
+
+### Fixed
+
+- Historical backfills now rebase later external statistic sums when prepending older data, keeping cumulative totals continuous
+- Historical import notifications now better reflect imported ranges, batch progress, and up-to-date cases
+
+---
+
 ## [1.2.2] - 2026-05-09
 
 ### Changed
