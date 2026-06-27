@@ -135,7 +135,6 @@ class FenixAmbientTempSensor(FenixTFTEntity, SensorEntity):
     _attr_translation_key = "ambient_temperature"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT ambient temperature sensor."""
