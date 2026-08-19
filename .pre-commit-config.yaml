@@ -12,4 +12,4 @@ repos:
       name: ruff format
       entry: ruff format
       language: system
-      types: [python]
+      types_or: [python, markdown]
