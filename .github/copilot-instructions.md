@@ -102,11 +102,13 @@ rules:
 - **coordinator.py**: Centralize data fetching logic
   ```python
   class MyCoordinator(DataUpdateCoordinator[MyData]):
-      def __init__(self, hass: HomeAssistant, client: MyClient, config_entry: ConfigEntry) -> None:
+      def __init__(
+          self, hass: HomeAssistant, client: MyClient, config_entry: ConfigEntry
+      ) -> None:
           super().__init__(
-              hass, 
-              logger=LOGGER, 
-              name=DOMAIN, 
+              hass,
+              logger=LOGGER,
+              name=DOMAIN,
               update_interval=timedelta(minutes=1),
               config_entry=config_entry,  # ✅ Pass config_entry - it's accepted and recommended
           )
@@ -121,8 +123,11 @@ rules:
 - **Use ConfigEntry.runtime_data**: Store non-persistent runtime data
   ```python
   type MyIntegrationConfigEntry = ConfigEntry[MyClient]
-  
-  async def async_setup_entry(hass: HomeAssistant, entry: MyIntegrationConfigEntry) -> bool:
+
+
+  async def async_setup_entry(
+      hass: HomeAssistant, entry: MyIntegrationConfigEntry
+  ) -> bool:
       client = MyClient(entry.data[CONF_HOST])
       entry.runtime_data = client
   ```
@@ -215,7 +220,9 @@ rules:
 - **Standard Pattern**: Use for efficient data management
   ```python
   class MyCoordinator(DataUpdateCoordinator):
-      def __init__(self, hass: HomeAssistant, client: MyClient, config_entry: ConfigEntry) -> None:
+      def __init__(
+          self, hass: HomeAssistant, client: MyClient, config_entry: ConfigEntry
+      ) -> None:
           super().__init__(
               hass,
               logger=LOGGER,
@@ -224,7 +231,7 @@ rules:
               config_entry=config_entry,  # ✅ Pass config_entry - it's accepted and recommended
           )
           self.client = client
-      
+
       async def _async_update_data(self):
           try:
               return await self.client.fetch_data()
@@ -272,8 +279,7 @@ rules:
   await self.async_set_unique_id(user_id)
   self._abort_if_unique_id_mismatch(reason="wrong_account")
   return self.async_update_reload_and_abort(
-      self._get_reauth_entry(),
-      data_updates={CONF_API_TOKEN: user_input[CONF_API_TOKEN]}
+      self._get_reauth_entry(), data_updates={CONF_API_TOKEN: user_input[CONF_API_TOKEN]}
   )
   ```
 
@@ -307,8 +313,9 @@ rules:
   ```python
   entry.async_on_unload(
       ssdp.async_register_callback(
-          hass, _async_discovered_device, 
-          {"st": "urn:schemas-upnp-org:device:ZonePlayer:1"}
+          hass,
+          _async_discovered_device,
+          {"st": "urn:schemas-upnp-org:device:ZonePlayer:1"},
       )
   )
   ```
@@ -321,9 +328,10 @@ rules:
   scanner = bluetooth.async_get_scanner()
   entry.async_on_unload(
       bluetooth.async_register_callback(
-          hass, _async_discovered_device,
+          hass,
+          _async_discovered_device,
           {"service_uuid": "example_uuid"},
-          bluetooth.BluetoothScanningMode.ACTIVE
+          bluetooth.BluetoothScanningMode.ACTIVE,
       )
   )
   ```
@@ -354,7 +362,11 @@ rules:
   ```python
   async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
       async def service_action(call: ServiceCall) -> ServiceResponse:
-          if not (entry := hass.config_entries.async_get_entry(call.data[ATTR_CONFIG_ENTRY_ID])):
+          if not (
+              entry := hass.config_entries.async_get_entry(
+                  call.data[ATTR_CONFIG_ENTRY_ID]
+              )
+          ):
               raise ServiceValidationError("Entry not found")
           if entry.state is not ConfigEntryState.LOADED:
               raise ServiceValidationError("Entry not loaded")
@@ -376,18 +388,18 @@ rules:
 - **Entity Services**: Register on platform setup
   ```python
   platform.async_register_entity_service(
-      "my_entity_service",
-      {vol.Required("parameter"): cv.string},
-      "handle_service_method"
+      "my_entity_service", {vol.Required("parameter"): cv.string}, "handle_service_method"
   )
   ```
 - **Service Schema**: Always validate input
   ```python
-  SERVICE_SCHEMA = vol.Schema({
-      vol.Required("entity_id"): cv.entity_ids,
-      vol.Required("parameter"): cv.string,
-      vol.Optional("timeout", default=30): cv.positive_int,
-  })
+  SERVICE_SCHEMA = vol.Schema(
+      {
+          vol.Required("entity_id"): cv.entity_ids,
+          vol.Required("parameter"): cv.string,
+          vol.Optional("timeout", default=30): cv.positive_int,
+      }
+  )
   ```
 - **Services File**: Create `services.yaml` with descriptions and field definitions
 
@@ -448,14 +460,16 @@ rules:
       data = await device.get_data()
   except Exception:  # Too broad
       _LOGGER.error("Failed")
-  
+
+
   # ✅ Allowed in config flow for robustness
   async def async_step_user(self, user_input=None):
       try:
           await self._test_connection(user_input)
       except Exception:  # Allowed here
           errors["base"] = "unknown"
-  
+
+
   # ✅ Allowed in background tasks
   async def _background_refresh():
       try:
@@ -532,13 +546,17 @@ rules:
   SensorEntityDescription(
       key="temperature",
       name="Temperature",
-      value_fn=lambda data: round(data["temp_value"] * 1.8 + 32, 1) if data.get("temp_value") is not None else None,  # ❌ Too long
+      value_fn=lambda data: (
+          round(data["temp_value"] * 1.8 + 32, 1)
+          if data.get("temp_value") is not None
+          else None
+      ),  # ❌ Too long
   )
   ```
 - **Good pattern**:
   ```python
   SensorEntityDescription(
-      key="temperature", 
+      key="temperature",
       name="Temperature",
       value_fn=lambda data: (  # ✅ Parenthesis on same line as lambda
           round(data["temp_value"] * 1.8 + 32, 1)
@@ -554,6 +572,7 @@ rules:
   ```python
   class MySensor(SensorEntity):
       _attr_has_entity_name = True
+
       def __init__(self, device: Device, field: str) -> None:
           self._attr_device_info = DeviceInfo(
               identifiers={(DOMAIN, device.id)},
@@ -568,9 +587,7 @@ rules:
   ```python
   async def async_added_to_hass(self) -> None:
       """Subscribe to events."""
-      self.async_on_remove(
-          self.client.events.subscribe("my_event", self._handle_event)
-      )
+      self.async_on_remove(self.client.events.subscribe("my_event", self._handle_event))
   ```
 - **Unsubscribe in `async_will_remove_from_hass`** if not using `async_on_remove`
 - Never subscribe in `__init__` or other methods
@@ -632,8 +649,11 @@ rules:
       new_devices = current_devices - known_devices
       if new_devices:
           known_devices.update(new_devices)
-          async_add_entities([MySensor(coordinator, device_id) for device_id in new_devices])
-  
+          async_add_entities(
+              [MySensor(coordinator, device_id) for device_id in new_devices]
+          )
+
+
   entry.async_on_unload(coordinator.async_add_listener(_check_device))
   ```
 
@@ -655,7 +675,8 @@ rules:
 - **Implementation**:
   ```python
   TO_REDACT = [CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE]
-  
+
+
   async def async_get_config_entry_diagnostics(
       hass: HomeAssistant, entry: MyConfigEntry
   ) -> dict[str, Any]:
@@ -710,7 +731,9 @@ rules:
 - **Additional Attributes**:
   ```python
   ir.async_create_issue(
-      hass, DOMAIN, "issue_id",
+      hass,
+      DOMAIN,
+      "issue_id",
       breaks_in_ha_version="2024.1.0",
       is_fixable=True,
       is_persistent=True,
@@ -998,23 +1021,28 @@ except ApiException as err:
 # Redacted diagnostics data
 return async_redact_data(data, {"api_key", "password"})  # ✅ Safe
 
+
 # Test through proper integration setup and fixtures
 @pytest.fixture
 async def init_integration(hass, mock_config_entry, mock_api):
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)  # ✅ Proper setup
 
+
 # Integration-determined polling intervals (not user-configurable)
 SCAN_INTERVAL = timedelta(minutes=5)  # ✅ Common pattern: constant in const.py
 
+
 class MyCoordinator(DataUpdateCoordinator[MyData]):
-    def __init__(self, hass: HomeAssistant, client: MyClient, config_entry: ConfigEntry) -> None:
+    def __init__(
+        self, hass: HomeAssistant, client: MyClient, config_entry: ConfigEntry
+    ) -> None:
         # ✅ Integration determines interval based on device capabilities, connection type, etc.
         interval = timedelta(minutes=1) if client.is_local else SCAN_INTERVAL
         super().__init__(
-            hass, 
-            logger=LOGGER, 
-            name=DOMAIN, 
+            hass,
+            logger=LOGGER,
+            name=DOMAIN,
             update_interval=interval,
             config_entry=config_entry,  # ✅ Pass config_entry - it's accepted and recommended
         )
@@ -1025,8 +1053,8 @@ class MyCoordinator(DataUpdateCoordinator[MyData]):
 # Use __slots__ for memory efficiency
 class MySensor(SensorEntity):
     __slots__ = ("_attr_native_value", "_attr_available")
-    
-    @property 
+
+    @property
     def should_poll(self) -> bool:
         """Disable polling when using coordinator."""
         return False  # ✅ Let coordinator handle updates
@@ -1059,6 +1087,7 @@ async def test_user_flow_success(hass, mock_api):
     assert result["title"] == "My Device"
     assert result["data"] == TEST_USER_INPUT
 
+
 async def test_flow_connection_error(hass, mock_api_error):
     """Test connection error handling."""
     result = await hass.config_entries.flow.async_init(
@@ -1073,10 +1102,11 @@ async def test_flow_connection_error(hass, mock_api_error):
 
 ### Entity Testing Patterns
 ```python
-@pytest.fixture 
-def platforms() -> list[Platform]: 
-    """Overridden fixture to specify platforms to test.""" 
+@pytest.fixture
+def platforms() -> list[Platform]:
+    """Overridden fixture to specify platforms to test."""
     return [Platform.SENSOR]  # Or another specific platform as needed.
+
 
 @pytest.mark.usefixtures("entity_registry_enabled_by_default", "init_integration")
 async def test_entities(
@@ -1114,20 +1144,25 @@ def mock_config_entry() -> MockConfigEntry:
         unique_id="device_unique_id",
     )
 
+
 @pytest.fixture
 def mock_device_api() -> Generator[MagicMock]:
     """Return a mocked device API."""
-    with patch("homeassistant.components.my_integration.MyDeviceAPI", autospec=True) as api_mock:
+    with patch(
+        "homeassistant.components.my_integration.MyDeviceAPI", autospec=True
+    ) as api_mock:
         api = api_mock.return_value
         api.get_data.return_value = MyDeviceData.from_json(
             load_fixture("device_data.json", DOMAIN)
         )
         yield api
 
-@pytest.fixture 
-def platforms() -> list[Platform]: 
-    """Fixture to specify platforms to test.""" 
+
+@pytest.fixture
+def platforms() -> list[Platform]:
+    """Fixture to specify platforms to test."""
     return PLATFORMS
+
 
 @pytest.fixture
 async def init_integration(
@@ -1138,7 +1173,7 @@ async def init_integration(
 ) -> MockConfigEntry:
     """Set up the integration for testing."""
     mock_config_entry.add_to_hass(hass)
-    
+
     with patch("homeassistant.components.my_integration.PLATFORMS", platforms):
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()

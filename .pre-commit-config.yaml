@@ -1,10 +1,15 @@
 repos:
-- repo: https://github.com/astral-sh/ruff-pre-commit
-  # Ruff version.
-  rev: v0.14.10
+- repo: local
   hooks:
-    # Run the linter.
+    # Ruff version comes from requirements.txt (installed via scripts/setup),
+    # so there is a single place to bump it instead of a separate pin here.
     - id: ruff-check
-      args: [ --fix ]
-    # Run the formatter.
+      name: ruff check
+      entry: ruff check --fix
+      language: system
+      types: [python]
     - id: ruff-format
+      name: ruff format
+      entry: ruff format
+      language: system
+      types_or: [python, markdown]

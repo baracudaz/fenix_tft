@@ -93,20 +93,20 @@ Coordinator data is a list of device dictionaries with structure:
 
 ```python
 {
-    "id": str,                    # Unique device ID
-    "name": str,                  # Device/room name
-    "installation_id": str,       # Installation (home) ID
-    "installation": str,          # Installation name
-    "room_id": str,              # Room ID
-    "preset_mode": int,          # Current mode (off/manual/program)
-    "hvac_action": int,          # Heating state (off/idle/heating)
-    "target_temp": float,        # Target temperature (Celsius)
-    "room_temp": float,          # Room temperature (Celsius)
+    "id": str,  # Unique device ID
+    "name": str,  # Device/room name
+    "installation_id": str,  # Installation (home) ID
+    "installation": str,  # Installation name
+    "room_id": str,  # Room ID
+    "preset_mode": int,  # Current mode (off/manual/program)
+    "hvac_action": int,  # Heating state (off/idle/heating)
+    "target_temp": float,  # Target temperature (Celsius)
+    "room_temp": float,  # Room temperature (Celsius)
     "floor_temp": float | None,  # Floor temperature (Celsius)
-    "daily_energy": float,       # Today's energy consumption (Wh)
-    "holiday_mode": int,         # Active holiday mode code
-    "holiday_start": str,        # Holiday start date string
-    "holiday_end": str,          # Holiday end date string
+    "daily_energy": float,  # Today's energy consumption (Wh)
+    "holiday_mode": int,  # Active holiday mode code
+    "holiday_start": str,  # Holiday start date string
+    "holiday_end": str,  # Holiday end date string
     # ... additional fields
 }
 ```

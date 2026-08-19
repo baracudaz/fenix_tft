@@ -773,7 +773,7 @@ class FenixTFTApi:
                 raise FenixTFTApiError(msg)
             return await resp.json()
 
-    async def get_room_historical_energy(  # noqa: PLR0913
+    async def get_room_historical_energy(  # noqa: PLR0913, PLR0917
         self,
         installation_id: str,
         room_id: str,

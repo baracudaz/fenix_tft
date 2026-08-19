@@ -428,7 +428,7 @@ def _build_historical_import_success_message(
     )
 
 
-async def _import_energy_statistics_batch(  # noqa: PLR0913
+async def _import_energy_statistics_batch(  # noqa: PLR0913, PLR0917
     hass: HomeAssistant,
     energy_entity_id: str,
     energy_metadata: Any,
@@ -468,7 +468,7 @@ async def _import_energy_statistics_batch(  # noqa: PLR0913
     )
 
 
-async def _import_full_history_statistics(  # noqa: PLR0913
+async def _import_full_history_statistics(  # noqa: PLR0913, PLR0917
     hass: HomeAssistant,
     api: FenixTFTApi,
     energy_entity_id: str,
@@ -530,7 +530,7 @@ async def _import_full_history_statistics(  # noqa: PLR0913
     return summary
 
 
-async def _import_fixed_range_statistics(  # noqa: PLR0913
+async def _import_fixed_range_statistics(  # noqa: PLR0913, PLR0917
     hass: HomeAssistant,
     api: FenixTFTApi,
     energy_entity_id: str,
@@ -632,7 +632,7 @@ def _determine_aggregation_period(
     return period, chunk_days
 
 
-async def _fetch_historical_energy_data(  # noqa: PLR0913
+async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
     api: FenixTFTApi,
     installation_id: str,
     room_id: str,
