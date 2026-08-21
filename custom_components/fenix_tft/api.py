@@ -88,6 +88,41 @@ def generate_pkce_pair() -> tuple[str, str]:
     return code_verifier, code_challenge
 
 
+def _parse_json_response(body_text: str, status: int, description: str) -> Any:
+    """
+    Parse a response body as JSON, raising FenixTFTApiError on failure.
+
+    Shared by the GET and PUT retry helpers so a malformed JSON success body
+    is reported consistently (as FenixTFTApiError) rather than leaking a raw
+    JSONDecodeError to callers.
+    """
+    try:
+        return json.loads(body_text)
+    except Exception as err:
+        _LOGGER.exception("%s (HTTP %s) invalid JSON response", description, status)
+        _LOGGER.debug(
+            "%s: response body: %s",
+            description,
+            body_text[:BODY_LOG_TRUNCATE_LENGTH],
+        )
+        msg = f"{description} failed: invalid JSON response"
+        raise FenixTFTApiError(msg) from err
+
+
+def _classify_unexpected_status(status: int) -> str:
+    """
+    Describe a status code that is neither a handled success nor a 4xx/5xx error.
+
+    Only called for statuses below HTTP_CLIENT_ERROR, since 4xx/5xx are
+    classified by the caller. Used purely to make error logs easier to read.
+    """
+    if status < HTTP_OK:
+        return "informational"
+    if status < HTTP_SUCCESS_MAX:
+        return "success-range"
+    return "redirect"
+
+
 def _format_api_date(date: datetime) -> str:
     """Format datetime for API consumption endpoints."""
     return date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -563,7 +598,12 @@ class FenixTFTApi:
                 max_retries + 1,
             )
         else:
-            _LOGGER.error("%s failed with unexpected HTTP %s", description, status)
+            _LOGGER.error(
+                "%s failed with unexpected %s HTTP %s",
+                description,
+                _classify_unexpected_status(status),
+                status,
+            )
         _LOGGER.debug("%s: response body: %s", description, truncated_body)
 
         msg = f"{description} failed: HTTP {status}"
@@ -590,7 +630,7 @@ class FenixTFTApi:
             ) as resp:
                 status = resp.status
                 if status == HTTP_OK:
-                    return await resp.json()
+                    return _parse_json_response(await resp.text(), status, description)
                 if no_content_status is not None and status == no_content_status:
                     _LOGGER.debug(
                         "%s: HTTP %s (no content), returning default result",
@@ -624,21 +664,7 @@ class FenixTFTApi:
                 body_text = await resp.text()
 
                 if HTTP_OK <= status < HTTP_SUCCESS_MAX:
-                    try:
-                        return json.loads(body_text)
-                    except Exception as err:
-                        _LOGGER.exception(
-                            "%s (HTTP %s) invalid JSON response",
-                            description,
-                            status,
-                        )
-                        _LOGGER.debug(
-                            "%s: response body: %s",
-                            description,
-                            body_text[:BODY_LOG_TRUNCATE_LENGTH],
-                        )
-                        msg = f"{description} failed: invalid JSON response"
-                        raise FenixTFTApiError(msg) from err
+                    return _parse_json_response(body_text, status, description)
 
                 await self._handle_retriable_failure(
                     status, body_text, description, attempt, max_retries

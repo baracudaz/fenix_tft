@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from typing import Self
 from unittest.mock import AsyncMock
@@ -16,11 +17,14 @@ class _FakeResponse:
     """Minimal async-context-manager stand-in for an aiohttp response."""
 
     def __init__(
-        self, status: int, json_data: object = None, text_data: str = ""
+        self, status: int, json_data: object = None, text_data: str | None = None
     ) -> None:
         self.status = status
         self._json_data = json_data
-        self._text_data = text_data
+        # Mirror aiohttp: resp.json() is effectively json.loads(await resp.text()),
+        # so default the body text to the serialized json_data unless overridden
+        # (e.g. to simulate a malformed body).
+        self._text_data = json.dumps(json_data) if text_data is None else text_data
 
     async def json(self) -> object:
         return self._json_data
@@ -126,6 +130,48 @@ async def test_get_with_retry_raises_on_unexpected_status() -> None:
         await api._get_with_retry("https://example/test", description="Test GET")
 
     assert session.call_count == 1
+
+
+async def test_get_with_retry_raises_on_informational_status() -> None:
+    """A 1xx status is not retried and raises, rather than being ignored."""
+    session = _FakeSession([_FakeResponse(100, text_data="")])
+    api = _make_api(session)
+
+    with pytest.raises(FenixTFTApiError):
+        await api._get_with_retry("https://example/test", description="Test GET")
+
+    assert session.call_count == 1
+
+
+async def test_get_with_retry_raises_on_redirect_status() -> None:
+    """A 3xx status is not retried and raises, rather than being ignored."""
+    session = _FakeSession([_FakeResponse(302, text_data="")])
+    api = _make_api(session)
+
+    with pytest.raises(FenixTFTApiError):
+        await api._get_with_retry("https://example/test", description="Test GET")
+
+    assert session.call_count == 1
+
+
+async def test_get_with_retry_raises_fenix_error_on_invalid_json() -> None:
+    """A malformed 200 body raises FenixTFTApiError, not a raw JSONDecodeError."""
+    session = _FakeSession([_FakeResponse(200, text_data="not-json")])
+    api = _make_api(session)
+
+    with pytest.raises(FenixTFTApiError):
+        await api._get_with_retry("https://example/test", description="Test GET")
+
+    assert session.call_count == 1
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [(100, "informational"), (204, "success-range"), (302, "redirect")],
+)
+def test_classify_unexpected_status(status: int, expected: str) -> None:
+    """The classifier used for error-log wording covers 1xx/2xx-non-200/3xx."""
+    assert api_module._classify_unexpected_status(status) == expected
 
 
 async def test_get_device_properties_recovers_from_transient_502() -> None:
