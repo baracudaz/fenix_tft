@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `docker-compose.yml` and `make docker-up`/`docker-down`/`docker-logs` targets as an alternative way to run a full Home Assistant dev instance in a container, pinned to the `2026.8.2` image; it shares the same `config/` directory as `make develop` so both dev paths use one Home Assistant state (no separate `.data/`)
 - Trimmed the `Makefile` to a lean, focused set of targets (`install`, `develop`, `lint`, `test`, `translations`, `docker-up`/`docker-down`/`docker-logs`/`docker-restart`, `clean`)
 - Added `requirements-test.txt` and `pytest.ini` (tracked) so test/dev-only dependencies and pytest configuration no longer depend on a local, untracked `pyproject.toml`
+- Raised the minimum supported Home Assistant version in `hacs.json` from `2024.1.0` to `2025.1.0`, reflecting the versions actually exercised by dev/CI
 
 ---
 

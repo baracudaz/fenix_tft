@@ -1,6 +1,11 @@
-![GitHub release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/baracudaz/fenix_tft?include_prereleases)
+<!-- [![GitHub Stars](https://img.shields.io/github/stars/baracudaz/fenix_tft)](https://github.com/baracudaz/fenix_tft/stargazers) -->
+<!-- ![Installations](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=Installations&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.fenix_tft.total) -->
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=baracudaz&repository=fenix_tft&category=integration)
+![GitHub release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/baracudaz/fenix_tft?include_prereleases)
+![GitHub License](https://img.shields.io/github/license/baracudaz/fenix_tft)
+![Lint](https://img.shields.io/github/actions/workflow/status/baracudaz/fenix_tft/lint.yml?label=lint)
+![Validate](https://img.shields.io/github/actions/workflow/status/baracudaz/fenix_tft/validate.yml?label=validate)
+![CodeQL](https://img.shields.io/github/actions/workflow/status/baracudaz/fenix_tft/codeql.yml?label=codeql)
 
 # FENIX TFT WiFi Home Assistant Integration
 
@@ -64,7 +69,7 @@ make docker-down  # Stop and remove the container
 ### Common tasks
 
 | Command | Description |
-|---------|-------------|
+| --------- | ------------- |
 | `make install` | Create `.venv` and install all dependencies (incl. test extras) |
 | `make develop` | Start HA dev server from `.venv`, opens `http://localhost:8123` |
 | `make docker-up` | Start Home Assistant in Docker via `docker-compose.yml`, opens browser, follows logs |
@@ -105,7 +110,9 @@ To use this integration, you only need your **FENIX account email and password**
 
 #### Installation via HACS
 
-The easiest way is to use the quick-add button at the top of this page (the "Open your Home Assistant instance" badge), which opens HACS directly with this repository pre-filled.
+The easiest way is to use the quick-add button below, which opens HACS directly with this repository pre-filled.
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=baracudaz&repository=fenix_tft&category=integration)
 
 Alternatively, add it manually:
 
@@ -239,7 +246,7 @@ data:
 Each thermostat provides a set of sensors you can use in dashboards, automations, and energy tracking:
 
 | Sensor | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `*_ambient_temperature` | Current room temperature (°C). |
 | `*_floor_temperature` | Floor probe temperature (°C). |
 | `*_target_temperature` | Target temperature (°C). |
