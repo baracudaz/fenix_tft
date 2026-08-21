@@ -315,7 +315,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             )
             # Request fresh data from coordinator to update UI
             await self.coordinator.async_request_refresh()
-        except aiohttp.ClientError, FenixTFTApiError:
+        except (aiohttp.ClientError, FenixTFTApiError):  # fmt: skip
             _LOGGER.exception(
                 "Failed to set temperature for device %s to %.1f°C",
                 self._device_id,
@@ -363,7 +363,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
                 self._device_id,
                 hvac_mode,
             )
-        except aiohttp.ClientError, FenixTFTApiError:
+        except (aiohttp.ClientError, FenixTFTApiError):  # fmt: skip
             _LOGGER.exception(
                 "Failed to set HVAC mode for device %s to %s",
                 self._device_id,
@@ -419,7 +419,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
                 self._device_id,
                 preset_mode,
             )
-        except aiohttp.ClientError, FenixTFTApiError:
+        except (aiohttp.ClientError, FenixTFTApiError):  # fmt: skip
             _LOGGER.exception(
                 "Failed to set preset mode for device %s to %s",
                 self._device_id,
