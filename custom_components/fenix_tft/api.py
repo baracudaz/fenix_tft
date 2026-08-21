@@ -406,7 +406,12 @@ class FenixTFTApi:
                     "OAuth2 login completed successfully for user: %s",
                     self._username,
                 )
-        except (aiohttp.ClientError, FenixTFTApiError, ValueError, KeyError):
+        except (
+            aiohttp.ClientError,
+            FenixTFTApiError,
+            ValueError,
+            KeyError,
+        ):  # fmt: skip
             # Avoid logging PII at exception level; use debug for per-user detail
             _LOGGER.exception("OAuth2 login failed")
             _LOGGER.debug(

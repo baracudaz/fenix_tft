@@ -2,11 +2,10 @@
 
 import logging
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.config_entries import ConfigEntry, ConfigEntryAuthFailed
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -20,6 +19,9 @@ from .const import (
     POLLING_INTERVAL,
     PRESET_MODE_OFF,
 )
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 CONSECUTIVE_FAILURES_BEFORE_ISSUE = 3
 

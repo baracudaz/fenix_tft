@@ -1,0 +1,14 @@
+---
+services:
+  homeassistant:
+    container_name: fenix_tft_dev
+    image: "ghcr.io/home-assistant/home-assistant:2026.8.2"
+    environment:
+      - TZ=Europe/Bratislava
+    volumes:
+      - ./config:/config
+      - ./custom_components:/config/custom_components
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "8123:8123"
+    restart: unless-stopped

@@ -1,7 +1,7 @@
 repos:
 - repo: local
   hooks:
-    # Ruff version comes from requirements.txt (installed via scripts/setup),
+    # Ruff version comes from requirements.txt (installed via `make install`),
     # so there is a single place to bump it instead of a separate pin here.
     - id: ruff-check
       name: ruff check

@@ -1,6 +1,8 @@
 """Constants for the fenix_tft custom component."""
 
-from collections.abc import Sequence
+# Sequence is used in a module-level Final[] annotation, which is eagerly
+# introspectable (e.g. via __annotations__), so it can't move behind TYPE_CHECKING.
+from collections.abc import Sequence  # noqa: TC003
 from typing import Final
 
 DOMAIN: Final[str] = "fenix_tft"
