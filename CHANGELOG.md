@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.3] - 2026-08-21
+
+### Changed
+
+- Bumped Home Assistant and all Python dependencies to `homeassistant==2026.8.2`, which now requires Python 3.14
+- Removed `uv` as the package manager; local development now uses a plain `.venv` created with `python -m venv` and `pip`
+- Deleted `scripts/setup`, `scripts/develop`, and `scripts/lint`; their logic now lives directly in the `Makefile` (`make install`, `make develop`, `make lint`, etc.)
+- Added `docker-compose.yml` and `make docker-up`/`docker-down`/`docker-logs`/`docker-shell`/`docker-restart` targets as an alternative way to run a full Home Assistant dev instance in a container, pinned to the `2026.8.2` image
+- Added `requirements-test.txt` and `pytest.ini` (tracked) so test/dev-only dependencies and pytest configuration no longer depend on a local, untracked `pyproject.toml`
+
+---
+
 ## [1.3.2] - 2026-08-21
 
 ### Fixed

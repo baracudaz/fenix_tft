@@ -15,7 +15,7 @@ Pull requests are the best way to propose changes to the codebase.
 
 1. Fork the repo and create your branch from `main`.
 2. If you've changed something, update the documentation.
-3. Make sure your code lints (using `scripts/lint`).
+3. Make sure your code lints (using `make lint`).
 4. Test you contribution.
 5. Issue that pull request!
 
@@ -55,6 +55,11 @@ if you use Visual Studio Code. With this container you will have a stand alone
 Home Assistant instance running and already configured with the included
 [`configuration.yaml`](./config/configuration.yaml)
 file.
+
+Outside of VS Code, `make install` sets up a local `.venv` and `make develop`
+starts the same Home Assistant instance from it; `make docker-up` runs Home
+Assistant in Docker via `docker-compose.yml` instead. See the
+[README](./README.md#development) for details.
 
 ## License
 

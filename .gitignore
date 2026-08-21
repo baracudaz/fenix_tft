@@ -7,8 +7,6 @@ __pycache__
 .env
 .venv
 Pipfile*
-pyproject.toml
-uv.lock
 artifacts/api-captures/
 artifacts/documentation/
 
@@ -23,6 +21,9 @@ coverage.xml
 config*
 !config/configuration.yaml
 custom_components/watts_vision/*
+
+# docker-compose bind-mounted HA data (state, db, secrets)
+.data/
 
 .ansible/
 .claude/

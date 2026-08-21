@@ -44,23 +44,34 @@ Help wanted with testing, translations, documentation, and feature requests!
 
 ### Prerequisites
 
-- Python 3.13+
-- [uv](https://docs.astral.sh/uv/) package manager
+- Python 3.14+
+- Docker + Docker Compose (optional, for running Home Assistant in a container instead of a local `.venv`)
 
 ### Quick start
 
 ```bash
-make setup    # Create .venv and install all dependencies
+make install  # Create .venv and install all dependencies
 make develop  # Start Home Assistant dev server (opens browser automatically)
+```
+
+Alternatively, run Home Assistant in Docker via `docker-compose.yml`:
+
+```bash
+make docker-up    # Start Home Assistant at http://localhost:8123
+make docker-logs  # Follow logs
+make docker-down  # Stop and remove the container
 ```
 
 ### Common tasks
 
 | Command | Description |
 |---------|-------------|
-| `make setup` | Install dependencies into `.venv` via `uv sync` |
-| `make develop` | Start HA dev server, opens `http://localhost:8123` |
+| `make install` | Create `.venv` and install all dependencies (incl. test extras) |
+| `make develop` | Start HA dev server from `.venv`, opens `http://localhost:8123` |
 | `make open` | Open browser (if HA is already running) |
+| `make docker-up` | Start Home Assistant in Docker via `docker-compose.yml` |
+| `make docker-down` | Stop and remove the Docker container |
+| `make docker-logs` | Follow Home Assistant container logs |
 | `make lint` | Format and lint code with Ruff |
 | `make test` | Run all tests |
 | `make test-cov` | Run tests with HTML coverage report |

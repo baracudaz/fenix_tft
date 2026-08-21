@@ -1,7 +1,7 @@
 """Platform for Fenix TFT climate entities."""
 
 import logging
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import aiohttp
 from homeassistant.components.climate import ClimateEntity
@@ -11,10 +11,8 @@ from homeassistant.components.climate.const import (
     HVACMode,
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
-from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
-from . import FenixTFTConfigEntry
 from .api import FenixTFTApiError
 from .const import (
     DOMAIN,
@@ -32,6 +30,11 @@ from .const import (
     TEMP_STEP_EPSILON,
 )
 from .entity import FenixTFTEntity
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+
+    from . import FenixTFTConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -312,7 +315,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             )
             # Request fresh data from coordinator to update UI
             await self.coordinator.async_request_refresh()
-        except (aiohttp.ClientError, FenixTFTApiError):
+        except aiohttp.ClientError, FenixTFTApiError:
             _LOGGER.exception(
                 "Failed to set temperature for device %s to %.1f°C",
                 self._device_id,
@@ -360,7 +363,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
                 self._device_id,
                 hvac_mode,
             )
-        except (aiohttp.ClientError, FenixTFTApiError):
+        except aiohttp.ClientError, FenixTFTApiError:
             _LOGGER.exception(
                 "Failed to set HVAC mode for device %s to %s",
                 self._device_id,
@@ -416,7 +419,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
                 self._device_id,
                 preset_mode,
             )
-        except (aiohttp.ClientError, FenixTFTApiError):
+        except aiohttp.ClientError, FenixTFTApiError:
             _LOGGER.exception(
                 "Failed to set preset mode for device %s to %s",
                 self._device_id,

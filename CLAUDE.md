@@ -19,18 +19,21 @@ This is a Home Assistant custom integration for the FENIX TFT WiFi thermostat. I
 ### Environment Setup
 
 ```bash
-# Install dependencies
-scripts/setup
+# Create .venv and install dependencies (including test extras)
+make install
 
-# Start Home Assistant development server
-scripts/develop
+# Start Home Assistant development server (uses .venv)
+make develop
+
+# Alternative: run Home Assistant in Docker via docker-compose
+make docker-up
 ```
 
 ### Code Quality
 
 ```bash
 # Format and lint code (use this after editing code)
-uv run ./scripts/lint
+make lint
 
 # Format code only
 ruff format .
@@ -156,7 +159,7 @@ The historical import service (`import_historical_statistics`) uses a sophistica
 
 This integration follows Home Assistant's Integration Quality Scale. See `.github/copilot-instructions.md` for comprehensive guidelines on:
 
-- Code quality standards (Python 3.13+, type hints, Ruff/PyLint)
+- Code quality standards (Python 3.14+, type hints, Ruff/PyLint)
 - Async programming patterns
 - Entity development (unique IDs, naming, availability)
 - Config flow implementation
