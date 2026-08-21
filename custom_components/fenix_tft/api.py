@@ -514,13 +514,14 @@ class FenixTFTApi:
         _LOGGER.debug("Successfully fetched %d devices", len(devices))
         return devices
 
-    async def _get_with_retry(
+    async def _get_with_retry(  # noqa: PLR0913, PLR0917
         self,
         url: str,
         description: str = "GET request",
         max_retries: int = 2,
         no_content_status: int | None = None,
         no_content_result: Any = None,
+        request_timeout: int = API_TIMEOUT_SECONDS,
     ) -> Any:
         """
         Make a GET request with exponential backoff retry for 5xx errors.
@@ -531,11 +532,18 @@ class FenixTFTApi:
         status (e.g. 204) to mean "no data" rather than an error.
         """
         for attempt in range(max_retries + 1):
-            async with self._session.get(url, headers=self._headers()) as resp:
+            async with self._session.get(
+                url, headers=self._headers(), timeout=request_timeout
+            ) as resp:
                 status = resp.status
                 if status == HTTP_OK:
                     return await resp.json()
                 if no_content_status is not None and status == no_content_status:
+                    _LOGGER.debug(
+                        "%s: HTTP %s (no content), returning default result",
+                        description,
+                        status,
+                    )
                     return no_content_result
 
                 body_text = await resp.text()
