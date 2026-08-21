@@ -66,6 +66,8 @@ type FenixTFTConfigEntry = ConfigEntry[FenixTFTRuntimeData]
 
 _LOGGER = logging.getLogger(__name__)
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 # Aggregation thresholds for dynamic period selection
 HOURLY_AGGREGATION_MAX_DAYS = 7  # Use hourly for last 7 days
 DAILY_AGGREGATION_MAX_DAYS = 90  # Use daily up to 90 days back
