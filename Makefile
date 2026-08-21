@@ -1,4 +1,4 @@
-.PHONY: help install develop lint test translations docker-up docker-down docker-logs clean
+.PHONY: help install develop lint test translations docker-up docker-down docker-logs docker-restart clean
 
 .DEFAULT_GOAL := help
 SHELL := /usr/bin/env bash
@@ -35,6 +35,7 @@ help:
 	@echo "  docker-up        Start Home Assistant in Docker via docker-compose"
 	@echo "  docker-down      Stop and remove the Docker container"
 	@echo "  docker-logs      Follow Home Assistant container logs"
+	@echo "  docker-restart   Restart the container, then follow recent logs"
 	@echo ""
 	@echo "Quality:"
 	@echo "  lint             Format and lint code with ruff (auto-fix)"
@@ -85,6 +86,10 @@ docker-down:
 
 docker-logs:
 	$(DOCKER_COMPOSE) logs -f $(HA_SERVICE)
+
+docker-restart:
+	$(DOCKER_COMPOSE) restart $(HA_SERVICE)
+	$(DOCKER_COMPOSE) logs -f -n 10 $(HA_SERVICE)
 
 clean:
 	rm -rf .pytest_cache .ruff_cache htmlcov .coverage coverage.xml

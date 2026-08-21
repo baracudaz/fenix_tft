@@ -71,6 +71,7 @@ make docker-down  # Stop and remove the container
 | `make docker-up` | Start Home Assistant in Docker via `docker-compose.yml` |
 | `make docker-down` | Stop and remove the Docker container |
 | `make docker-logs` | Follow Home Assistant container logs |
+| `make docker-restart` | Restart the container, then follow recent logs |
 | `make lint` | Format and lint code with Ruff |
 | `make test` | Run all tests |
 | `make translations` | Check translation files against `translations/en.json` |
