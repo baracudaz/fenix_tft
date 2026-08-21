@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.1] - 2026-08-20
+
+### Fixed
+
+- Declared `CONFIG_SCHEMA` (config-entry-only) to resolve a Home Assistant hassfest validation warning; the integration has no YAML setup, only the config flow
+
+---
+
 ## [1.3.0] - 2026-05-10
 
 ### Added
