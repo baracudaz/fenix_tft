@@ -68,13 +68,11 @@ make docker-down  # Stop and remove the container
 |---------|-------------|
 | `make install` | Create `.venv` and install all dependencies (incl. test extras) |
 | `make develop` | Start HA dev server from `.venv`, opens `http://localhost:8123` |
-| `make open` | Open browser (if HA is already running) |
 | `make docker-up` | Start Home Assistant in Docker via `docker-compose.yml` |
 | `make docker-down` | Stop and remove the Docker container |
 | `make docker-logs` | Follow Home Assistant container logs |
 | `make lint` | Format and lint code with Ruff |
 | `make test` | Run all tests |
-| `make test-cov` | Run tests with HTML coverage report |
 | `make translations` | Check translation files against `translations/en.json` |
 | `make clean` | Remove cache files and build artifacts |
 

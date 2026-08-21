@@ -1,4 +1,4 @@
-.PHONY: help install format lint check test test-cov dev develop open translations docker-up docker-down docker-logs docker-shell docker-restart clean
+.PHONY: help install develop lint test translations docker-up docker-down docker-logs clean
 
 .DEFAULT_GOAL := help
 SHELL := /usr/bin/env bash
@@ -27,28 +27,14 @@ endif
 help:
 	@echo "Fenix TFT - development commands"
 	@echo ""
-	@echo "Setup:"
 	@echo "  install          Create .venv and install Python dependencies"
-	@echo ""
-	@echo "Run:"
 	@echo "  develop          Start HA dev server from .venv, opens $(HA_URL)"
-	@echo "  open             Open browser (if HA is already running)"
 	@echo "  docker-up        Start Home Assistant in Docker via docker-compose"
 	@echo "  docker-down      Stop and remove the Docker container"
 	@echo "  docker-logs      Follow Home Assistant container logs"
-	@echo "  docker-shell     Open a shell in the Home Assistant container"
-	@echo "  docker-restart   Restart the Home Assistant container"
-	@echo ""
-	@echo "Quality:"
-	@echo "  format           Format code with ruff"
 	@echo "  lint             Format and lint code with ruff (auto-fix)"
-	@echo "  check            Run formatting and lint checks (no auto-fix)"
 	@echo "  test             Run test suite"
-	@echo "  test-cov         Run test suite with HTML coverage report"
-	@echo "  dev              Run format, lint and tests"
 	@echo "  translations     Check translation files against translations/en.json"
-	@echo ""
-	@echo "Maintenance:"
 	@echo "  clean            Remove caches, coverage, and build artifacts"
 
 install: ## Create .venv and install all dependencies (including test extras)
@@ -74,28 +60,12 @@ develop: ## Start Home Assistant dev server and open browser
 	export PYTHONPATH="$${PYTHONPATH}:$${PWD}/custom_components"; \
 	"$(VENV_HASS)" --config "$${PWD}/config" --debug
 
-open: ## Open Home Assistant in browser (if already running)
-	$(OPEN_CMD) "$(HA_URL)"
-
-format:
-	$(RUFF) format .
-
 lint:
 	$(RUFF) format .
 	$(RUFF) check . --fix
 
-check:
-	$(RUFF) format --check .
-	$(RUFF) check .
-
 test:
 	$(PYTEST) tests/ -v
-
-test-cov:
-	$(PYTEST) tests/ -v --cov=custom_components/fenix_tft --cov-report=term-missing --cov-report=html
-	@echo "HTML report: htmlcov/index.html"
-
-dev: format lint test
 
 translations: ## Check translation files against translations/en.json
 	$(VENV_PYTHON) scripts/translations.py
@@ -108,12 +78,6 @@ docker-down:
 
 docker-logs:
 	$(DOCKER_COMPOSE) logs -f $(HA_SERVICE)
-
-docker-shell:
-	$(DOCKER_COMPOSE) exec $(HA_SERVICE) /bin/sh
-
-docker-restart:
-	$(DOCKER_COMPOSE) restart $(HA_SERVICE)
 
 clean:
 	rm -rf .pytest_cache .ruff_cache htmlcov .coverage coverage.xml
