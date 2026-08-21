@@ -45,6 +45,11 @@ ENERGY_CONSUMPTION_URL_TEMPLATE = (
 # Maximum concurrent energy data requests to avoid API rate limiting
 MAX_CONCURRENT_ENERGY_REQUESTS = 5
 
+# Max characters of a failed response body to include in debug logs. Kept
+# short since error bodies from the cloud API may echo back account- or
+# device-identifying request data.
+BODY_LOG_TRUNCATE_LENGTH = 256
+
 
 class FenixTFTApiError(Exception):
     """Exception raised for Fenix TFT API errors."""
@@ -514,6 +519,56 @@ class FenixTFTApi:
         _LOGGER.debug("Successfully fetched %d devices", len(devices))
         return devices
 
+    async def _handle_retriable_failure(
+        self,
+        status: int,
+        body_text: str,
+        description: str,
+        attempt: int,
+        max_retries: int,
+    ) -> None:
+        """
+        Handle a non-success HTTP response shared by GET and PUT retry loops.
+
+        Sleeps and returns (letting the caller's loop retry) if a transient
+        5xx should be retried. Otherwise logs and raises FenixTFTApiError.
+        The response body is only included at debug level, since error
+        bodies from the cloud API may contain account-identifying details
+        that shouldn't land in default (info/warning/error) logs.
+        """
+        truncated_body = body_text[:BODY_LOG_TRUNCATE_LENGTH]
+        is_server_error = status >= HTTP_SERVER_ERROR
+
+        if is_server_error and attempt < max_retries:
+            delay = 2**attempt  # 1 s, then 2 s
+            _LOGGER.warning(
+                "%s: HTTP %s (attempt %d/%d), retrying in %ds",
+                description,
+                status,
+                attempt + 1,
+                max_retries + 1,
+                delay,
+            )
+            _LOGGER.debug("%s: response body: %s", description, truncated_body)
+            await asyncio.sleep(delay)
+            return
+
+        if HTTP_CLIENT_ERROR <= status < HTTP_CLIENT_ERROR_MAX:
+            _LOGGER.error("%s failed with non-retriable HTTP %s", description, status)
+        elif is_server_error:
+            _LOGGER.error(
+                "%s failed with HTTP %s after %d attempts",
+                description,
+                status,
+                max_retries + 1,
+            )
+        else:
+            _LOGGER.error("%s failed with unexpected HTTP %s", description, status)
+        _LOGGER.debug("%s: response body: %s", description, truncated_body)
+
+        msg = f"{description} failed: HTTP {status}"
+        raise FenixTFTApiError(msg)
+
     async def _get_with_retry(  # noqa: PLR0913, PLR0917
         self,
         url: str,
@@ -526,8 +581,6 @@ class FenixTFTApi:
         """
         Make a GET request with exponential backoff retry for 5xx errors.
 
-        Logs response body (truncated) on failures to aid debugging.
-        4xx and other non-retriable errors are logged at error level.
         Pass `no_content_status`/`no_content_result` for endpoints that use a
         status (e.g. 204) to mean "no data" rather than an error.
         """
@@ -547,48 +600,9 @@ class FenixTFTApi:
                     return no_content_result
 
                 body_text = await resp.text()
-                truncated_body = body_text[:512]
-
-                is_server_error = status >= HTTP_SERVER_ERROR
-                if is_server_error and attempt < max_retries:
-                    delay = 2**attempt  # 1 s, then 2 s
-                    _LOGGER.warning(
-                        "%s: HTTP %s (attempt %d/%d), retrying in %ds. Body: %s",
-                        description,
-                        status,
-                        attempt + 1,
-                        max_retries + 1,
-                        delay,
-                        truncated_body,
-                    )
-                    await asyncio.sleep(delay)
-                    continue
-
-                if HTTP_CLIENT_ERROR <= status < HTTP_CLIENT_ERROR_MAX:
-                    _LOGGER.error(
-                        "%s failed with non-retriable HTTP %s. Body: %s",
-                        description,
-                        status,
-                        truncated_body,
-                    )
-                elif is_server_error:
-                    _LOGGER.error(
-                        "%s failed with HTTP %s after %d attempts. Body: %s",
-                        description,
-                        status,
-                        max_retries + 1,
-                        truncated_body,
-                    )
-                else:
-                    _LOGGER.error(
-                        "%s failed with unexpected HTTP %s. Body: %s",
-                        description,
-                        status,
-                        truncated_body,
-                    )
-
-                msg = f"{description} failed: HTTP {status}"
-                raise FenixTFTApiError(msg)
+                await self._handle_retriable_failure(
+                    status, body_text, description, attempt, max_retries
+                )
 
         # Unreachable but satisfies type checker
         msg = f"{description}: retry limit exceeded"
@@ -601,73 +615,34 @@ class FenixTFTApi:
         description: str = "PUT request",
         max_retries: int = 2,
     ) -> dict[str, Any]:
-        """
-        Make a PUT request with exponential backoff retry for 5xx errors.
-
-        Logs response body (truncated) on failures to aid debugging.
-        4xx and other non-retriable errors are logged at error level.
-        """
+        """Make a PUT request with exponential backoff retry for 5xx errors."""
         for attempt in range(max_retries + 1):
             async with self._session.put(
                 url, headers=self._headers(), json=payload
             ) as resp:
                 status = resp.status
                 body_text = await resp.text()
-                truncated_body = body_text[:512]
 
                 if HTTP_OK <= status < HTTP_SUCCESS_MAX:
                     try:
                         return json.loads(body_text)
                     except Exception as err:
                         _LOGGER.exception(
-                            "%s (HTTP %s) invalid JSON response. Body: %s",
+                            "%s (HTTP %s) invalid JSON response",
                             description,
                             status,
-                            truncated_body,
+                        )
+                        _LOGGER.debug(
+                            "%s: response body: %s",
+                            description,
+                            body_text[:BODY_LOG_TRUNCATE_LENGTH],
                         )
                         msg = f"{description} failed: invalid JSON response"
                         raise FenixTFTApiError(msg) from err
 
-                is_server_error = status >= HTTP_SERVER_ERROR
-                if is_server_error and attempt < max_retries:
-                    delay = 2**attempt  # 1 s, then 2 s
-                    _LOGGER.warning(
-                        "%s: HTTP %s (attempt %d/%d), retrying in %ds. Body: %s",
-                        description,
-                        status,
-                        attempt + 1,
-                        max_retries + 1,
-                        delay,
-                        truncated_body,
-                    )
-                    await asyncio.sleep(delay)
-                    continue
-
-                if HTTP_CLIENT_ERROR <= status < HTTP_CLIENT_ERROR_MAX:
-                    _LOGGER.error(
-                        "%s failed with non-retriable HTTP %s. Body: %s",
-                        description,
-                        status,
-                        truncated_body,
-                    )
-                elif is_server_error:
-                    _LOGGER.error(
-                        "%s failed with HTTP %s after %d attempts. Body: %s",
-                        description,
-                        status,
-                        max_retries + 1,
-                        truncated_body,
-                    )
-                else:
-                    _LOGGER.error(
-                        "%s failed with unexpected HTTP %s. Body: %s",
-                        description,
-                        status,
-                        truncated_body,
-                    )
-
-                msg = f"{description} failed: HTTP {status}"
-                raise FenixTFTApiError(msg)
+                await self._handle_retriable_failure(
+                    status, body_text, description, attempt, max_retries
+                )
 
         # Unreachable but satisfies type checker
         msg = f"{description}: retry limit exceeded"

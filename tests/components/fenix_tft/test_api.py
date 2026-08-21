@@ -1,4 +1,4 @@
-"""Tests for the Fenix TFT API client's retry-on-5xx behavior."""
+"""Tests for the Fenix TFT API client's GET/PUT retry-on-5xx behavior."""
 
 from __future__ import annotations
 
@@ -36,13 +36,17 @@ class _FakeResponse:
 
 
 class _FakeSession:
-    """Fake aiohttp session that returns queued responses for each GET call."""
+    """Fake aiohttp session that returns queued responses for GET/PUT calls."""
 
     def __init__(self, responses: list[_FakeResponse]) -> None:
         self._responses = list(responses)
         self.call_count = 0
 
     def get(self, _url: str, **_kwargs: object) -> _FakeResponse:
+        self.call_count += 1
+        return self._responses.pop(0)
+
+    def put(self, _url: str, **_kwargs: object) -> _FakeResponse:
         self.call_count += 1
         return self._responses.pop(0)
 
@@ -224,5 +228,52 @@ async def test_get_userinfo_missing_sub_raises_error() -> None:
 
     with pytest.raises(FenixTFTApiError):
         await api.get_userinfo()
+
+    assert session.call_count == 1
+
+
+async def test_put_with_retry_recovers_from_transient_502(
+    mock_sleep: AsyncMock,
+) -> None:
+    """PUT shares the same backoff-on-5xx behavior as GET after de-duplication."""
+    session = _FakeSession(
+        [
+            _FakeResponse(502, text_data="bad gateway"),
+            _FakeResponse(200, text_data='{"ok": true}'),
+        ]
+    )
+    api = _make_api(session)
+
+    result = await api._put_with_retry(
+        "https://example/test", {"key": "value"}, description="Test PUT"
+    )
+
+    assert result == {"ok": True}
+    assert session.call_count == 2
+    mock_sleep.assert_any_await(1)
+
+
+async def test_put_with_retry_does_not_retry_client_errors() -> None:
+    """A 4xx PUT response is not retriable and fails immediately."""
+    session = _FakeSession([_FakeResponse(404, text_data="not found")])
+    api = _make_api(session)
+
+    with pytest.raises(FenixTFTApiError):
+        await api._put_with_retry(
+            "https://example/test", {"key": "value"}, description="Test PUT"
+        )
+
+    assert session.call_count == 1
+
+
+async def test_put_with_retry_raises_on_invalid_json_success_body() -> None:
+    """A 200 response with a non-JSON body is not retried but raises."""
+    session = _FakeSession([_FakeResponse(200, text_data="not-json")])
+    api = _make_api(session)
+
+    with pytest.raises(FenixTFTApiError):
+        await api._put_with_retry(
+            "https://example/test", {"key": "value"}, description="Test PUT"
+        )
 
     assert session.call_count == 1
