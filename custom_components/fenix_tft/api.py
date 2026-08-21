@@ -45,6 +45,11 @@ ENERGY_CONSUMPTION_URL_TEMPLATE = (
 # Maximum concurrent energy data requests to avoid API rate limiting
 MAX_CONCURRENT_ENERGY_REQUESTS = 5
 
+# Max characters of a failed response body to include in debug logs. Kept
+# short since error bodies from the cloud API may echo back account- or
+# device-identifying request data.
+BODY_LOG_TRUNCATE_LENGTH = 256
+
 
 class FenixTFTApiError(Exception):
     """Exception raised for Fenix TFT API errors."""
@@ -81,6 +86,41 @@ def generate_pkce_pair() -> tuple[str, str]:
         .rstrip("=")
     )
     return code_verifier, code_challenge
+
+
+def _parse_json_response(body_text: str, status: int, description: str) -> Any:
+    """
+    Parse a response body as JSON, raising FenixTFTApiError on failure.
+
+    Shared by the GET and PUT retry helpers so a malformed JSON success body
+    is reported consistently (as FenixTFTApiError) rather than leaking a raw
+    JSONDecodeError to callers.
+    """
+    try:
+        return json.loads(body_text)
+    except Exception as err:
+        _LOGGER.exception("%s (HTTP %s) invalid JSON response", description, status)
+        _LOGGER.debug(
+            "%s: response body: %s",
+            description,
+            body_text[:BODY_LOG_TRUNCATE_LENGTH],
+        )
+        msg = f"{description} failed: invalid JSON response"
+        raise FenixTFTApiError(msg) from err
+
+
+def _classify_unexpected_status(status: int) -> str:
+    """
+    Describe a status code that is neither a handled success nor a 4xx/5xx error.
+
+    Only called for statuses below HTTP_CLIENT_ERROR, since 4xx/5xx are
+    classified by the caller. Used purely to make error logs easier to read.
+    """
+    if status < HTTP_OK:
+        return "informational"
+    if status < HTTP_SUCCESS_MAX:
+        return "success-range"
+    return "redirect"
 
 
 def _format_api_date(date: datetime) -> str:
@@ -381,38 +421,26 @@ class FenixTFTApi:
         """Retrieve user info from identity endpoint."""
         await self._ensure_token()
         url = f"{API_IDENTITY}/connect/userinfo"
-        async with self._session.get(
-            url, headers=self._headers(), timeout=API_TIMEOUT_SECONDS
-        ) as resp:
-            if resp.status != HTTP_OK:
-                _LOGGER.error("Get userinfo failed: HTTP status %s", resp.status)
-                msg = f"Userinfo failed: {resp.status}"
-                raise FenixTFTApiError(msg)
-            data = await resp.json()
-            self._sub = data.get("sub")
-            if not self._sub:
-                _LOGGER.error("Userinfo response missing 'sub' field")
-                msg = "No 'sub' field in userinfo"
-                raise FenixTFTApiError(msg)
-            _LOGGER.debug("Retrieved user subscription ID: %s", self._sub)
-            return data
+        data = await self._get_with_retry(url, description="Get userinfo")
+        self._sub = data.get("sub")
+        if not self._sub:
+            _LOGGER.error("Userinfo response missing 'sub' field")
+            msg = "No 'sub' field in userinfo"
+            raise FenixTFTApiError(msg)
+        _LOGGER.debug("Retrieved user subscription ID: %s", self._sub)
+        return data
 
     async def get_installations(self) -> list[dict[str, Any]]:
         """Return all installations associated with the user."""
         if not self._sub:
             await self.get_userinfo()
         url = f"{API_BASE}/businessmodule/v1/installations/admins/{self._sub}"
-        async with self._session.get(url, headers=self._headers()) as resp:
-            if resp.status != HTTP_OK:
-                _LOGGER.error("Get installations failed: HTTP status %s", resp.status)
-                msg = f"Installations failed: {resp.status}"
-                raise FenixTFTApiError(msg)
-            installations = await resp.json()
-            _LOGGER.debug(
-                "Retrieved %d installation(s)",
-                len(installations) if installations else 0,
-            )
-            return installations
+        installations = await self._get_with_retry(url, description="Get installations")
+        _LOGGER.debug(
+            "Retrieved %d installation(s)",
+            len(installations) if installations else 0,
+        )
+        return installations
 
     async def get_device_properties(self, device_id: str) -> dict[str, Any]:
         """Fetch device properties from configuration endpoint."""
@@ -421,16 +449,9 @@ class FenixTFTApi:
             f"{API_BASE}/iotmanagement/v1/configuration/"
             f"{device_id}/{device_id}/v1/content/"
         )
-        async with self._session.get(url, headers=self._headers()) as resp:
-            if resp.status != HTTP_OK:
-                _LOGGER.error(
-                    "Get device properties failed for device %s: HTTP status %s",
-                    device_id,
-                    resp.status,
-                )
-                msg = f"Device props failed: {resp.status}"
-                raise FenixTFTApiError(msg)
-            return await resp.json()
+        return await self._get_with_retry(
+            url, description=f"Get device properties for device {device_id}"
+        )
 
     async def get_devices(self) -> list[dict[str, Any]]:
         """Retrieve all devices with their current state."""
@@ -533,6 +554,100 @@ class FenixTFTApi:
         _LOGGER.debug("Successfully fetched %d devices", len(devices))
         return devices
 
+    async def _handle_retriable_failure(
+        self,
+        status: int,
+        body_text: str,
+        description: str,
+        attempt: int,
+        max_retries: int,
+    ) -> None:
+        """
+        Handle a non-success HTTP response shared by GET and PUT retry loops.
+
+        Sleeps and returns (letting the caller's loop retry) if a transient
+        5xx should be retried. Otherwise logs and raises FenixTFTApiError.
+        The response body is only included at debug level, since error
+        bodies from the cloud API may contain account-identifying details
+        that shouldn't land in default (info/warning/error) logs.
+        """
+        truncated_body = body_text[:BODY_LOG_TRUNCATE_LENGTH]
+        is_server_error = status >= HTTP_SERVER_ERROR
+
+        if is_server_error and attempt < max_retries:
+            delay = 2**attempt  # 1 s, then 2 s
+            _LOGGER.warning(
+                "%s: HTTP %s (attempt %d/%d), retrying in %ds",
+                description,
+                status,
+                attempt + 1,
+                max_retries + 1,
+                delay,
+            )
+            _LOGGER.debug("%s: response body: %s", description, truncated_body)
+            await asyncio.sleep(delay)
+            return
+
+        if HTTP_CLIENT_ERROR <= status < HTTP_CLIENT_ERROR_MAX:
+            _LOGGER.error("%s failed with non-retriable HTTP %s", description, status)
+        elif is_server_error:
+            _LOGGER.error(
+                "%s failed with HTTP %s after %d attempts",
+                description,
+                status,
+                max_retries + 1,
+            )
+        else:
+            _LOGGER.error(
+                "%s failed with unexpected %s HTTP %s",
+                description,
+                _classify_unexpected_status(status),
+                status,
+            )
+        _LOGGER.debug("%s: response body: %s", description, truncated_body)
+
+        msg = f"{description} failed: HTTP {status}"
+        raise FenixTFTApiError(msg)
+
+    async def _get_with_retry(  # noqa: PLR0913, PLR0917
+        self,
+        url: str,
+        description: str = "GET request",
+        max_retries: int = 2,
+        no_content_status: int | None = None,
+        no_content_result: Any = None,
+        request_timeout: int = API_TIMEOUT_SECONDS,
+    ) -> Any:
+        """
+        Make a GET request with exponential backoff retry for 5xx errors.
+
+        Pass `no_content_status`/`no_content_result` for endpoints that use a
+        status (e.g. 204) to mean "no data" rather than an error.
+        """
+        for attempt in range(max_retries + 1):
+            async with self._session.get(
+                url, headers=self._headers(), timeout=request_timeout
+            ) as resp:
+                status = resp.status
+                if status == HTTP_OK:
+                    return _parse_json_response(await resp.text(), status, description)
+                if no_content_status is not None and status == no_content_status:
+                    _LOGGER.debug(
+                        "%s: HTTP %s (no content), returning default result",
+                        description,
+                        status,
+                    )
+                    return no_content_result
+
+                body_text = await resp.text()
+                await self._handle_retriable_failure(
+                    status, body_text, description, attempt, max_retries
+                )
+
+        # Unreachable but satisfies type checker
+        msg = f"{description}: retry limit exceeded"
+        raise FenixTFTApiError(msg)
+
     async def _put_with_retry(
         self,
         url: str,
@@ -540,73 +655,20 @@ class FenixTFTApi:
         description: str = "PUT request",
         max_retries: int = 2,
     ) -> dict[str, Any]:
-        """
-        Make a PUT request with exponential backoff retry for 5xx errors.
-
-        Logs response body (truncated) on failures to aid debugging.
-        4xx and other non-retriable errors are logged at error level.
-        """
+        """Make a PUT request with exponential backoff retry for 5xx errors."""
         for attempt in range(max_retries + 1):
             async with self._session.put(
                 url, headers=self._headers(), json=payload
             ) as resp:
                 status = resp.status
                 body_text = await resp.text()
-                truncated_body = body_text[:512]
 
                 if HTTP_OK <= status < HTTP_SUCCESS_MAX:
-                    try:
-                        return json.loads(body_text)
-                    except Exception as err:
-                        _LOGGER.exception(
-                            "%s (HTTP %s) invalid JSON response. Body: %s",
-                            description,
-                            status,
-                            truncated_body,
-                        )
-                        msg = f"{description} failed: invalid JSON response"
-                        raise FenixTFTApiError(msg) from err
+                    return _parse_json_response(body_text, status, description)
 
-                is_server_error = status >= HTTP_SERVER_ERROR
-                if is_server_error and attempt < max_retries:
-                    delay = 2**attempt  # 1 s, then 2 s
-                    _LOGGER.warning(
-                        "%s: HTTP %s (attempt %d/%d), retrying in %ds. Body: %s",
-                        description,
-                        status,
-                        attempt + 1,
-                        max_retries + 1,
-                        delay,
-                        truncated_body,
-                    )
-                    await asyncio.sleep(delay)
-                    continue
-
-                if HTTP_CLIENT_ERROR <= status < HTTP_CLIENT_ERROR_MAX:
-                    _LOGGER.error(
-                        "%s failed with non-retriable HTTP %s. Body: %s",
-                        description,
-                        status,
-                        truncated_body,
-                    )
-                elif is_server_error:
-                    _LOGGER.error(
-                        "%s failed with HTTP %s after %d attempts. Body: %s",
-                        description,
-                        status,
-                        max_retries + 1,
-                        truncated_body,
-                    )
-                else:
-                    _LOGGER.error(
-                        "%s failed with unexpected HTTP %s. Body: %s",
-                        description,
-                        status,
-                        truncated_body,
-                    )
-
-                msg = f"{description} failed: HTTP {status}"
-                raise FenixTFTApiError(msg)
+                await self._handle_retriable_failure(
+                    status, body_text, description, attempt, max_retries
+                )
 
         # Unreachable but satisfies type checker
         msg = f"{description}: retry limit exceeded"
@@ -753,25 +815,15 @@ class FenixTFTApi:
             end_date.isoformat(),
         )
 
-        async with self._session.get(url, headers=self._headers()) as resp:
-            if resp.status == HTTP_NO_CONTENT:
-                _LOGGER.debug(
-                    "No energy data: installation_id=%s, room_id=%s",
-                    installation_id,
-                    room_id,
-                )
-                return []
-            if resp.status != HTTP_OK:
-                _LOGGER.error(
-                    "Get energy consumption failed: installation_id=%s, room_id=%s, "
-                    "HTTP status %s",
-                    installation_id,
-                    room_id,
-                    resp.status,
-                )
-                msg = f"Failed to get energy consumption: {resp.status}"
-                raise FenixTFTApiError(msg)
-            return await resp.json()
+        return await self._get_with_retry(
+            url,
+            description=(
+                f"Get energy consumption for installation {installation_id} "
+                f"room {room_id}"
+            ),
+            no_content_status=HTTP_NO_CONTENT,
+            no_content_result=[],
+        )
 
     async def get_room_historical_energy(  # noqa: PLR0913, PLR0917
         self,
@@ -822,28 +874,15 @@ class FenixTFTApi:
             end_date.isoformat(),
         )
 
-        async with self._session.get(url, headers=self._headers()) as resp:
-            if resp.status == HTTP_NO_CONTENT:
-                _LOGGER.debug(
-                    "No historical energy data available: installation_id=%s, "
-                    "room_id=%s, period=%s",
-                    installation_id,
-                    room_id,
-                    period,
-                )
-                return []
-            if resp.status != HTTP_OK:
-                _LOGGER.error(
-                    "Get historical energy failed: installation_id=%s, room_id=%s, "
-                    "period=%s, HTTP status %s",
-                    installation_id,
-                    room_id,
-                    period,
-                    resp.status,
-                )
-                msg = f"Failed to get historical energy data: {resp.status}"
-                raise FenixTFTApiError(msg)
-            return await resp.json()
+        return await self._get_with_retry(
+            url,
+            description=(
+                f"Get historical energy for installation {installation_id} "
+                f"room {room_id} period {period}"
+            ),
+            no_content_status=HTTP_NO_CONTENT,
+            no_content_result=[],
+        )
 
     async def _fetch_device_energy_data(
         self,

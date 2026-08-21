@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.2] - 2026-08-21
+
+### Fixed
+
+- GET requests (installations, device properties, userinfo, energy consumption) now retry transient 5xx gateway errors with exponential backoff, matching the retry behavior already used for PUT requests. Previously a single transient 502/503 from the cloud API's gateway could drop a device from a polling cycle until the next 5-minute update.
+
+---
+
 ## [1.3.1] - 2026-08-20
 
 ### Fixed
