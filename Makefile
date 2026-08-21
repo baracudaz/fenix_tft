@@ -27,14 +27,21 @@ endif
 help:
 	@echo "Fenix TFT - development commands"
 	@echo ""
+	@echo "Setup:"
 	@echo "  install          Create .venv and install Python dependencies"
+	@echo ""
+	@echo "Run:"
 	@echo "  develop          Start HA dev server from .venv, opens $(HA_URL)"
 	@echo "  docker-up        Start Home Assistant in Docker via docker-compose"
 	@echo "  docker-down      Stop and remove the Docker container"
 	@echo "  docker-logs      Follow Home Assistant container logs"
+	@echo ""
+	@echo "Quality:"
 	@echo "  lint             Format and lint code with ruff (auto-fix)"
 	@echo "  test             Run test suite"
 	@echo "  translations     Check translation files against translations/en.json"
+	@echo ""
+	@echo "Maintenance:"
 	@echo "  clean            Remove caches, coverage, and build artifacts"
 
 install: ## Create .venv and install all dependencies (including test extras)
