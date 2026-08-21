@@ -32,7 +32,7 @@ help:
 	@echo ""
 	@echo "Run:"
 	@echo "  develop          Start HA dev server from .venv, opens $(HA_URL)"
-	@echo "  docker-up        Start Home Assistant in Docker, then follow logs"
+	@echo "  docker-up        Start Home Assistant in Docker, opens $(HA_URL), follows logs"
 	@echo "  docker-down      Stop and remove the Docker container"
 	@echo "  docker-logs      Follow Home Assistant container logs"
 	@echo "  docker-restart   Restart the container, then follow recent logs"
@@ -78,8 +78,9 @@ test:
 translations: ## Check translation files against translations/en.json
 	$(VENV_PYTHON) scripts/translations.py
 
-docker-up: ## Start Home Assistant container (see docker-compose.yml), then follow logs
+docker-up: ## Start Home Assistant container (see docker-compose.yml), open browser, follow logs
 	$(DOCKER_COMPOSE) up -d $(HA_SERVICE)
+	@(sleep 5 && $(OPEN_CMD) "$(HA_URL)") &
 	$(DOCKER_COMPOSE) logs -f $(HA_SERVICE)
 
 docker-down:

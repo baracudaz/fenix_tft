@@ -57,7 +57,7 @@ make develop  # Start Home Assistant dev server (opens browser automatically)
 Alternatively, run Home Assistant in Docker via `docker-compose.yml`:
 
 ```bash
-make docker-up    # Start Home Assistant at http://localhost:8123, then follow logs
+make docker-up    # Start Home Assistant, opens http://localhost:8123, then follows logs
 make docker-down  # Stop and remove the container
 ```
 
@@ -67,7 +67,7 @@ make docker-down  # Stop and remove the container
 |---------|-------------|
 | `make install` | Create `.venv` and install all dependencies (incl. test extras) |
 | `make develop` | Start HA dev server from `.venv`, opens `http://localhost:8123` |
-| `make docker-up` | Start Home Assistant in Docker via `docker-compose.yml`, then follow logs |
+| `make docker-up` | Start Home Assistant in Docker via `docker-compose.yml`, opens browser, follows logs |
 | `make docker-down` | Stop and remove the Docker container |
 | `make docker-logs` | Re-attach to follow Home Assistant container logs |
 | `make docker-restart` | Restart the container, then follow recent logs |
