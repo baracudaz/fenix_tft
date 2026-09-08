@@ -63,8 +63,8 @@ async def test_async_remove_config_entry_device_active_device(
 ):
     """Return False when the device is still present in coordinator data."""
     device_registry = dr.async_get(hass)
-    device_entry = device_registry.async_get_device(
-        identifiers={(DOMAIN, MOCK_DEVICE_ID)}
+    device_entry = device_registry.async_get_device_by_identifier(
+        (DOMAIN, MOCK_DEVICE_ID), mock_config_entry.entry_id
     )
     assert device_entry is not None
 
