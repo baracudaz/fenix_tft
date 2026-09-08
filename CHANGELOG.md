@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.4] - 2026-09-08
+
+### Fixed
+
+- Bumped `homeassistant` to `2026.9.1` in `requirements.txt` and `docker-compose.yml`: `pytest-homeassistant-custom-component` hard-pins a matching `homeassistant`/`pytest` version, and the previous `2026.8.2`/`pytest>=9.1.1` pins here had become mutually unresolvable, breaking `make install`/CI
+- Updated `tests/components/fenix_tft/test_init.py` to use `device_registry.async_get_device_by_identifier`, replacing the now-deprecated `async_get_device`
+
+---
+
 ## [1.3.3] - 2026-08-21
 
 ### Changed
