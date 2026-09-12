@@ -10,7 +10,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from custom_components.fenix_tft import api as api_module
-from custom_components.fenix_tft.api import FenixTFTApi, FenixTFTApiError
+from custom_components.fenix_tft.api import (
+    FenixTFTApi,
+    FenixTFTApiError,
+    FenixTFTAuthError,
+)
 
 
 class _FakeResponse:
@@ -39,6 +43,14 @@ class _FakeResponse:
         return None
 
 
+class _FakeResponseBadJson(_FakeResponse):
+    """A response whose .json() raises, simulating a malformed refresh body."""
+
+    async def json(self) -> object:
+        msg = "Expecting value"
+        raise json.JSONDecodeError(msg, "", 0)
+
+
 class _FakeSession:
     """Fake aiohttp session that returns queued responses for GET/PUT calls."""
 
@@ -51,6 +63,10 @@ class _FakeSession:
         return self._responses.pop(0)
 
     def put(self, _url: str, **_kwargs: object) -> _FakeResponse:
+        self.call_count += 1
+        return self._responses.pop(0)
+
+    def post(self, _url: str, **_kwargs: object) -> _FakeResponse:
         self.call_count += 1
         return self._responses.pop(0)
 
@@ -323,3 +339,164 @@ async def test_put_with_retry_raises_on_invalid_json_success_body() -> None:
         )
 
     assert session.call_count == 1
+
+
+async def test_get_with_retry_recovers_from_401_via_token_refresh() -> None:
+    """A 401 triggers a token refresh (via the refresh token) and one retry."""
+    session = _FakeSession(
+        [
+            _FakeResponse(401, text_data="unauthorized"),
+            _FakeResponse(  # refresh token POST
+                200, json_data={"access_token": "new-token", "expires_in": 3600}
+            ),
+            _FakeResponse(200, json_data={"ok": True}),
+        ]
+    )
+    api = _make_api(session)
+
+    result = await api._get_with_retry("https://example/test", description="Test GET")
+
+    assert result == {"ok": True}
+    assert api._access_token == "new-token"
+    assert session.call_count == 3
+
+
+async def test_get_with_retry_falls_back_to_login_after_refresh_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If the refresh token itself is rejected, a full re-login is attempted."""
+    session = _FakeSession(
+        [
+            _FakeResponse(401, text_data="unauthorized"),
+            _FakeResponse(400, text_data="invalid_grant"),  # refresh token POST fails
+            _FakeResponse(200, json_data={"ok": True}),
+        ]
+    )
+    api = _make_api(session)
+
+    async def fake_login() -> bool:
+        api._access_token = "relogin-token"
+        api._refresh_token = "relogin-refresh"
+        return True
+
+    monkeypatch.setattr(api, "login", fake_login)
+
+    result = await api._get_with_retry("https://example/test", description="Test GET")
+
+    assert result == {"ok": True}
+    assert api._access_token == "relogin-token"
+
+
+async def test_get_with_retry_falls_back_to_login_on_malformed_refresh_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    A non-FenixTFTAuthError failure while refreshing still falls back to login.
+
+    A malformed refresh response body raises json.JSONDecodeError rather than
+    FenixTFTAuthError; that must not escape _reauthenticate_after_401() and
+    skip the full re-login fallback.
+    """
+    session = _FakeSession(
+        [
+            _FakeResponse(401, text_data="unauthorized"),
+            _FakeResponseBadJson(200),  # refresh token POST returns malformed body
+            _FakeResponse(200, json_data={"ok": True}),
+        ]
+    )
+    api = _make_api(session)
+
+    async def fake_login() -> bool:
+        api._access_token = "relogin-token"
+        api._refresh_token = "relogin-refresh"
+        return True
+
+    monkeypatch.setattr(api, "login", fake_login)
+
+    result = await api._get_with_retry("https://example/test", description="Test GET")
+
+    assert result == {"ok": True}
+    assert api._access_token == "relogin-token"
+
+
+async def test_get_with_retry_raises_auth_error_when_reauth_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If both refresh and full re-login fail, FenixTFTAuthError is raised."""
+    session = _FakeSession(
+        [
+            _FakeResponse(401, text_data="unauthorized"),
+            _FakeResponse(400, text_data="invalid_grant"),  # refresh token POST fails
+        ]
+    )
+    api = _make_api(session)
+    monkeypatch.setattr(api, "login", AsyncMock(return_value=False))
+
+    with pytest.raises(FenixTFTAuthError):
+        await api._get_with_retry("https://example/test", description="Test GET")
+
+
+async def test_get_with_retry_raises_auth_error_on_persistent_401() -> None:
+    """
+    A 401 surviving one reauth attempt raises FenixTFTAuthError.
+
+    Not a generic FenixTFTApiError, so the coordinator triggers Home
+    Assistant reauth instead of retrying forever.
+    """
+    session = _FakeSession(
+        [
+            _FakeResponse(401, text_data="unauthorized"),
+            _FakeResponse(  # refresh token POST succeeds
+                200, json_data={"access_token": "new-token", "expires_in": 3600}
+            ),
+            _FakeResponse(401, text_data="unauthorized"),  # still 401 after refresh
+        ]
+    )
+    api = _make_api(session)
+
+    with pytest.raises(FenixTFTAuthError):
+        await api._get_with_retry("https://example/test", description="Test GET")
+
+    assert session.call_count == 3
+
+
+async def test_get_installations_refreshes_token_on_every_call() -> None:
+    """
+    get_installations() must call _ensure_token() even with self._sub cached.
+
+    Otherwise a proactively-expiring token is never refreshed after the
+    first successful poll (only get_userinfo() would have refreshed it,
+    and it is skipped once _sub is known).
+    """
+    session = _FakeSession([_FakeResponse(200, json_data=[{"id": "installation-1"}])])
+    api = _make_api(session)
+    api._sub = "sub-id"
+
+    ensure_token = AsyncMock(wraps=api._ensure_token)
+    api._ensure_token = ensure_token
+
+    result = await api.get_installations()
+
+    assert result == [{"id": "installation-1"}]
+    ensure_token.assert_awaited_once()
+
+
+async def test_get_devices_propagates_auth_error_instead_of_returning_empty() -> None:
+    """
+    A FenixTFTAuthError from get_installations must reach the coordinator.
+
+    It must not be swallowed by get_devices' broad FenixTFTApiError handling
+    (which would otherwise silently report zero devices forever).
+    """
+    session = _FakeSession(
+        [
+            _FakeResponse(401, text_data="unauthorized"),
+            _FakeResponse(400, text_data="invalid_grant"),
+        ]
+    )
+    api = _make_api(session)
+    api._sub = "sub-id"
+    api.login = AsyncMock(return_value=False)
+
+    with pytest.raises(FenixTFTAuthError):
+        await api.get_devices()
