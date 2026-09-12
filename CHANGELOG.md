@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.6] - 2026-09-12
+
+### Fixed
+
+- HTTP 401 responses from the cloud API now trigger an automatic token refresh, falling back to a full re-login with the stored credentials, and only surface a Home Assistant reauthentication request if both fail. Previously a 401 was treated as a generic non-retriable error and the same invalid token was retried on every 5-minute polling cycle indefinitely, leaving all entities `unavailable` until the config entry was manually reloaded ([#129](https://github.com/baracudaz/fenix_tft/issues/129))
+- `get_installations()` now refreshes the access token on every poll instead of only on the very first call, closing a gap where an expiring token was never proactively renewed once the subscription ID was cached
+
+### Changed
+
+- Bumped the pinned `home-assistant/actions/hassfest` CI action to its latest commit
+
+---
+
 ## [1.3.5] - 2026-09-08
 
 ### Fixed
