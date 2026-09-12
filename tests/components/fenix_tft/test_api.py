@@ -43,6 +43,14 @@ class _FakeResponse:
         return None
 
 
+class _FakeResponseBadJson(_FakeResponse):
+    """A response whose .json() raises, simulating a malformed refresh body."""
+
+    async def json(self) -> object:
+        msg = "Expecting value"
+        raise json.JSONDecodeError(msg, "", 0)
+
+
 class _FakeSession:
     """Fake aiohttp session that returns queued responses for GET/PUT calls."""
 
@@ -361,6 +369,38 @@ async def test_get_with_retry_falls_back_to_login_after_refresh_failure(
         [
             _FakeResponse(401, text_data="unauthorized"),
             _FakeResponse(400, text_data="invalid_grant"),  # refresh token POST fails
+            _FakeResponse(200, json_data={"ok": True}),
+        ]
+    )
+    api = _make_api(session)
+
+    async def fake_login() -> bool:
+        api._access_token = "relogin-token"
+        api._refresh_token = "relogin-refresh"
+        return True
+
+    monkeypatch.setattr(api, "login", fake_login)
+
+    result = await api._get_with_retry("https://example/test", description="Test GET")
+
+    assert result == {"ok": True}
+    assert api._access_token == "relogin-token"
+
+
+async def test_get_with_retry_falls_back_to_login_on_malformed_refresh_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    A non-FenixTFTAuthError failure while refreshing still falls back to login.
+
+    A malformed refresh response body raises json.JSONDecodeError rather than
+    FenixTFTAuthError; that must not escape _reauthenticate_after_401() and
+    skip the full re-login fallback.
+    """
+    session = _FakeSession(
+        [
+            _FakeResponse(401, text_data="unauthorized"),
+            _FakeResponseBadJson(200),  # refresh token POST returns malformed body
             _FakeResponse(200, json_data={"ok": True}),
         ]
     )

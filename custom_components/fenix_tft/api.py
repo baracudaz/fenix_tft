@@ -240,10 +240,16 @@ class FenixTFTApi:
             self._token_expires = None  # bypass the "still valid" fast path
             try:
                 await self._ensure_token()
-            except FenixTFTAuthError:
+            except (
+                FenixTFTAuthError,
+                TimeoutError,
+                aiohttp.ClientError,
+                json.JSONDecodeError,
+            ) as err:
                 _LOGGER.warning(
-                    "Token refresh failed after HTTP %s, attempting full re-login",
+                    "Token refresh failed after HTTP %s (%s), attempting full re-login",
                     HTTP_UNAUTHORIZED,
+                    err,
                 )
             else:
                 return
