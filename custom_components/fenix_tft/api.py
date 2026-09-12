@@ -29,6 +29,7 @@ from .const import (
     HTTP_REDIRECT,
     HTTP_SERVER_ERROR,
     HTTP_SUCCESS_MAX,
+    HTTP_UNAUTHORIZED,
     REDIRECT_URI,
     SCOPES,
     VALID_PRESET_MODES,
@@ -218,6 +219,40 @@ class FenixTFTApi:
             self._refresh_token = tokens.get("refresh_token", self._refresh_token)
             self._token_expires = time.time() + tokens.get("expires_in", 3600)
             _LOGGER.info("Access token refreshed successfully")
+
+    async def _reauthenticate_after_401(self) -> None:
+        """
+        Recover from an HTTP 401 on an otherwise-authenticated request.
+
+        The access token may have been invalidated server-side before its
+        locally-tracked expiry (observed in the wild alongside intermittent
+        DNS/network issues). Force a token refresh regardless of the cached
+        expiry, falling back to a full username/password login if the
+        refresh token itself has stopped working. Only if both fail do we
+        give up and let the caller surface FenixTFTAuthError, which the
+        coordinator turns into a Home Assistant reauth request.
+        """
+        _LOGGER.warning(
+            "Received HTTP %s on an authenticated request, attempting token refresh",
+            HTTP_UNAUTHORIZED,
+        )
+        if self._refresh_token:
+            self._token_expires = None  # bypass the "still valid" fast path
+            try:
+                await self._ensure_token()
+            except FenixTFTAuthError:
+                _LOGGER.warning(
+                    "Token refresh failed after HTTP %s, attempting full re-login",
+                    HTTP_UNAUTHORIZED,
+                )
+            else:
+                return
+
+        self._access_token = None
+        self._refresh_token = None
+        if not await self.login():
+            msg = f"Reauthentication failed after HTTP {HTTP_UNAUTHORIZED}"
+            raise FenixTFTAuthError(msg)
 
     async def _start_authorization(
         self,
@@ -439,6 +474,13 @@ class FenixTFTApi:
         """Return all installations associated with the user."""
         if not self._sub:
             await self.get_userinfo()
+        else:
+            # get_userinfo() (called above on the very first poll) already
+            # ensures the token via its own call; on subsequent polls this
+            # branch is what proactively refreshes an expiring token, since
+            # self._sub stays cached and get_userinfo() is never called
+            # again.
+            await self._ensure_token()
         url = f"{API_BASE}/businessmodule/v1/installations/admins/{self._sub}"
         installations = await self._get_with_retry(url, description="Get installations")
         _LOGGER.debug(
@@ -463,6 +505,10 @@ class FenixTFTApi:
         _LOGGER.debug("Fetching all devices")
         try:
             installations = await self.get_installations()
+        except FenixTFTAuthError:
+            # Let the coordinator turn this into a Home Assistant reauth
+            # request instead of silently returning an empty device list.
+            raise
         except FenixTFTApiError:
             _LOGGER.exception("Failed to fetch installations")
             return []
@@ -547,6 +593,11 @@ class FenixTFTApi:
                             ),  # Sp value - active target when in holiday mode
                         }
                         devices.append(device_data)
+                    except FenixTFTAuthError:
+                        # Auth is broken for the whole account; further
+                        # per-device requests would fail identically, so
+                        # surface it instead of silently dropping devices.
+                        raise
                     except FenixTFTApiError:
                         _LOGGER.exception(
                             "Failed to fetch properties for device %s", dev_id
@@ -611,6 +662,15 @@ class FenixTFTApi:
             )
         _LOGGER.debug("%s: response body: %s", description, truncated_body)
 
+        if status == HTTP_UNAUTHORIZED:
+            # Reached only if a fresh token still gets a 401 (the retry loop
+            # already tried a refresh/relogin via _reauthenticate_after_401).
+            # Surface this as an auth error so the coordinator requests a
+            # Home Assistant reauth instead of looping forever on a stale
+            # token.
+            msg = f"{description} failed: HTTP {status}"
+            raise FenixTFTAuthError(msg)
+
         msg = f"{description} failed: HTTP {status}"
         raise FenixTFTApiError(msg)
 
@@ -629,6 +689,7 @@ class FenixTFTApi:
         Pass `no_content_status`/`no_content_result` for endpoints that use a
         status (e.g. 204) to mean "no data" rather than an error.
         """
+        auth_retried = False
         for attempt in range(max_retries + 1):
             async with self._session.get(
                 url, headers=self._headers(), timeout=request_timeout
@@ -643,6 +704,10 @@ class FenixTFTApi:
                         status,
                     )
                     return no_content_result
+                if status == HTTP_UNAUTHORIZED and not auth_retried:
+                    auth_retried = True
+                    await self._reauthenticate_after_401()
+                    continue
 
                 body_text = await resp.text()
                 await self._handle_retriable_failure(
@@ -661,6 +726,7 @@ class FenixTFTApi:
         max_retries: int = 2,
     ) -> dict[str, Any]:
         """Make a PUT request with exponential backoff retry for 5xx errors."""
+        auth_retried = False
         for attempt in range(max_retries + 1):
             async with self._session.put(
                 url, headers=self._headers(), json=payload
@@ -670,6 +736,10 @@ class FenixTFTApi:
 
                 if HTTP_OK <= status < HTTP_SUCCESS_MAX:
                     return _parse_json_response(body_text, status, description)
+                if status == HTTP_UNAUTHORIZED and not auth_retried:
+                    auth_retried = True
+                    await self._reauthenticate_after_401()
+                    continue
 
                 await self._handle_retriable_failure(
                     status, body_text, description, attempt, max_retries

@@ -33,6 +33,7 @@ HTTP_OK: Final[int] = 200
 HTTP_NO_CONTENT: Final[int] = 204
 HTTP_REDIRECT: Final[int] = 302
 HTTP_SUCCESS_MAX: Final[int] = 300  # Exclusive upper bound for 2xx range
+HTTP_UNAUTHORIZED: Final[int] = 401
 HTTP_CLIENT_ERROR: Final[int] = 400  # Inclusive lower bound for 4xx range
 HTTP_CLIENT_ERROR_MAX: Final[int] = 500  # Exclusive upper bound for 4xx range
 HTTP_SERVER_ERROR: Final[int] = 500  # Threshold for server-side errors (5xx)
