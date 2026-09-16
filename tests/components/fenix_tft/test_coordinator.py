@@ -82,7 +82,9 @@ async def test_coordinator_creates_repair_issue_after_consecutive_failures(
         except UpdateFailed:
             pass
 
-    issue = ir.async_get(hass).async_get_issue(DOMAIN, "coordinator_unavailable")
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN, coordinator._unavailable_issue_id
+    )
     assert issue is not None
     assert issue.severity == ir.IssueSeverity.WARNING
 
@@ -101,7 +103,7 @@ async def test_coordinator_clears_repair_issue_on_success(hass, coordinator, moc
             pass
 
     assert (
-        ir.async_get(hass).async_get_issue(DOMAIN, "coordinator_unavailable")
+        ir.async_get(hass).async_get_issue(DOMAIN, coordinator._unavailable_issue_id)
         is not None
     )
 
@@ -110,7 +112,10 @@ async def test_coordinator_clears_repair_issue_on_success(hass, coordinator, moc
     mock_api.fetch_devices_with_energy_data.return_value = [MOCK_DEVICE]
     await coordinator._async_update_data()
 
-    assert ir.async_get(hass).async_get_issue(DOMAIN, "coordinator_unavailable") is None
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, coordinator._unavailable_issue_id)
+        is None
+    )
 
 
 async def test_coordinator_no_repair_issue_below_threshold(hass, coordinator, mock_api):
