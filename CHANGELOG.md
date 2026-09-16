@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.7] - 2026-09-16
+
+### Fixed
+
+- The `coordinator_unavailable` repair issue no longer gets stuck open forever after a Home Assistant restart. It was only cleared when the coordinator's in-memory consecutive-failure counter had crossed the creation threshold, but that counter resets on every restart, so a coordinator that recovered across a restart could never clear its own issue again ([#134](https://github.com/baracudaz/fenix_tft/issues/134))
+- The repair issue is now tracked per config entry instead of a single shared ID, so with multiple Fenix accounts configured, a healthy account's coordinator no longer clears the issue for a different account whose coordinator is still failing
+
+### Changed
+
+- Bumped `homeassistant` to `2026.9.2` in `requirements.txt` and `docker-compose.yml` to match the version required by `pytest-homeassistant-custom-component` 0.13.365
+- Bumped `ruff` from `0.16.6` to `0.16.7`
+
+---
+
 ## [1.3.6] - 2026-09-12
 
 ### Fixed
