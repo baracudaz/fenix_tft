@@ -130,8 +130,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         if self._unavailable_logged:
             _LOGGER.info("Fenix TFT cloud API is back online")
             self._unavailable_logged = False
-        if self._consecutive_failures >= CONSECUTIVE_FAILURES_BEFORE_ISSUE:
-            ir.async_delete_issue(self.hass, DOMAIN, "coordinator_unavailable")
+        ir.async_delete_issue(self.hass, DOMAIN, "coordinator_unavailable")
         self._consecutive_failures = 0
 
     def _apply_optimistic_updates(self, fresh_data: list[dict[str, Any]]) -> None:
