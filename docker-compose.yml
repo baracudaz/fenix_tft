@@ -2,7 +2,7 @@
 services:
   homeassistant:
     container_name: fenix_tft_dev
-    image: "ghcr.io/home-assistant/home-assistant:2026.9.1"
+    image: "ghcr.io/home-assistant/home-assistant:2026.9.2"
     environment:
       - TZ=Europe/Bratislava
     volumes:
