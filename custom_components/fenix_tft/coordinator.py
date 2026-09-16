@@ -114,7 +114,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
-                "coordinator_unavailable",
+                self._unavailable_issue_id,
                 is_fixable=False,
                 severity=ir.IssueSeverity.WARNING,
                 translation_key="coordinator_unavailable",
@@ -130,9 +130,13 @@ class FenixTFTCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         if self._unavailable_logged:
             _LOGGER.info("Fenix TFT cloud API is back online")
             self._unavailable_logged = False
-        if self._consecutive_failures >= CONSECUTIVE_FAILURES_BEFORE_ISSUE:
-            ir.async_delete_issue(self.hass, DOMAIN, "coordinator_unavailable")
+        ir.async_delete_issue(self.hass, DOMAIN, self._unavailable_issue_id)
         self._consecutive_failures = 0
+
+    @property
+    def _unavailable_issue_id(self) -> str:
+        """Return the repair issue ID scoped to this coordinator's config entry."""
+        return f"coordinator_unavailable_{self.config_entry.entry_id}"
 
     def _apply_optimistic_updates(self, fresh_data: list[dict[str, Any]]) -> None:
         """Overlay in-flight optimistic updates onto freshly fetched device data."""
