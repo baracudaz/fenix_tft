@@ -51,7 +51,12 @@ ruff check . --fix
 
 ### Testing
 
-No automated tests are currently implemented in this integration.
+```bash
+# Run the test suite (pytest + pytest-homeassistant-custom-component)
+make test
+```
+
+Tests live in `tests/components/fenix_tft/` and cover the API client, climate platform, config flow, coordinator, and setup.
 
 ## Architecture
 
