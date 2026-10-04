@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.8] - 2026-10-04
+
+### Fixed
+
+- Removed `aiohttp` from the manifest `requirements`. Hassfest now rejects custom integrations that list it, since it is a dependency of Home Assistant itself; this had been failing validation since 2026-10-01. No runtime change, as Home Assistant already provides `aiohttp` ([#142](https://github.com/baracudaz/fenix_tft/pull/142))
+
+### Changed
+
+- Bumped `homeassistant` to `2026.9.4` in `requirements.txt` and `docker-compose.yml` to match the version required by `pytest-homeassistant-custom-component` 0.13.367 ([#141](https://github.com/baracudaz/fenix_tft/pull/141))
+- Bumped `ruff` from `0.16.7` to `0.16.9` ([#137](https://github.com/baracudaz/fenix_tft/pull/137), [#139](https://github.com/baracudaz/fenix_tft/pull/139))
+- Bumped the pinned `home-assistant/actions/hassfest` GitHub Action ([#140](https://github.com/baracudaz/fenix_tft/pull/140))
+- Updated `CLAUDE.md` to document the existing pytest suite (`make test`) instead of stating that no tests exist
+
+---
+
 ## [1.3.7] - 2026-09-16
 
 ### Fixed
