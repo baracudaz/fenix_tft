@@ -311,3 +311,55 @@ async def test_user_step_cannot_connect(hass):
 
     assert result["type"] == FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
+
+
+@pytest.mark.parametrize(
+    ("source", "step_id"),
+    [
+        (config_entries.SOURCE_REAUTH, "reauth_confirm"),
+        (config_entries.SOURCE_RECONFIGURE, "reconfigure"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("side_effect", "error"),
+    [
+        (AuthenticationError, "invalid_auth"),
+        (CannotConnectError, "cannot_connect"),
+        (Exception("Unexpected"), "unknown"),
+    ],
+)
+async def test_reauth_and_reconfigure_errors_then_recover(  # noqa: PLR0913, PLR0917
+    hass, mock_config_entry, source, step_id, side_effect, error
+):
+    """Each validation error shows on the form; correct credentials then recover."""
+    mock_config_entry.add_to_hass(hass)
+    context = {"source": source, "entry_id": mock_config_entry.entry_id}
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context=context, data=mock_config_entry.data
+    )
+    with patch(
+        "custom_components.fenix_tft.config_flow.validate_input",
+        side_effect=side_effect,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={CONF_USERNAME: MOCK_USERNAME, CONF_PASSWORD: "wrong"},
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == step_id
+    assert result["errors"] == {"base": error}
+
+    with patch(
+        "custom_components.fenix_tft.config_flow.validate_input",
+        return_value={CONF_USERNAME: MOCK_USERNAME, CONF_PASSWORD: "right"},
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={CONF_USERNAME: MOCK_USERNAME, CONF_PASSWORD: "right"},
+        )
+
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] in {"reauth_successful", "reconfigure_successful"}
+    assert mock_config_entry.data[CONF_PASSWORD] == "right"
