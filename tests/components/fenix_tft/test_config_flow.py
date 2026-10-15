@@ -275,6 +275,7 @@ async def test_validate_input_maps_library_errors(
 ):
     """Test that library errors map to the config flow's error classes."""
     error, expected = error_mapping
+    caplog.set_level(logging.DEBUG, logger="custom_components.fenix_tft.config_flow")
     mock_password_auth.async_login.side_effect = error
 
     with pytest.raises(expected):
@@ -283,8 +284,14 @@ async def test_validate_input_maps_library_errors(
         )
 
     mock_session.detach.assert_called_once()
-    # Expected failures are shown in the form, not logged above debug level
+    # Expected failures are shown in the form and logged at debug level only
     assert not [r for r in caplog.records if r.levelno > logging.DEBUG]
+    assert any(
+        r.levelno == logging.DEBUG
+        and r.name == "custom_components.fenix_tft.config_flow"
+        and str(error) in r.getMessage()
+        for r in caplog.records
+    )
     assert MOCK_USERNAME not in caplog.text
 
 

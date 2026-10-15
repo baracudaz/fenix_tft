@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Diagnostics now include today's energy consumption (the field was always empty)
+- Failed thermostat commands (temperature, HVAC mode, preset) now show a translated error instead of a raw exception
+- An expired login during a holiday service or the historical import now starts reauthentication; the import no longer continues and reports success with gaps
 
 ---
 

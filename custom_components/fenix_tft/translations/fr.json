@@ -219,6 +219,18 @@
     },
     "temperature_step_invalid": {
       "message": "La température {temp}°C n'est pas alignée sur le pas de {step}°C."
+    },
+    "api_error_set_temperature": {
+      "message": "Impossible de définir la température cible. Vérifiez votre connexion et réessayez."
+    },
+    "api_error_set_hvac_mode": {
+      "message": "Impossible de définir le mode CVC. Vérifiez votre connexion et réessayez."
+    },
+    "api_error_set_preset_mode": {
+      "message": "Impossible de définir le préréglage. Vérifiez votre connexion et réessayez."
+    },
+    "auth_failed": {
+      "message": "L'authentification auprès du cloud FENIX a échoué. Veuillez réauthentifier l'intégration."
     }
   }
 }

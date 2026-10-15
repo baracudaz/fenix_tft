@@ -219,6 +219,18 @@
     },
     "temperature_step_invalid": {
       "message": "Temperature {temp}°C is not aligned to the {step}°C step size."
+    },
+    "api_error_set_temperature": {
+      "message": "Nepodařilo se nastavit cílovou teplotu. Zkontrolujte připojení a zkuste to znovu."
+    },
+    "api_error_set_hvac_mode": {
+      "message": "Nepodařilo se nastavit režim HVAC. Zkontrolujte připojení a zkuste to znovu."
+    },
+    "api_error_set_preset_mode": {
+      "message": "Nepodařilo se nastavit předvolbu. Zkontrolujte připojení a zkuste to znovu."
+    },
+    "auth_failed": {
+      "message": "Ověření v cloudu FENIX selhalo. Znovu ověřte integraci."
     }
   }
 }

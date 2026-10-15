@@ -28,6 +28,7 @@ from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.util import dt as dt_util
 from pyfenixcontrol import (
     EnergyPeriod,
+    FenixControlAuthError,
     FenixControlClient,
     FenixControlError,
     HolidayMode,
@@ -729,6 +730,9 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
                     chunk_start.date(),
                     chunk_end.date(),
                 )
+        except FenixControlAuthError:
+            # Credentials are broken for every chunk; stop and ask for reauth
+            raise
         except FenixControlError as err:
             failed_chunks += 1
             _LOGGER.warning(
@@ -815,6 +819,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             await client.set_holiday_schedule(
                 installation_id, start_date, end_date, mode
             )
+        except FenixControlAuthError as err:
+            config_entry.async_start_reauth(hass)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="auth_failed",
+            ) from err
         except FenixControlError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
@@ -864,6 +874,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
         client = config_entry.runtime_data["client"]
         try:
             await client.cancel_holiday_schedule(installation_id)
+        except FenixControlAuthError as err:
+            config_entry.async_start_reauth(hass)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="auth_failed",
+            ) from err
         except FenixControlError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
@@ -1003,6 +1019,24 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 summary.imported_batches,
             )
 
+        except FenixControlAuthError as err:
+            _LOGGER.warning(
+                "Historical data import for '%s' stopped: authentication failed",
+                device_name,
+            )
+            async_create(
+                hass,
+                f"Failed to import historical data for {device_name}: "
+                "authentication with the FENIX cloud failed. "
+                "Please reauthenticate the integration.",
+                title="Fenix TFT Historical Import Failed",
+                notification_id=notification_id,
+            )
+            config_entry.async_start_reauth(hass)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="auth_failed",
+            ) from err
         except (FenixControlError, ServiceValidationError) as err:
             # Surface validation and API errors via notification before re-raising
             _LOGGER.exception(

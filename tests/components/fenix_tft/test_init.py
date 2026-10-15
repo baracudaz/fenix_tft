@@ -12,6 +12,7 @@ from homeassistant.util import dt as dt_util
 from pyfenixcontrol import (
     EnergyMetric,
     EnergyPeriod,
+    FenixControlAuthError,
     FenixControlConnectionError,
     HolidayMode,
 )
@@ -398,3 +399,81 @@ async def test_diagnostics(hass, setup_integration):
     assert device["id"] == MOCK_DEVICE_ID
     assert device["current_temp"] == pytest.approx(19.2)
     assert device["daily_energy"] == pytest.approx(200.5)
+
+
+def _reauth_flows(hass) -> list:
+    """Return reauth flows in progress for the integration."""
+    return [
+        flow
+        for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+        if flow["context"]["source"] == "reauth"
+    ]
+
+
+async def test_holiday_service_auth_error_starts_reauth(
+    hass, setup_integration, mock_client
+):
+    """An auth error in a holiday service asks the user to reauthenticate."""
+    mock_client.cancel_holiday_schedule.side_effect = FenixControlAuthError("expired")
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "cancel_holiday_schedule",
+            {"entity_id": _get_climate_entity_id(hass)},
+            blocking=True,
+        )
+    await hass.async_block_till_done()
+
+    assert exc_info.value.translation_key == "auth_failed"
+    assert len(_reauth_flows(hass)) == 1
+
+
+async def test_fetch_historical_energy_data_propagates_auth_error():
+    """An auth error stops the chunk loop instead of being counted as a gap."""
+    client = AsyncMock()
+    client.get_room_energy.side_effect = FenixControlAuthError("expired")
+    end_date = dt_util.parse_datetime("2026-05-10T00:00:00+00:00")
+    assert end_date is not None
+
+    with (
+        patch("custom_components.fenix_tft.asyncio.sleep", return_value=None),
+        pytest.raises(FenixControlAuthError),
+    ):
+        await fenix_tft._fetch_historical_energy_data(
+            client,
+            "installation-id",
+            "room-id",
+            end_date - dt_util.dt.timedelta(days=60),
+            end_date,
+            60,
+            "Bedroom",
+        )
+
+    client.get_room_energy.assert_awaited_once()
+
+
+async def test_import_historical_statistics_auth_error_starts_reauth(
+    hass, setup_integration, mock_client
+):
+    """The import service reports an auth failure and starts reauthentication."""
+    mock_client.get_room_energy.side_effect = FenixControlAuthError("expired")
+
+    with (
+        patch(
+            "custom_components.fenix_tft.get_first_statistic_time",
+            return_value=None,
+        ),
+        patch("custom_components.fenix_tft.asyncio.sleep", return_value=None),
+        pytest.raises(HomeAssistantError) as exc_info,
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            "import_historical_statistics",
+            {"energy_entity": _get_energy_entity_id(hass), "days_back": 7},
+            blocking=True,
+        )
+    await hass.async_block_till_done()
+
+    assert exc_info.value.translation_key == "auth_failed"
+    assert len(_reauth_flows(hass)) == 1

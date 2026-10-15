@@ -6,6 +6,7 @@ import pytest
 from homeassistant.components.climate import HVACMode
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from pyfenixcontrol import FenixControlConnectionError
 
 from custom_components.fenix_tft.const import (
     PRESET_MODE_BOOST,
@@ -262,3 +263,46 @@ async def test_set_preset_mode_holiday_locked(hass, mock_config_entry, mock_clie
         )
 
     mock_client.set_preset_mode.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("service", "data", "client_method", "translation_key"),
+    [
+        (
+            "set_temperature",
+            {ATTR_TEMPERATURE: 21.0},
+            "set_target_temperature",
+            "api_error_set_temperature",
+        ),
+        (
+            "set_hvac_mode",
+            {"hvac_mode": HVACMode.OFF},
+            "set_preset_mode",
+            "api_error_set_hvac_mode",
+        ),
+        (
+            "set_preset_mode",
+            {"preset_mode": "eco"},
+            "set_preset_mode",
+            "api_error_set_preset_mode",
+        ),
+    ],
+)
+async def test_climate_command_error_raises_home_assistant_error(  # noqa: PLR0913, PLR0917
+    hass, setup_integration, mock_client, service, data, client_method, translation_key
+):
+    """A failed cloud request surfaces as a translated HomeAssistantError."""
+    getattr(mock_client, client_method).side_effect = FenixControlConnectionError(
+        "offline"
+    )
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await hass.services.async_call(
+            "climate",
+            service,
+            {"entity_id": _get_climate_entity_id(hass), **data},
+            blocking=True,
+        )
+
+    assert exc_info.value.translation_key == translation_key
+    assert isinstance(exc_info.value.__cause__, FenixControlConnectionError)

@@ -322,13 +322,11 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             )
             # Request fresh data from coordinator to update UI
             await self.coordinator.async_request_refresh()
-        except FenixControlError:
-            _LOGGER.exception(
-                "Failed to set temperature for device %s to %.1f°C",
-                self._device_id,
-                temp,
-            )
-            raise
+        except FenixControlError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="api_error_set_temperature",
+            ) from err
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by mapping to appropriate device preset mode."""
@@ -370,13 +368,11 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
                 self._device_id,
                 hvac_mode,
             )
-        except FenixControlError:
-            _LOGGER.exception(
-                "Failed to set HVAC mode for device %s to %s",
-                self._device_id,
-                hvac_mode,
-            )
-            raise
+        except FenixControlError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="api_error_set_hvac_mode",
+            ) from err
 
         # Update coordinator with optimistic data for immediate UI feedback
         self.coordinator.update_device_preset_mode(self._device_id, preset_value)
@@ -426,13 +422,11 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
                 self._device_id,
                 preset_mode,
             )
-        except FenixControlError:
-            _LOGGER.exception(
-                "Failed to set preset mode for device %s to %s",
-                self._device_id,
-                preset_mode,
-            )
-            raise
+        except FenixControlError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="api_error_set_preset_mode",
+            ) from err
 
         # Update coordinator with optimistic data and force state update
         self.coordinator.update_device_preset_mode(self._device_id, preset_value)
