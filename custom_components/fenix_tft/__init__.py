@@ -36,7 +36,6 @@ from pyfenixcontrol import (
 )
 
 if TYPE_CHECKING:
-    import aiohttp
     from homeassistant.core import HomeAssistant, ServiceCall
     from pyfenixcontrol import Device, EnergyMetric
 
@@ -69,7 +68,6 @@ class FenixTFTRuntimeData(TypedDict):
 
     client: FenixControlClient
     coordinator: FenixTFTCoordinator
-    session: aiohttp.ClientSession
 
 
 type FenixTFTConfigEntry = ConfigEntry[FenixTFTRuntimeData]
@@ -1162,7 +1160,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: FenixTFTConfigEntry) -> 
     entry.runtime_data = FenixTFTRuntimeData(
         client=client,
         coordinator=coordinator,
-        session=session,
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -1173,9 +1170,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: FenixTFTConfigEntry) ->
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        # Release the entry's session; detach() leaves Home Assistant's shared
-        # connector open, unlike close()
-        entry.runtime_data["session"].detach()
         # Remove runtime_data on unload
         entry.runtime_data = None
     return unload_ok
