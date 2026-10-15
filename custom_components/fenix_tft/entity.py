@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -10,14 +10,17 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import FenixTFTCoordinator
 
+if TYPE_CHECKING:
+    from pyfenixcontrol import Device
 
-def _get_device_name(dev: dict[str, Any] | None) -> str:
+
+def _get_device_name(dev: Device | None) -> str:
     """Build device name from installation and room names."""
     if not dev:
         return "Fenix TFT"
 
-    installation = dev.get("installation", "")
-    room = dev.get("name", "")
+    installation = dev.installation_name or "Fenix TFT"
+    room = dev.name or "Unnamed Device"
 
     if installation and room:
         return f"{installation} {room}"
@@ -44,18 +47,15 @@ class FenixTFTEntity(CoordinatorEntity[FenixTFTCoordinator]):
             name=device_name,
             manufacturer="Fenix",
             model="TFT WiFi Thermostat",
-            sw_version=dev.get("software") if dev else None,
-            hw_version=dev.get("type") if dev else None,
-            serial_number=dev.get("id") if dev else None,
+            sw_version=dev.software_version if dev else None,
+            hw_version=dev.model if dev else None,
+            serial_number=dev.id if dev else None,
         )
 
     @property
-    def _device(self) -> dict[str, Any] | None:
-        """Return the device dict for this entity from coordinator data."""
-        return next(
-            (d for d in self.coordinator.data if d["id"] == self._device_id),
-            None,
-        )
+    def _device(self) -> Device | None:
+        """Return the device state for this entity from coordinator data."""
+        return self.coordinator.data.devices.get(self._device_id)
 
     @property
     def available(self) -> bool:

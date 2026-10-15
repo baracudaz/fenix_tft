@@ -3,7 +3,6 @@
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar
 
-import aiohttp
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
     ClimateEntityFeature,
@@ -12,8 +11,8 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from pyfenixcontrol import FenixControlError
 
-from .api import FenixTFTApiError
 from .const import (
     DOMAIN,
     HOLIDAY_LOCKED_MSG,
@@ -33,8 +32,10 @@ from .entity import FenixTFTEntity
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
+    from pyfenixcontrol import FenixControlClient
 
     from . import FenixTFTConfigEntry
+    from .coordinator import FenixTFTCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,11 +101,12 @@ async def async_setup_entry(
     # Get runtime data stored by the integration setup
     data = entry.runtime_data
     coordinator = data["coordinator"]
-    api = data["api"]
+    client = data["client"]
 
     # Create climate entities for each device found by the coordinator
     entities = [
-        FenixTFTClimate(api, dev["id"], coordinator) for dev in coordinator.data
+        FenixTFTClimate(client, device_id, coordinator)
+        for device_id in coordinator.data.devices
     ]
     async_add_entities(entities)
 
@@ -133,10 +135,15 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     _attr_target_temperature_step: ClassVar[float] = TEMP_STEP
     _attr_translation_key: str = "thermostat"  # Translation key for entity name
 
-    def __init__(self, api: Any, device_id: str, coordinator: Any) -> None:
+    def __init__(
+        self,
+        client: FenixControlClient,
+        device_id: str,
+        coordinator: FenixTFTCoordinator,
+    ) -> None:
         """Initialize a Fenix TFT climate entity."""
         super().__init__(coordinator, device_id)
-        self._api = api
+        self._client = client
         self._attr_unique_id = device_id
 
         # Set entity name to None - this tells Home Assistant to use the device
@@ -150,7 +157,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         dev = self._device
         if not dev:
             return None
-        raw_preset = dev.get("preset_mode")
+        raw_preset = dev.preset_mode
         return None if raw_preset is None else PRESET_MAP.get(raw_preset)
 
     def _is_holiday_active(self) -> bool:
@@ -166,14 +173,14 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             return False
         # Holiday is active when H4 (active_holiday_mode) is not "none"
         # This is more reliable than checking preset_mode == HOLIDAYS
-        active_holiday_mode = dev.get("active_holiday_mode")
+        active_holiday_mode = dev.active_holiday_mode
         return active_holiday_mode not in (None, HOLIDAY_MODE_NONE)
 
     @property
     def current_temperature(self) -> float | None:
         """Return the current temperature measured by the thermostat."""
         dev = self._device
-        return dev.get("current_temp") if dev else None
+        return dev.room_temperature if dev else None
 
     @property
     def target_temperature(self) -> float | None:
@@ -184,13 +191,13 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         after holiday ends. The active holiday target (Sp) is shown as an attribute.
         """
         dev = self._device
-        return dev.get("target_temp") if dev else None
+        return dev.target_temperature if dev else None
 
     @property
     def hvac_action(self) -> HVACAction:
         """Return the current HVAC action (heating, idle, off)."""
         dev = self._device
-        raw_action = dev.get("hvac_action") if dev else None
+        raw_action = dev.hvac_state if dev else None
         # Map device's numeric action to Home Assistant's HVAC action
         return FENIX_TFT_TO_HASS_HVAC_ACTION.get(raw_action, HVACAction.OFF)
 
@@ -223,7 +230,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         if self._is_holiday_active():
             return ClimateEntityFeature(0)
 
-        raw_preset = dev.get("preset_mode")
+        raw_preset = dev.preset_mode
         hvac_mode_str = (
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
@@ -241,7 +248,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     def hvac_mode(self) -> HVACMode:
         """Return the current HVAC mode based on device preset mode."""
         dev = self._device
-        raw_preset = dev.get("preset_mode") if dev else None
+        raw_preset = dev.preset_mode if dev else None
         hvac_mode_str = (
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
@@ -307,7 +314,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
 
         try:
             # Send temperature change to device via API
-            await self._api.set_device_temperature(self._device_id, temp)
+            await self._client.set_target_temperature(self._device_id, temp)
             _LOGGER.info(
                 "Temperature set successfully for device %s: %.1f°C",
                 self._device_id,
@@ -315,13 +322,11 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             )
             # Request fresh data from coordinator to update UI
             await self.coordinator.async_request_refresh()
-        except (aiohttp.ClientError, FenixTFTApiError):  # fmt: skip
-            _LOGGER.exception(
-                "Failed to set temperature for device %s to %.1f°C",
-                self._device_id,
-                temp,
-            )
-            raise
+        except FenixControlError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="api_error_set_temperature",
+            ) from err
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by mapping to appropriate device preset mode."""
@@ -357,19 +362,17 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
 
         try:
             # Send mode change to device
-            await self._api.set_device_preset_mode(self._device_id, preset_value)
+            await self._client.set_preset_mode(self._device_id, preset_value)
             _LOGGER.info(
                 "HVAC mode set successfully for device %s: %s",
                 self._device_id,
                 hvac_mode,
             )
-        except (aiohttp.ClientError, FenixTFTApiError):  # fmt: skip
-            _LOGGER.exception(
-                "Failed to set HVAC mode for device %s to %s",
-                self._device_id,
-                hvac_mode,
-            )
-            raise
+        except FenixControlError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="api_error_set_hvac_mode",
+            ) from err
 
         # Update coordinator with optimistic data for immediate UI feedback
         self.coordinator.update_device_preset_mode(self._device_id, preset_value)
@@ -413,19 +416,17 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
 
         try:
             # Send preset mode change to device
-            await self._api.set_device_preset_mode(self._device_id, preset_value)
+            await self._client.set_preset_mode(self._device_id, preset_value)
             _LOGGER.info(
                 "Preset mode set successfully for device %s: %s",
                 self._device_id,
                 preset_mode,
             )
-        except (aiohttp.ClientError, FenixTFTApiError):  # fmt: skip
-            _LOGGER.exception(
-                "Failed to set preset mode for device %s to %s",
-                self._device_id,
-                preset_mode,
-            )
-            raise
+        except FenixControlError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="api_error_set_preset_mode",
+            ) from err
 
         # Update coordinator with optimistic data and force state update
         self.coordinator.update_device_preset_mode(self._device_id, preset_value)

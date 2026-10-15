@@ -24,13 +24,21 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.util import dt as dt_util
+from pyfenixcontrol import (
+    EnergyPeriod,
+    FenixControlAuthError,
+    FenixControlClient,
+    FenixControlError,
+    HolidayMode,
+    PasswordAuth,
+)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant, ServiceCall
+    from pyfenixcontrol import Device, EnergyMetric
 
-from .api import FenixTFTApi, FenixTFTApiError
 from .const import (
     API_RATE_LIMIT_DELAY,
     ATTR_DAYS_BACK,
@@ -58,7 +66,7 @@ from .statistics import (
 class FenixTFTRuntimeData(TypedDict):
     """Runtime data stored in the config entry for the Fenix TFT integration."""
 
-    api: FenixTFTApi
+    client: FenixControlClient
     coordinator: FenixTFTCoordinator
 
 
@@ -185,22 +193,15 @@ def _get_installation_from_entity(
         return None, None, None
 
     coordinator = entry.runtime_data["coordinator"]
-    matched = next(
-        (
-            d
-            for d in coordinator.data
-            if d.get("id") == device_id and d.get("installation_id")
-        ),
-        None,
-    )
-    if matched is None:
+    matched = coordinator.data.devices.get(device_id)
+    if matched is None or not matched.installation_id:
         return None, None, None
-    return entry, matched.get("installation_id"), matched.get("installation")
+    return entry, matched.installation_id, matched.installation_name
 
 
 def _get_device_context_from_entity(
     hass: HomeAssistant, entity_id: str
-) -> tuple[ConfigEntry, str, str, str, dict]:
+) -> tuple[ConfigEntry, str, str, str, Device]:
     """
     Extract device context from entity for historical data import.
 
@@ -253,18 +254,15 @@ def _get_device_context_from_entity(
 
     # Get device data from coordinator
     coordinator = config_entry.runtime_data["coordinator"]
-    device_data = next(
-        (d for d in coordinator.data if d.get("id") == device_id),
-        None,
-    )
+    device_data = coordinator.data.devices.get(device_id)
     if device_data is None:
         raise ServiceValidationError(
             translation_domain=DOMAIN,
             translation_key="device_data_not_found",
         )
 
-    room_id = device_data.get("room_id")
-    installation_id = device_data.get("installation_id")
+    room_id = device_data.room_id
+    installation_id = device_data.installation_id
 
     if not room_id or not installation_id:
         raise ServiceValidationError(
@@ -435,7 +433,7 @@ async def _import_energy_statistics_batch(  # noqa: PLR0913, PLR0917
     energy_entity_id: str,
     energy_metadata: Any,
     statistic_id: str,
-    energy_data: list[dict[str, object]],
+    energy_data: list[EnergyMetric],
     rebase_future_from: dt_util.dt.datetime | None,
 ) -> tuple[int, float, dt_util.dt.datetime | None, dt_util.dt.datetime | None]:
     """Convert and queue one imported batch of external statistics."""
@@ -472,13 +470,12 @@ async def _import_energy_statistics_batch(  # noqa: PLR0913, PLR0917
 
 async def _import_full_history_statistics(  # noqa: PLR0913, PLR0917
     hass: HomeAssistant,
-    api: FenixTFTApi,
+    client: FenixControlClient,
     energy_entity_id: str,
     energy_metadata: Any,
     statistic_id: str,
     installation_id: str,
     room_id: str,
-    subscription_id: str,
     device_name: str,
     end_date: dt_util.dt.datetime,
     first_stat_time: dt_util.dt.datetime | None,
@@ -496,10 +493,9 @@ async def _import_full_history_statistics(  # noqa: PLR0913, PLR0917
         batch_days = (current_end - batch_start).days
 
         all_energy_data = await _fetch_historical_energy_data(
-            api,
+            client,
             installation_id,
             room_id,
-            subscription_id,
             batch_start,
             current_end,
             batch_days,
@@ -534,13 +530,12 @@ async def _import_full_history_statistics(  # noqa: PLR0913, PLR0917
 
 async def _import_fixed_range_statistics(  # noqa: PLR0913, PLR0917
     hass: HomeAssistant,
-    api: FenixTFTApi,
+    client: FenixControlClient,
     energy_entity_id: str,
     energy_metadata: Any,
     statistic_id: str,
     installation_id: str,
     room_id: str,
-    subscription_id: str,
     device_name: str,
     start_date: dt_util.dt.datetime,
     end_date: dt_util.dt.datetime,
@@ -551,10 +546,9 @@ async def _import_fixed_range_statistics(  # noqa: PLR0913, PLR0917
     summary = HistoricalImportSummary()
 
     all_energy_data = await _fetch_historical_energy_data(
-        api,
+        client,
         installation_id,
         room_id,
-        subscription_id,
         start_date,
         end_date,
         days_to_import,
@@ -592,7 +586,7 @@ async def _import_fixed_range_statistics(  # noqa: PLR0913, PLR0917
 
 def _determine_aggregation_period(
     days_back_from_reference: int, remaining_days: int
-) -> tuple[str, int]:
+) -> tuple[EnergyPeriod, int]:
     """
     Determine the aggregation period and chunk size based on how far back in time.
 
@@ -613,38 +607,37 @@ def _determine_aggregation_period(
     """
     if days_back_from_reference < HOURLY_AGGREGATION_MAX_DAYS:
         # Recent data: use hourly aggregation
-        period = "Hour"
+        period = EnergyPeriod.HOUR
         chunk_days = min(
             HOURLY_AGGREGATION_MAX_DAYS - days_back_from_reference,
             remaining_days,
         )
     elif days_back_from_reference < DAILY_AGGREGATION_MAX_DAYS:
         # Medium range: use daily aggregation
-        period = "Day"
+        period = EnergyPeriod.DAY
         chunk_days = min(DAILY_AGGREGATION_CHUNK_DAYS, remaining_days)
     elif days_back_from_reference < MONTHLY_AGGREGATION_MAX_DAYS:
         # Older data: use monthly aggregation
-        period = "Month"
+        period = EnergyPeriod.MONTH
         chunk_days = min(MONTHLY_AGGREGATION_MAX_DAYS, remaining_days)
     else:
         # Very old data: use yearly aggregation to skip empty historical ranges fast
-        period = "Year"
+        period = EnergyPeriod.YEAR
         chunk_days = min(YEARLY_AGGREGATION_CHUNK_DAYS, remaining_days)
 
     return period, chunk_days
 
 
 async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
-    api: FenixTFTApi,
+    client: FenixControlClient,
     installation_id: str,
     room_id: str,
-    subscription_id: str,
     start_date: dt_util.dt.datetime,
     end_date: dt_util.dt.datetime,
     days_back: int,
     device_name: str,
     aggregation_reference_end_date: dt_util.dt.datetime | None = None,
-) -> list[dict]:
+) -> list[EnergyMetric]:
     """
     Fetch historical energy data with dynamic aggregation.
 
@@ -654,10 +647,9 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
     - Older data: monthly
 
     Args:
-        api: Fenix TFT API instance
+        client: FENIX Control client
         installation_id: Installation ID
         room_id: Room ID
-        subscription_id: Subscription ID
         start_date: Start date for data fetch
         end_date: End date for data fetch
         days_back: Total days to import
@@ -680,7 +672,7 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
         end_date.date(),
     )
 
-    all_energy_data = []
+    all_energy_data: list[EnergyMetric] = []
     current_date = end_date
     remaining_days = days_back
     chunk_count = 0
@@ -713,10 +705,9 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
         )
 
         try:
-            energy_data = await api.get_room_historical_energy(
+            energy_data = await client.get_room_energy(
                 installation_id,
                 room_id,
-                subscription_id,
                 chunk_start,
                 chunk_end,
                 period,
@@ -739,7 +730,10 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
                     chunk_start.date(),
                     chunk_end.date(),
                 )
-        except FenixTFTApiError as err:
+        except FenixControlAuthError:
+            # Credentials are broken for every chunk; stop and ask for reauth
+            raise
+        except FenixControlError as err:
             failed_chunks += 1
             _LOGGER.warning(
                 "Failed to fetch chunk %d for '%s' (period=%s, range=%s to %s): %s",
@@ -817,15 +811,21 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             )
 
         # Get mode code
-        mode_code = VALID_HOLIDAY_MODES[mode_name]
+        mode = HolidayMode(VALID_HOLIDAY_MODES[mode_name])
 
         # Call API
-        api = config_entry.runtime_data["api"]
+        client = config_entry.runtime_data["client"]
         try:
-            await api.set_holiday_schedule(
-                installation_id, start_date, end_date, mode_code
+            await client.set_holiday_schedule(
+                installation_id, start_date, end_date, mode
             )
-        except FenixTFTApiError as err:
+        except FenixControlAuthError as err:
+            config_entry.async_start_reauth(hass)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="auth_failed",
+            ) from err
+        except FenixControlError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="api_error_set_holiday",
@@ -871,10 +871,16 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             )
 
         # Call API
-        api = config_entry.runtime_data["api"]
+        client = config_entry.runtime_data["client"]
         try:
-            await api.cancel_holiday_schedule(installation_id)
-        except FenixTFTApiError as err:
+            await client.cancel_holiday_schedule(installation_id)
+        except FenixControlAuthError as err:
+            config_entry.async_start_reauth(hass)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="auth_failed",
+            ) from err
+        except FenixControlError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="api_error_cancel_holiday",
@@ -916,7 +922,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
         config_entry, device_id, room_id, installation_id, device_data = (
             _get_device_context_from_entity(hass, energy_entity_id)
         )
-        device_name = device_data.get("name", "Unknown Device")
+        device_name = device_data.name or "Unknown Device"
 
         _LOGGER.debug(
             "Resolved device context for '%s': device_id=%s, room_id=%s, "
@@ -950,27 +956,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             notification_id=notification_id,
         )
 
-        # Get API and subscription ID
-        api = config_entry.runtime_data["api"]
-        subscription_id = api.subscription_id
-        if not subscription_id:
-            _LOGGER.error(
-                "Cannot import historical data for '%s': subscription ID is missing",
-                device_name,
-            )
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="missing_subscription_id",
-                message=(
-                    "Subscription ID is missing; cannot import historical data. "
-                    "Please re-authenticate or check your account permissions."
-                ),
-            )
-
-        _LOGGER.debug(
-            "Using subscription ID '%s' for historical data import",
-            subscription_id,
-        )
+        client = config_entry.runtime_data["client"]
 
         try:
             # Get entity friendly name from state which includes device name
@@ -987,13 +973,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
             if import_all_history:
                 summary = await _import_full_history_statistics(
                     hass,
-                    api,
+                    client,
                     energy_entity_id,
                     energy_metadata,
                     statistic_id,
                     installation_id,
                     room_id,
-                    subscription_id,
                     device_name,
                     plan.end_date,
                     first_stat_time,
@@ -1002,13 +987,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 start_date, end_date, days_to_import = plan.fixed_range()
                 summary = await _import_fixed_range_statistics(
                     hass,
-                    api,
+                    client,
                     energy_entity_id,
                     energy_metadata,
                     statistic_id,
                     installation_id,
                     room_id,
-                    subscription_id,
                     device_name,
                     start_date,
                     end_date,
@@ -1035,7 +1019,25 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:  # noqa: ARG00
                 summary.imported_batches,
             )
 
-        except (FenixTFTApiError, ServiceValidationError) as err:
+        except FenixControlAuthError as err:
+            _LOGGER.warning(
+                "Historical data import for '%s' stopped: authentication failed",
+                device_name,
+            )
+            async_create(
+                hass,
+                f"Failed to import historical data for {device_name}: "
+                "authentication with the FENIX cloud failed. "
+                "Please reauthenticate the integration.",
+                title="Fenix TFT Historical Import Failed",
+                notification_id=notification_id,
+            )
+            config_entry.async_start_reauth(hass)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="auth_failed",
+            ) from err
+        except (FenixControlError, ServiceValidationError) as err:
             # Surface validation and API errors via notification before re-raising
             _LOGGER.exception(
                 "Validation/API error during historical data import for '%s' "
@@ -1131,21 +1133,24 @@ async def async_remove_config_entry_device(
     )
     if not coordinator or not coordinator.data:
         return True
-    for dev in coordinator.data:
-        if (DOMAIN, dev.get("id")) in device_entry.identifiers:
-            # Device is still active in the account — block removal
-            return False
-    return True
+    # A device still active in the account must not be removed
+    return not any(
+        (DOMAIN, device_id) in device_entry.identifiers
+        for device_id in coordinator.data.devices
+    )
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: FenixTFTConfigEntry) -> bool:
     """Set up Fenix TFT from a config entry."""
-    session = async_get_clientsession(hass)
-    api = FenixTFTApi(session, entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD])
+    # A dedicated session keeps the identity server's login cookies away from
+    # other config entries and integrations.
+    session = async_create_clientsession(hass)
+    auth = PasswordAuth(session, entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD])
+    client = FenixControlClient(auth)
 
     coordinator = FenixTFTCoordinator(
         hass=hass,
-        api=api,
+        client=client,
         config_entry=entry,
     )
 
@@ -1153,7 +1158,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FenixTFTConfigEntry) -> 
 
     # Use runtime_data for Platinum quality scale compliance
     entry.runtime_data = FenixTFTRuntimeData(
-        api=api,
+        client=client,
         coordinator=coordinator,
     )
 
