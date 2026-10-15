@@ -44,12 +44,12 @@ ALL_SENSORS = (
 
 # Holiday dates from the API are naive local times, so the expected instants
 # below depend on the time zone; it is set explicitly by `holiday_time_zone`.
-TEST_TIME_ZONE = "US/Pacific"
+TEST_TIME_ZONE = "Europe/Bratislava"
 # MOCK_DEVICE_HOLIDAY ends 10/12/2025 12:00 local time
-BEFORE_HOLIDAY_END = "2025-12-05 09:30:00-08:00"  # 5 days 2.5 h left
-HOURS_BEFORE_HOLIDAY_END = "2025-12-10 09:30:00-08:00"  # 2.5 h left
-MINUTES_BEFORE_HOLIDAY_END = "2025-12-10 11:45:00-08:00"  # 15 min left
-AFTER_HOLIDAY_END = "2025-12-11 12:00:00-08:00"
+BEFORE_HOLIDAY_END = "2025-12-05 09:30:00+01:00"  # 5 days 2.5 h left
+HOURS_BEFORE_HOLIDAY_END = "2025-12-10 09:30:00+01:00"  # 2.5 h left
+MINUTES_BEFORE_HOLIDAY_END = "2025-12-10 11:45:00+01:00"  # 15 min left
+AFTER_HOLIDAY_END = "2025-12-11 12:00:00+01:00"
 
 
 @pytest.fixture(autouse=True)
@@ -312,7 +312,7 @@ async def test_holiday_sensors_active_holiday(  # noqa: PLR0913, PLR0917
     assert holiday_mode.attributes["target_temperature"] == pytest.approx(22.5)
 
     until = _state(hass, "holiday_schedule_until")
-    assert until.state == "2025-12-10T20:00:00+00:00"
+    assert until.state == "2025-12-10T11:00:00+00:00"
     assert until.attributes["mode"] == "Reduce (Eco)"
 
     assert float(_state(hass, "holiday_target_temperature").state) == pytest.approx(
@@ -334,7 +334,7 @@ async def test_holiday_sensors_expired_holiday(
 
     until = _state(hass, "holiday_schedule_until")
     # The end date is still shown, but without an active mode
-    assert until.state == "2025-12-10T20:00:00+00:00"
+    assert until.state == "2025-12-10T11:00:00+00:00"
     assert "mode" not in until.attributes
 
 
