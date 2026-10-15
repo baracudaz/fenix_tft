@@ -1,5 +1,4 @@
-# Until pyfenixcontrol is on PyPI; `make install` also installs ../pyfenixcontrol editable
-pyfenixcontrol @ git+https://github.com/baracudaz/pyfenixcontrol@f3e111100e9eaa89f972bcd719dd2d9fb2f65605
+pyfenixcontrol==0.1.0
 colorlog==6.12.0
 homeassistant==2026.9.4
 pip>=26.2.1

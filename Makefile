@@ -6,7 +6,8 @@ SHELL := /usr/bin/env bash
 HA_URL := http://localhost:8123
 
 VENV ?= .venv
-# Sibling checkout of the library; installed editable by `make install` if present
+# Sibling checkout of the library; `make install` installs it editable over the
+# PyPI release if present, so library changes can be tested before a release
 PYFENIXCONTROL_DIR ?= ../pyfenixcontrol
 PYTHON ?= python3
 VENV_PYTHON := $(VENV)/bin/python
