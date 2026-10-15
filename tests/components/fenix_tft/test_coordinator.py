@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 
 import pytest
 from homeassistant.config_entries import ConfigEntryAuthFailed
@@ -120,13 +121,18 @@ async def test_coordinator_trigger_error_does_not_fail_update(coordinator, mock_
     "method", ["get_installations", "trigger_installation_update", "get_room_energy"]
 )
 async def test_coordinator_auth_error_raises_config_entry_auth_failed(
-    coordinator, mock_client, method
+    coordinator, mock_client, method, caplog
 ):
     """Test an auth error anywhere in the refresh starts reauthentication."""
     getattr(mock_client, method).side_effect = FenixControlAuthError("Login failed")
 
     with pytest.raises(ConfigEntryAuthFailed):
         await coordinator._async_update_data()
+
+    # Logged once as a warning, without a traceback
+    records = [r for r in caplog.records if r.name.endswith("fenix_tft.coordinator")]
+    assert [r.levelno for r in records if r.levelno > logging.INFO] == [logging.WARNING]
+    assert all(r.exc_info is None for r in records)
 
 
 @pytest.mark.parametrize(

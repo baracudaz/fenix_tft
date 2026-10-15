@@ -7,12 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [1.4.0] - 2026-10-15
 
 ### Changed
 
 - The cloud API client moved into the standalone library [`pyfenixcontrol`](https://github.com/baracudaz/pyfenixcontrol); `api.py` and the `beautifulsoup4` dependency are gone. Entities, unique IDs, services and the `fenix_tft` domain are unchanged
 - Each config entry now uses its own HTTP session, so login cookies of one account can't affect another
+- An authentication failure during polling is logged as a warning instead of an error with a traceback; Home Assistant asks for reauthentication as before
 - Config flow no longer logs failed logins as errors or logs the account e-mail; expected failures (wrong password, cloud unreachable) are logged at debug level only, since the form already shows them
 - When the installation list can't be fetched, the entities now become unavailable until the next successful refresh. Previously the update succeeded with no devices
 
