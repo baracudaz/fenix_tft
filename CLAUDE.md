@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Home Assistant custom integration for the FENIX TFT WiFi thermostat. It communicates with the FENIX cloud API (reverse-engineered) to provide climate control, energy monitoring, and holiday scheduling features.
+This is a Home Assistant custom integration for the FENIX TFT WiFi thermostat. It communicates with the FENIX cloud API (reverse-engineered) through the [`pyfenixcontrol`](https://github.com/baracudaz/pyfenixcontrol) library to provide climate control, energy monitoring, and holiday scheduling features.
 
 **Key characteristics:**
 
@@ -20,7 +20,11 @@ This is a Home Assistant custom integration for the FENIX TFT WiFi thermostat. I
 
 ```bash
 # Create .venv and install dependencies (including test extras)
+# Installs ../pyfenixcontrol editable when that checkout exists
 make install
+
+# Start from scratch (also removes .venv)
+make clean && make install
 
 # Start Home Assistant development server (uses .venv)
 make develop
@@ -56,25 +60,26 @@ ruff check . --fix
 make test
 ```
 
-Tests live in `tests/components/fenix_tft/` and cover the API client, climate platform, config flow, coordinator, and setup.
+Tests live in `tests/components/fenix_tft/` and cover the climate platform, config flow, coordinator, and setup.
 
 ## Architecture
 
 ### Entry Point Flow
 
-1. **Config Flow** (`config_flow.py`): Handles OAuth2 authentication with PKCE flow
-2. **Setup** (`__init__.py`): Creates API client and coordinator, registers services
+1. **Config Flow** (`config_flow.py`): Validates credentials with `PasswordAuth.async_login()`
+2. **Setup** (`__init__.py`): Creates `PasswordAuth` + `FenixControlClient` and the coordinator, registers services
 3. **Coordinator** (`coordinator.py`): Polls API every 5 minutes, manages optimistic updates
 4. **Platforms**: Climate entities (`climate.py`) and sensors (`sensor.py`)
 
 ### Core Components
 
-**API Client** (`api.py`):
+**API client** (library `pyfenixcontrol`):
 
-- Implements OAuth2 PKCE authentication flow
-- Manages token refresh automatically
-- Provides methods for device data, energy statistics, holiday schedules
-- Temperature encoding/decoding (API uses Fahrenheit with divFactor)
+- `PasswordAuth` (OAuth2 PKCE login, token refresh) and `FenixControlClient`
+- Returns typed models (`Device`, `Installation`, `EnergyMetric`)
+- Raises `FenixControlAuthError` (→ reauth), `FenixControlConnectionError` and
+  `FenixControlResponseError`, all subclasses of `FenixControlError`
+- API changes belong in the library (needs a version bump), not in this repo
 
 **Coordinator** (`coordinator.py`):
 
@@ -82,6 +87,7 @@ Tests live in `tests/components/fenix_tft/` and cover the API client, climate pl
 - Implements optimistic updates for preset mode changes (10-second duration)
 - Predicts HVAC action based on preset mode during optimistic window
 - Single source of truth for all device data
+- Each refresh: installations → devices → best-effort `trigger_installation_update` per installation → today's energy per room (max 5 concurrent requests)
 
 **Entity Base** (`entity.py`):
 
@@ -97,27 +103,18 @@ Tests live in `tests/components/fenix_tft/` and cover the API client, climate pl
 
 ### Device Data Structure
 
-Coordinator data is a list of device dictionaries with structure:
+Coordinator data is `FenixTFTData` (`coordinator.py`):
 
 ```python
-{
-    "id": str,  # Unique device ID
-    "name": str,  # Device/room name
-    "installation_id": str,  # Installation (home) ID
-    "installation": str,  # Installation name
-    "room_id": str,  # Room ID
-    "preset_mode": int,  # Current mode (off/manual/program)
-    "hvac_action": int,  # Heating state (off/idle/heating)
-    "target_temp": float,  # Target temperature (Celsius)
-    "room_temp": float,  # Room temperature (Celsius)
-    "floor_temp": float | None,  # Floor temperature (Celsius)
-    "daily_energy": float,  # Today's energy consumption (Wh)
-    "holiday_mode": int,  # Active holiday mode code
-    "holiday_start": str,  # Holiday start date string
-    "holiday_end": str,  # Holiday end date string
-    # ... additional fields
-}
+FenixTFTData(
+    devices: dict[str, pyfenixcontrol.Device],  # keyed by device ID
+    daily_energy: dict[str, float | None],  # today's consumption (Wh) per device
+)
 ```
+
+`Device` is a frozen dataclass (`target_temperature`, `room_temperature`,
+`floor_temperature`, `preset_mode`, `hvac_state`, `active_holiday_mode`,
+`holiday_end`, ...). Optimistic updates replace it with `dataclasses.replace()`.
 
 ### Holiday Mode Behavior
 
@@ -188,7 +185,7 @@ This integration follows Home Assistant's Integration Quality Scale. See `.githu
 - OAuth2 Authorization Code flow with PKCE
 - No client secret (public mobile app credentials)
 - Token refresh handled automatically by API client
-- Stores access_token, refresh_token, subscription_id in config entry
+- Stores only username and password in the config entry; tokens live in memory in `PasswordAuth`
 
 ### Rate Limiting
 
@@ -213,7 +210,6 @@ Active holidays use `"dd/mm/yyyy HH:MM:SS"` format.
 ```bash
 custom_components/fenix_tft/
 ├── __init__.py          # Setup, services, entry point
-├── api.py              # API client with OAuth2 PKCE
 ├── climate.py          # Climate platform (thermostats)
 ├── config_flow.py      # OAuth2 configuration flow
 ├── const.py            # Constants and configuration
@@ -233,15 +229,14 @@ custom_components/fenix_tft/
 
 1. Define entity description in `sensor.py` sensor descriptions tuple
 2. Add translation key to `strings.json` if needed
-3. Ensure data is available in coordinator device dictionary
+3. Ensure the value is available on `Device` (or in `FenixTFTData`)
 4. Use `value_fn` lambda for any data transformation
 
 ### Modifying API Calls
 
-1. Add/modify method in `FenixTFTApi` class
-2. Handle authentication errors → trigger reauth flow
-3. Raise `FenixTFTApiError` for API failures
-4. Log at appropriate level (debug for requests, info for important operations)
+1. Change the `pyfenixcontrol` library and release a new version
+2. Bump the pin in `manifest.json` and `requirements.txt`
+3. Map library exceptions: `FenixControlAuthError` → reauth, other `FenixControlError` → `UpdateFailed` / `HomeAssistantError`
 
 ### Service Development
 
@@ -269,11 +264,12 @@ logger:
   default: info
   logs:
     custom_components.fenix_tft: debug
+    pyfenixcontrol: debug
 ```
 
 Common issues:
 
-- **Authentication failures**: Check OAuth2 flow, tokens in config entry
-- **No energy data**: Verify subscription_id is present, check API endpoint response
+- **Authentication failures**: Reauthenticate; enable `pyfenixcontrol` debug logging to see the login flow
+- **No energy data**: Enable `pyfenixcontrol` debug logging and check the energy endpoint response
 - **Holiday controls locked**: Active holiday schedule prevents manual changes
 - **Statistics not appearing**: Check external statistic ID format, verify recorder integration

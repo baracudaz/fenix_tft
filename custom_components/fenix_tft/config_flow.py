@@ -1,17 +1,25 @@
 """Config flow for Fenix TFT integration."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import AbortFlow, FlowResult
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from pyfenixcontrol import (
+    FenixControlAuthError,
+    FenixControlError,
+    PasswordAuth,
+)
 
-from .api import FenixTFTApi
 from .const import DOMAIN
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,24 +28,35 @@ class AuthenticationError(Exception):
     """Raised when authentication with Fenix TFT fails."""
 
 
+class CannotConnectError(Exception):
+    """Raised when the FENIX cloud cannot be reached."""
+
+
 async def validate_input(
     hass: HomeAssistant, user_input: dict[str, Any]
 ) -> dict[str, Any]:
     """Validate the user input."""
-    _LOGGER.debug("Validating input: username=%s", user_input[CONF_USERNAME])
+    _LOGGER.debug("Validating FENIX credentials")
 
-    session = async_get_clientsession(hass)
-    api = FenixTFTApi(session, user_input[CONF_USERNAME], user_input[CONF_PASSWORD])
+    # A dedicated session keeps the identity server's login cookies away from
+    # other config entries and integrations. It shares Home Assistant's
+    # connector, so it is detached (not closed) once the login is validated.
+    session = async_create_clientsession(hass, auto_cleanup=False)
+    auth = PasswordAuth(session, user_input[CONF_USERNAME], user_input[CONF_PASSWORD])
 
-    if not await api.login():
-        _LOGGER.error(
-            "Authentication failed for username: %s", user_input[CONF_USERNAME]
-        )
-        raise AuthenticationError
+    try:
+        await auth.async_login()
+    except FenixControlAuthError as err:
+        # Expected user error, shown in the form; no need to log it louder
+        _LOGGER.debug("FENIX login rejected: %s", err)
+        raise AuthenticationError from err
+    except FenixControlError as err:
+        _LOGGER.debug("Cannot connect to the FENIX cloud: %s", err)
+        raise CannotConnectError from err
+    finally:
+        session.detach()
 
-    _LOGGER.debug(
-        "Authentication successful for username: %s", user_input[CONF_USERNAME]
-    )
+    _LOGGER.debug("FENIX login successful")
 
     return user_input
 
@@ -62,8 +81,9 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     title=user_input[CONF_USERNAME], data=info
                 )
             except AuthenticationError:
-                _LOGGER.warning("Authentication failed during config flow")
                 errors["base"] = "invalid_auth"
+            except CannotConnectError:
+                errors["base"] = "cannot_connect"
             except AbortFlow:
                 raise
             except Exception:
@@ -101,6 +121,8 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             except AuthenticationError:
                 errors["base"] = "invalid_auth"
+            except CannotConnectError:
+                errors["base"] = "cannot_connect"
             except AbortFlow:
                 raise
             except Exception:
@@ -138,6 +160,8 @@ class FenixTFTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             except AuthenticationError:
                 errors["base"] = "invalid_auth"
+            except CannotConnectError:
+                errors["base"] = "cannot_connect"
             except AbortFlow:
                 raise
             except Exception:

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+    from pyfenixcontrol import EnergyMetric
 
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.statistics import (
@@ -177,7 +179,7 @@ def create_energy_statistic_metadata(
 
 
 def convert_energy_api_data_to_statistics(
-    api_data: list[dict[str, Any]], starting_sum: float = 0.0
+    api_data: list[EnergyMetric], starting_sum: float = 0.0
 ) -> list[StatisticData]:
     """
     Convert API energy data to StatisticData objects.
@@ -199,73 +201,41 @@ def convert_energy_api_data_to_statistics(
     statistics = []
     cumulative_sum = starting_sum
 
-    # Sort data by timestamp to ensure chronological order
-    sorted_data = sorted(
-        api_data,
-        key=lambda x: x.get("startDateOfMetric", ""),
-    )
+    for metric in api_data:
+        if metric.start is None:
+            _LOGGER.warning("Missing startDateOfMetric in energy data: %s", metric.raw)
 
-    for item in sorted_data:
-        if not isinstance(item, dict):
-            continue
-
-        # Parse start date
-        start_date_str = item.get("startDateOfMetric")
-        if not start_date_str:
-            _LOGGER.warning("Missing startDateOfMetric in energy data: %s", item)
-            continue
-
-        try:
-            # Parse ISO format date string and ensure UTC timezone
-            start_dt = dt_util.parse_datetime(start_date_str)
-            if start_dt is None:
-                _LOGGER.warning("Failed to parse date: %s", start_date_str)
-                continue
-
-            # Ensure UTC timezone
-            if start_dt.tzinfo is None:
-                start_dt = start_dt.replace(tzinfo=dt_util.UTC)
-            else:
-                start_dt = start_dt.astimezone(dt_util.UTC)
-
-            # Get energy value (in Wh) for this period
-            period_value = item.get("sum", 0)
-
-            # Validate period_value is numeric
-            if not isinstance(period_value, (int, float)):
-                _LOGGER.warning(
-                    "Non-numeric energy value in API data: %s", period_value
-                )
-                continue
-
-            # Clamp negative values and log
-            if period_value < 0:
-                _LOGGER.warning(
-                    "Received negative energy value %s from API; "
-                    "clamping to 0.0 for statistics",
-                    period_value,
-                )
-                period_value = 0.0
-
-            cumulative_sum += period_value
-
-            _LOGGER.debug(
-                "Energy data point: time=%s, period=%s, cumulative=%s",
-                start_dt,
+    # Sort data by timestamp to ensure chronological order (start is UTC)
+    for metric in sorted(
+        (metric for metric in api_data if metric.start is not None),
+        key=lambda metric: metric.start or dt_util.utc_from_timestamp(0),
+    ):
+        # Energy value (in Wh) for this period; clamp negative values and log
+        period_value = metric.value
+        if period_value < 0:
+            _LOGGER.warning(
+                "Received negative energy value %s from API; "
+                "clamping to 0.0 for statistics",
                 period_value,
-                cumulative_sum,
             )
+            period_value = 0.0
 
-            statistics.append(
-                StatisticData(
-                    start=start_dt,
-                    state=cumulative_sum,  # State also shows cumulative for energy
-                    sum=cumulative_sum,  # Cumulative total
-                )
+        cumulative_sum += period_value
+
+        _LOGGER.debug(
+            "Energy data point: time=%s, period=%s, cumulative=%s",
+            metric.start,
+            period_value,
+            cumulative_sum,
+        )
+
+        statistics.append(
+            StatisticData(
+                start=metric.start,
+                state=cumulative_sum,  # State also shows cumulative for energy
+                sum=cumulative_sum,  # Cumulative total
             )
-        except (ValueError, TypeError) as err:
-            _LOGGER.warning("Error processing energy data item %s: %s", item, err)
-            continue
+        )
 
     _LOGGER.debug(
         "Converted %d data point(s) to %d statistic(s): final_sum=%.2f",

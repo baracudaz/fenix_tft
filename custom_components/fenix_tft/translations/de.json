@@ -2,6 +2,7 @@
   "title": "Fenix TFT WiFi Thermostat",
   "config": {
     "error": {
+      "cannot_connect": "Verbindung zur FENIX-Cloud fehlgeschlagen.",
       "invalid_auth": "E-Mail und/oder Passwort ungültig.",
       "unknown": "Es ist ein unerwarteter Fehler aufgetreten.",
       "username_exists": "Ein Konto mit der angegebenen E-Mail wird bereits verfolgt."
@@ -218,6 +219,18 @@
     },
     "temperature_step_invalid": {
       "message": "Temperature {temp}°C is not aligned to the {step}°C step size."
+    },
+    "api_error_set_temperature": {
+      "message": "Die Zieltemperatur konnte nicht gesetzt werden. Bitte Verbindung prüfen und erneut versuchen."
+    },
+    "api_error_set_hvac_mode": {
+      "message": "Der HVAC-Modus konnte nicht gesetzt werden. Bitte Verbindung prüfen und erneut versuchen."
+    },
+    "api_error_set_preset_mode": {
+      "message": "Der Voreinstellungsmodus konnte nicht gesetzt werden. Bitte Verbindung prüfen und erneut versuchen."
+    },
+    "auth_failed": {
+      "message": "Die Anmeldung bei der FENIX-Cloud ist fehlgeschlagen. Bitte die Integration erneut authentifizieren."
     }
   }
 }

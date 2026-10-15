@@ -35,26 +35,27 @@ async def async_get_config_entry_diagnostics(
     """Return diagnostics for a Fenix TFT config entry."""
     coordinator = entry.runtime_data["coordinator"]
 
+    data = coordinator.data
     devices_info = [
         {
-            "id": dev.get("id"),
-            "name": dev.get("name"),
-            "installation": dev.get("installation"),
-            "installation_id": dev.get("installation_id"),
-            "room_id": dev.get("room_id"),
-            "preset_mode": dev.get("preset_mode"),
-            "hvac_action": dev.get("hvac_action"),
-            "target_temp": dev.get("target_temp"),
-            "current_temp": dev.get("current_temp"),
-            "floor_temp": dev.get("floor_temp"),
-            "daily_energy": dev.get("daily_energy"),
-            "active_holiday_mode": dev.get("active_holiday_mode"),
-            "holiday_mode": dev.get("holiday_mode"),
-            "holiday_end": dev.get("holiday_end"),
-            "software": dev.get("software"),
-            "type": dev.get("type"),
+            "id": dev.id,
+            "name": dev.name,
+            "installation": dev.installation_name,
+            "installation_id": dev.installation_id,
+            "room_id": dev.room_id,
+            "preset_mode": dev.preset_mode,
+            "hvac_action": dev.hvac_state,
+            "target_temp": dev.target_temperature,
+            "current_temp": dev.room_temperature,
+            "floor_temp": dev.floor_temperature,
+            "daily_energy": data.daily_energy.get(dev.id),
+            "active_holiday_mode": dev.active_holiday_mode,
+            "holiday_mode": dev.holiday_mode,
+            "holiday_end": dev.holiday_end,
+            "software": dev.software_version,
+            "type": dev.model,
         }
-        for dev in coordinator.data or []
+        for dev in (data.devices.values() if data else ())
     ]
 
     last_update_time = getattr(coordinator, "last_update_success_time", None)
@@ -70,7 +71,7 @@ async def async_get_config_entry_diagnostics(
             "update_interval_seconds": update_interval.total_seconds()
             if update_interval
             else None,
-            "device_count": len(coordinator.data) if coordinator.data else 0,
+            "device_count": len(data.devices) if data else 0,
             "pending_optimistic_updates": coordinator.pending_optimistic_update_count,
         },
         "devices": devices_info,

@@ -2,6 +2,7 @@
   "title": "Fenix TFT WiFi Termostat",
   "config": {
     "error": {
+      "cannot_connect": "Nepodarilo sa pripojiť ku cloudu FENIX.",
       "invalid_auth": "Email a/alebo heslo je neplatné.",
       "unknown": "Vyskytla sa neočakávaná chyba.",
       "username_exists": "Účet s poskytnutým emailom je už pripojený."
@@ -218,6 +219,18 @@
     },
     "temperature_step_invalid": {
       "message": "Temperature {temp}°C is not aligned to the {step}°C step size."
+    },
+    "api_error_set_temperature": {
+      "message": "Nepodarilo sa nastaviť cieľovú teplotu. Skontrolujte pripojenie a skúste to znova."
+    },
+    "api_error_set_hvac_mode": {
+      "message": "Nepodarilo sa nastaviť režim HVAC. Skontrolujte pripojenie a skúste to znova."
+    },
+    "api_error_set_preset_mode": {
+      "message": "Nepodarilo sa nastaviť predvoľbu. Skontrolujte pripojenie a skúste to znova."
+    },
+    "auth_failed": {
+      "message": "Overenie v cloude FENIX zlyhalo. Znova overte integráciu."
     }
   }
 }
