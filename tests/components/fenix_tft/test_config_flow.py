@@ -314,10 +314,14 @@ async def test_user_step_cannot_connect(hass):
 
 
 @pytest.mark.parametrize(
-    ("source", "step_id"),
+    ("source", "step_id", "success_reason"),
     [
-        (config_entries.SOURCE_REAUTH, "reauth_confirm"),
-        (config_entries.SOURCE_RECONFIGURE, "reconfigure"),
+        (config_entries.SOURCE_REAUTH, "reauth_confirm", "reauth_successful"),
+        (
+            config_entries.SOURCE_RECONFIGURE,
+            "reconfigure",
+            "reconfigure_successful",
+        ),
     ],
 )
 @pytest.mark.parametrize(
@@ -329,7 +333,7 @@ async def test_user_step_cannot_connect(hass):
     ],
 )
 async def test_reauth_and_reconfigure_errors_then_recover(  # noqa: PLR0913, PLR0917
-    hass, mock_config_entry, source, step_id, side_effect, error
+    hass, mock_config_entry, source, step_id, success_reason, side_effect, error
 ):
     """Each validation error shows on the form; correct credentials then recover."""
     mock_config_entry.add_to_hass(hass)
@@ -361,5 +365,5 @@ async def test_reauth_and_reconfigure_errors_then_recover(  # noqa: PLR0913, PLR
         )
 
     assert result["type"] == FlowResultType.ABORT
-    assert result["reason"] in {"reauth_successful", "reconfigure_successful"}
+    assert result["reason"] == success_reason
     assert mock_config_entry.data[CONF_PASSWORD] == "right"

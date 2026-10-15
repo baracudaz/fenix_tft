@@ -42,7 +42,10 @@ ALL_SENSORS = (
     "connectivity_status",
 )
 
-# MOCK_DEVICE_HOLIDAY ends 10/12/2025 12:00 local time (US/Pacific in tests)
+# Holiday dates from the API are naive local times, so the expected instants
+# below depend on the time zone; it is set explicitly by `holiday_time_zone`.
+TEST_TIME_ZONE = "US/Pacific"
+# MOCK_DEVICE_HOLIDAY ends 10/12/2025 12:00 local time
 BEFORE_HOLIDAY_END = "2025-12-05 09:30:00-08:00"  # 5 days 2.5 h left
 HOURS_BEFORE_HOLIDAY_END = "2025-12-10 09:30:00-08:00"  # 2.5 h left
 MINUTES_BEFORE_HOLIDAY_END = "2025-12-10 11:45:00-08:00"  # 15 min left
@@ -58,6 +61,12 @@ def enable_all_entities() -> Generator[None]:
         return_value=True,
     ):
         yield
+
+
+@pytest.fixture(autouse=True)
+async def holiday_time_zone(hass: HomeAssistant) -> None:
+    """Pin Home Assistant's time zone that the holiday expectations rely on."""
+    await hass.config.async_set_time_zone(TEST_TIME_ZONE)
 
 
 def _entity_id(hass: HomeAssistant, key: str, device_id: str = MOCK_DEVICE_ID) -> str:
