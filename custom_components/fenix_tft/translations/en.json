@@ -2,6 +2,7 @@
   "title": "Fenix TFT WiFi Thermostat",
   "config": {
     "error": {
+      "cannot_connect": "Failed to connect to the FENIX cloud.",
       "invalid_auth": "Email and/or password invalid.",
       "unknown": "Unexpected exception occurred.",
       "username_exists": "An account with the provided email is already being tracked."

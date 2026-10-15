@@ -2,14 +2,24 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+import logging
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.data_entry_flow import FlowResultType
+from pyfenixcontrol import (
+    FenixControlAuthError,
+    FenixControlConnectionError,
+    FenixControlResponseError,
+)
 
-from custom_components.fenix_tft.config_flow import AuthenticationError
+from custom_components.fenix_tft.config_flow import (
+    AuthenticationError,
+    CannotConnectError,
+    validate_input,
+)
 from custom_components.fenix_tft.const import DOMAIN
 
 from .conftest import MOCK_PASSWORD, MOCK_USERNAME
@@ -218,37 +228,79 @@ async def test_reconfigure_step_username_mismatch(hass, mock_config_entry):
     assert result["reason"] == "username_exists"
 
 
-async def test_validate_input_calls_api(hass):
-    """Test that validate_input creates an API instance and calls login."""
-    mock_api = AsyncMock()
-    mock_api.login.return_value = True
-
-    with patch(
-        "custom_components.fenix_tft.config_flow.FenixTFTApi", return_value=mock_api
-    ):
-        from custom_components.fenix_tft.config_flow import validate_input
-
-        result = await validate_input(
-            hass, {CONF_USERNAME: MOCK_USERNAME, CONF_PASSWORD: MOCK_PASSWORD}
-        )
-
-    assert result[CONF_USERNAME] == MOCK_USERNAME
-    mock_api.login.assert_called_once()
+@pytest.fixture
+def mock_session():
+    """Return the session validate_input gets from Home Assistant."""
+    return MagicMock()
 
 
-async def test_validate_input_raises_on_failed_login(hass):
-    """Test that validate_input raises AuthenticationError when login fails."""
-    mock_api = AsyncMock()
-    mock_api.login.return_value = False
-
+@pytest.fixture
+def mock_password_auth(mock_session):
+    """Patch PasswordAuth used by validate_input."""
+    session = mock_session
     with (
         patch(
-            "custom_components.fenix_tft.config_flow.FenixTFTApi", return_value=mock_api
+            "custom_components.fenix_tft.config_flow.async_create_clientsession",
+            return_value=session,
         ),
-        pytest.raises(AuthenticationError),
+        patch("custom_components.fenix_tft.config_flow.PasswordAuth") as mock_cls,
     ):
-        from custom_components.fenix_tft.config_flow import validate_input
+        mock_cls.return_value.async_login = AsyncMock()
+        yield mock_cls.return_value
 
+
+async def test_validate_input_logs_in(hass, mock_password_auth, mock_session, caplog):
+    """Test that validate_input performs a full login with the credentials."""
+    result = await validate_input(
+        hass, {CONF_USERNAME: MOCK_USERNAME, CONF_PASSWORD: MOCK_PASSWORD}
+    )
+
+    assert result[CONF_USERNAME] == MOCK_USERNAME
+    assert MOCK_USERNAME not in caplog.text
+    mock_password_auth.async_login.assert_awaited_once()
+    mock_session.detach.assert_called_once()
+    mock_session.close.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error_mapping",
+    [
+        (FenixControlAuthError("bad credentials"), AuthenticationError),
+        (FenixControlConnectionError("offline"), CannotConnectError),
+        (FenixControlResponseError("HTTP 500", 500), CannotConnectError),
+    ],
+)
+async def test_validate_input_maps_library_errors(
+    hass, mock_password_auth, mock_session, error_mapping, caplog
+):
+    """Test that library errors map to the config flow's error classes."""
+    error, expected = error_mapping
+    mock_password_auth.async_login.side_effect = error
+
+    with pytest.raises(expected):
         await validate_input(
             hass, {CONF_USERNAME: MOCK_USERNAME, CONF_PASSWORD: "wrong"}
         )
+
+    mock_session.detach.assert_called_once()
+    # Expected failures are shown in the form, not logged above debug level
+    assert not [r for r in caplog.records if r.levelno > logging.DEBUG]
+    assert MOCK_USERNAME not in caplog.text
+
+
+async def test_user_step_cannot_connect(hass):
+    """Test the user step shows cannot_connect when the cloud is unreachable."""
+    with patch(
+        "custom_components.fenix_tft.config_flow.validate_input",
+        side_effect=CannotConnectError,
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={CONF_USERNAME: MOCK_USERNAME, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}

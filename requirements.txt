@@ -1,4 +1,5 @@
-beautifulsoup4>=4.15.0
+# Until pyfenixcontrol is on PyPI; `make install` also installs ../pyfenixcontrol editable
+pyfenixcontrol @ git+https://github.com/baracudaz/pyfenixcontrol@0ee28c7ac3487fe5845fca7074d1ff5eb3ea2d65
 colorlog==6.12.0
 homeassistant==2026.9.4
 pip>=26.2.1

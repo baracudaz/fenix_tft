@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- The cloud API client moved into the standalone library [`pyfenixcontrol`](https://github.com/baracudaz/pyfenixcontrol); `api.py` and the `beautifulsoup4` dependency are gone. Entities, unique IDs, services and the `fenix_tft` domain are unchanged
+- Each config entry now uses its own HTTP session, so login cookies of one account can't affect another
+- Config flow no longer logs failed logins as errors or logs the account e-mail; expected failures (wrong password, cloud unreachable) are logged at debug level only, since the form already shows them
+- When the installation list can't be fetched, the entities now become unavailable until the next successful refresh. Previously the update succeeded with no devices
+
+### Added
+
+- Config flow shows "Failed to connect to the FENIX cloud" instead of "Unexpected exception" when the cloud is unreachable
+
+### Fixed
+
+- Diagnostics now include today's energy consumption (the field was always empty)
+
+---
+
 ## [1.3.8] - 2026-10-04
 
 ### Fixed

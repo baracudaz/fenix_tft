@@ -6,6 +6,8 @@ SHELL := /usr/bin/env bash
 HA_URL := http://localhost:8123
 
 VENV ?= .venv
+# Sibling checkout of the library; installed editable by `make install` if present
+PYFENIXCONTROL_DIR ?= ../pyfenixcontrol
 PYTHON ?= python3
 VENV_PYTHON := $(VENV)/bin/python
 VENV_HASS := $(VENV)/bin/hass
@@ -43,7 +45,7 @@ help:
 	@echo "  translations     Check translation files against translations/en.json"
 	@echo ""
 	@echo "Maintenance:"
-	@echo "  clean            Remove caches, coverage, and build artifacts"
+	@echo "  clean            Remove caches, coverage output and the .venv"
 
 install: ## Create .venv and install all dependencies (including test extras)
 	set -e; \
@@ -51,7 +53,11 @@ install: ## Create .venv and install all dependencies (including test extras)
 		$(PYTHON) -m venv "$(VENV)"; \
 	fi; \
 	$(VENV_PYTHON) -m pip install --upgrade pip; \
-	$(VENV_PYTHON) -m pip install --requirement requirements.txt --requirement requirements-test.txt
+	$(VENV_PYTHON) -m pip install --requirement requirements.txt --requirement requirements-test.txt; \
+	if [[ -d "$(PYFENIXCONTROL_DIR)" ]]; then \
+		echo "Installing local pyfenixcontrol from $(PYFENIXCONTROL_DIR) (editable)"; \
+		$(VENV_PYTHON) -m pip install --editable "$(PYFENIXCONTROL_DIR)"; \
+	fi
 
 develop: ## Start Home Assistant dev server and open browser
 	set -e; \
@@ -93,7 +99,7 @@ docker-restart:
 	$(DOCKER_COMPOSE) restart $(HA_SERVICE)
 	$(DOCKER_COMPOSE) logs -f -n 10 $(HA_SERVICE)
 
-clean:
-	rm -rf .pytest_cache .ruff_cache htmlcov .coverage coverage.xml
+clean: ## Remove caches, coverage output and the virtualenv
+	rm -rf .pytest_cache .ruff_cache htmlcov .coverage coverage.xml "$(VENV)"
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true

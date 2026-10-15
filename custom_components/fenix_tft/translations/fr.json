@@ -2,6 +2,7 @@
   "title": "Thermostat WiFi Fenix TFT",
   "config": {
     "error": {
+      "cannot_connect": "Impossible de se connecter au cloud FENIX.",
       "invalid_auth": "Email et/ou mot de passe invalide.",
       "unknown": "Une exception inattendue s'est produite.",
       "username_exists": "Un compte avec l'email fourni est déjà suivi."

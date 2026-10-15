@@ -48,20 +48,18 @@ async def async_setup_entry(
     entities = []
 
     # Create sensors for each device in specific order
-    for dev in coordinator.data:
-        device_id = dev["id"]
-
+    for device_id, dev in coordinator.data.devices.items():
         # Regular sensors (in display order)
         # 1. Daily Energy Consumption (Enabled)
-        if dev.get("room_id") is not None and dev.get("installation_id") is not None:
+        if dev.room_id is not None and dev.installation_id is not None:
             entities.append(FenixEnergyConsumptionSensor(coordinator, device_id))
 
         # 2. HVAC state (Enabled)
-        if dev.get("hvac_action") is not None:
+        if dev.hvac_state is not None:
             entities.append(FenixHvacStateSensor(coordinator, device_id))
 
         # 3. Preset mode (Enabled)
-        if dev.get("preset_mode") is not None:
+        if dev.preset_mode is not None:
             entities.append(FenixPresetModeSensor(coordinator, device_id))
 
         # 4-6. Holiday sensors (Disabled)
@@ -74,23 +72,23 @@ async def async_setup_entry(
         )
 
         # 7. Ambient temperature (Disabled)
-        if dev.get("current_temp") is not None:
+        if dev.room_temperature is not None:
             entities.append(FenixAmbientTempSensor(coordinator, device_id))
 
         # 8. Target temperature (Disabled)
-        if dev.get("target_temp") is not None:
+        if dev.target_temperature is not None:
             entities.append(FenixTargetTempSensor(coordinator, device_id))
 
         # 9. Temperature difference (Disabled)
-        if dev.get("target_temp") is not None and dev.get("current_temp") is not None:
+        if dev.target_temperature is not None and dev.room_temperature is not None:
             entities.append(FenixTempDifferenceSensor(coordinator, device_id))
 
         # 10. Floor temperature (Disabled)
-        if dev.get("floor_temp") is not None:
+        if dev.floor_temperature is not None:
             entities.append(FenixFloorTempSensor(coordinator, device_id))
 
         # 11. Floor-air difference (Disabled)
-        if dev.get("floor_temp") is not None and dev.get("current_temp") is not None:
+        if dev.floor_temperature is not None and dev.room_temperature is not None:
             entities.append(FenixFloorAirDifferenceSensor(coordinator, device_id))
 
         # Diagnostic sensors
@@ -119,14 +117,14 @@ class FenixFloorTempSensor(FenixTFTEntity, SensorEntity):
         # Requires coordinator connection and device data with floor_temp
         dev = self._device
         return (
-            super().available and dev is not None and dev.get("floor_temp") is not None
+            super().available and dev is not None and dev.floor_temperature is not None
         )
 
     @property
     def native_value(self) -> float | None:
         """Return the current floor temperature."""
         dev = self._device
-        return dev.get("floor_temp") if dev else None
+        return dev.floor_temperature if dev else None
 
 
 class FenixAmbientTempSensor(FenixTFTEntity, SensorEntity):
@@ -145,7 +143,7 @@ class FenixAmbientTempSensor(FenixTFTEntity, SensorEntity):
     def native_value(self) -> float | None:
         """Return the current ambient/air temperature."""
         dev = self._device
-        return dev.get("current_temp") if dev else None
+        return dev.room_temperature if dev else None
 
 
 class FenixTargetTempSensor(FenixTFTEntity, SensorEntity):
@@ -166,14 +164,14 @@ class FenixTargetTempSensor(FenixTFTEntity, SensorEntity):
         """Return if entity is available."""
         dev = self._device
         return (
-            super().available and dev is not None and dev.get("target_temp") is not None
+            super().available and dev is not None and dev.target_temperature is not None
         )
 
     @property
     def native_value(self) -> float | None:
         """Return the target temperature."""
         dev = self._device
-        return dev.get("target_temp") if dev else None
+        return dev.target_temperature if dev else None
 
 
 class FenixTempDifferenceSensor(FenixTFTEntity, SensorEntity):
@@ -196,8 +194,8 @@ class FenixTempDifferenceSensor(FenixTFTEntity, SensorEntity):
         return (
             super().available
             and dev is not None
-            and dev.get("target_temp") is not None
-            and dev.get("current_temp") is not None
+            and dev.target_temperature is not None
+            and dev.room_temperature is not None
         )
 
     @property
@@ -207,8 +205,8 @@ class FenixTempDifferenceSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return None
 
-        target = dev.get("target_temp")
-        current = dev.get("current_temp")
+        target = dev.target_temperature
+        current = dev.room_temperature
 
         if target is not None and current is not None:
             return round(target - current, 1)
@@ -231,9 +229,7 @@ class FenixHvacStateSensor(FenixTFTEntity, SensorEntity):
     def available(self) -> bool:
         """Return if entity is available."""
         dev = self._device
-        return (
-            super().available and dev is not None and dev.get("hvac_action") is not None
-        )
+        return super().available and dev is not None and dev.hvac_state is not None
 
     @property
     def native_value(self) -> str | None:
@@ -242,7 +238,7 @@ class FenixHvacStateSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return None
 
-        hvac_action = dev.get("hvac_action")
+        hvac_action = dev.hvac_state
 
         # Map numeric HVAC action to string state
         if hvac_action == HVAC_ACTION_HEATING:
@@ -273,9 +269,7 @@ class FenixPresetModeSensor(FenixTFTEntity, SensorEntity):
     def available(self) -> bool:
         """Return if entity is available."""
         dev = self._device
-        return (
-            super().available and dev is not None and dev.get("preset_mode") is not None
-        )
+        return super().available and dev is not None and dev.preset_mode is not None
 
     @property
     def native_value(self) -> str | None:
@@ -284,7 +278,7 @@ class FenixPresetModeSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return None
 
-        preset_mode = dev.get("preset_mode")
+        preset_mode = dev.preset_mode
 
         # Map numeric preset mode to display name, then to lowercase for enum
         display_name = PRESET_MODE_DISPLAY_NAMES.get(preset_mode)
@@ -311,8 +305,8 @@ class FenixFloorAirDifferenceSensor(FenixTFTEntity, SensorEntity):
         return (
             super().available
             and dev is not None
-            and dev.get("floor_temp") is not None
-            and dev.get("current_temp") is not None
+            and dev.floor_temperature is not None
+            and dev.room_temperature is not None
         )
 
     @property
@@ -322,8 +316,8 @@ class FenixFloorAirDifferenceSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return None
 
-        floor_temp = dev.get("floor_temp")
-        current_temp = dev.get("current_temp")
+        floor_temp = dev.floor_temperature
+        current_temp = dev.room_temperature
 
         if floor_temp is not None and current_temp is not None:
             return round(floor_temp - current_temp, 1)
@@ -377,15 +371,16 @@ class FenixEnergyConsumptionSensor(FenixTFTEntity, SensorEntity):
         return (
             super().available
             and dev is not None
-            and dev.get("room_id") is not None
-            and dev.get("installation_id") is not None
+            and dev.room_id is not None
+            and dev.installation_id is not None
         )
 
     @property
     def native_value(self) -> float | None:
         """Return the daily energy consumption."""
-        dev = self._device
-        return dev.get("daily_energy_consumption") if dev else None
+        if self._device is None:
+            return None
+        return self.coordinator.data.daily_energy.get(self._device_id)
 
 
 class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
@@ -430,9 +425,9 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
         #   - Holiday mode (Cm=1): holiday mode type
         #     (1=Off, 2=Reduce, 5=Defrost, 8=Sunday)
         # Note: H1 (holiday_start) is unreliable - updated dynamically by API
-        active_holiday_mode = dev.get("active_holiday_mode")
-        holiday_end = dev.get("holiday_end")
-        preset_mode = dev.get("preset_mode")
+        active_holiday_mode = dev.active_holiday_mode
+        holiday_end = dev.holiday_end
+        preset_mode = dev.preset_mode
 
         _LOGGER.debug(
             "Holiday mode sensor %s: active_holiday_mode=%s, preset_mode=%s, "
@@ -481,9 +476,9 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return {}
 
-        active_holiday_mode = dev.get("active_holiday_mode")
-        holiday_end = dev.get("holiday_end")
-        holiday_target_temp = dev.get("holiday_target_temp")
+        active_holiday_mode = dev.active_holiday_mode
+        holiday_end = dev.holiday_end
+        holiday_target_temp = dev.holiday_target_temperature
 
         # Check if holiday is currently active based on active_holiday_mode (H4)
         # and end date
@@ -551,8 +546,8 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return None
 
-        active_holiday_mode = dev.get("active_holiday_mode")
-        holiday_end = dev.get("holiday_end")
+        active_holiday_mode = dev.active_holiday_mode
+        holiday_end = dev.holiday_end
 
         _LOGGER.debug(
             "Holiday until sensor %s: active_holiday_mode=%s, end=%s",
@@ -586,8 +581,8 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return {}
 
-        active_holiday_mode = dev.get("active_holiday_mode")
-        holiday_end = dev.get("holiday_end")
+        active_holiday_mode = dev.active_holiday_mode
+        holiday_end = dev.holiday_end
 
         # Only show mode if holiday is currently active (H4 != HOLIDAY_MODE_NONE)
         if not active_holiday_mode or active_holiday_mode == HOLIDAY_MODE_NONE:
@@ -635,8 +630,8 @@ class FenixHolidayTargetTempSensor(FenixTFTEntity, SensorEntity):
         if not dev:
             return None
 
-        active_holiday_mode = dev.get("active_holiday_mode")
-        holiday_target_temp = dev.get("holiday_target_temp")
+        active_holiday_mode = dev.active_holiday_mode
+        holiday_target_temp = dev.holiday_target_temperature
 
         # Only show value when holiday is actually active (H4 != HOLIDAY_MODE_NONE)
         return (

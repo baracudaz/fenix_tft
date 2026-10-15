@@ -2,6 +2,7 @@
   "title": "Fenix TFT WiFi Termostat",
   "config": {
     "error": {
+      "cannot_connect": "Nepodarilo sa pripojiť ku cloudu FENIX.",
       "invalid_auth": "Email a/alebo heslo je neplatné.",
       "unknown": "Vyskytla sa neočakávaná chyba.",
       "username_exists": "Účet s poskytnutým emailom je už pripojený."

@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import logging
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from homeassistant.util import dt as dt_util
+from pyfenixcontrol import parse_holiday_date
 
-from .const import (
-    HOLIDAY_DATE_FORMAT,
-    HOLIDAY_EPOCH_DATE,
-)
-
-_LOGGER = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 def parse_holiday_end(end_str: str | None) -> datetime | None:
@@ -23,12 +19,6 @@ def parse_holiday_end(end_str: str | None) -> datetime | None:
     Note: We only parse the end date (H2) as the start date (H1) is unreliable
     and gets updated dynamically by the Fenix API.
     """
-    if not end_str or end_str == HOLIDAY_EPOCH_DATE:
+    if (end := parse_holiday_date(end_str)) is None:
         return None
-
-    tz = dt_util.get_default_time_zone()
-    try:
-        return datetime.strptime(end_str, HOLIDAY_DATE_FORMAT).replace(tzinfo=tz)
-    except (ValueError, TypeError) as err:
-        _LOGGER.debug("Failed to parse holiday end date (%s): %s", end_str, err)
-        return None
+    return end.replace(tzinfo=dt_util.get_default_time_zone())

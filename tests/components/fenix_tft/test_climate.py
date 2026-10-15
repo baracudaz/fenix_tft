@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 from homeassistant.components.climate import HVACMode
 from homeassistant.const import ATTR_TEMPERATURE
@@ -60,7 +58,7 @@ async def test_climate_min_max_temp(hass, setup_integration):
     assert float(state.attributes["target_temp_step"]) == 0.5
 
 
-async def test_set_temperature_at_min_bound(hass, setup_integration, mock_api):
+async def test_set_temperature_at_min_bound(hass, setup_integration, mock_client):
     """Allow setting temperature exactly at TEMP_MIN."""
     entity_id = _get_climate_entity_id(hass)
 
@@ -71,10 +69,10 @@ async def test_set_temperature_at_min_bound(hass, setup_integration, mock_api):
         blocking=True,
     )
 
-    mock_api.set_device_temperature.assert_called_once_with(MOCK_DEVICE_ID, TEMP_MIN)
+    mock_client.set_target_temperature.assert_called_once_with(MOCK_DEVICE_ID, TEMP_MIN)
 
 
-async def test_set_temperature_at_max_bound(hass, setup_integration, mock_api):
+async def test_set_temperature_at_max_bound(hass, setup_integration, mock_client):
     """Allow setting temperature exactly at TEMP_MAX."""
     entity_id = _get_climate_entity_id(hass)
 
@@ -85,11 +83,11 @@ async def test_set_temperature_at_max_bound(hass, setup_integration, mock_api):
         blocking=True,
     )
 
-    mock_api.set_device_temperature.assert_called_once_with(MOCK_DEVICE_ID, TEMP_MAX)
+    mock_client.set_target_temperature.assert_called_once_with(MOCK_DEVICE_ID, TEMP_MAX)
 
 
 async def test_set_temperature_non_step_aligned_raises(
-    hass, setup_integration, mock_api
+    hass, setup_integration, mock_client
 ):
     """Reject temperatures not aligned to TEMP_STEP (0.5°C)."""
     entity_id = _get_climate_entity_id(hass)
@@ -102,10 +100,10 @@ async def test_set_temperature_non_step_aligned_raises(
             blocking=True,
         )
 
-    mock_api.set_device_temperature.assert_not_called()
+    mock_client.set_target_temperature.assert_not_called()
 
 
-async def test_set_temperature_calls_api(hass, setup_integration, mock_api):
+async def test_set_temperature_calls_api(hass, setup_integration, mock_client):
     """Test that setting temperature calls the API."""
     entity_id = _get_climate_entity_id(hass)
 
@@ -116,7 +114,7 @@ async def test_set_temperature_calls_api(hass, setup_integration, mock_api):
         blocking=True,
     )
 
-    mock_api.set_device_temperature.assert_called_once_with(MOCK_DEVICE_ID, 21.0)
+    mock_client.set_target_temperature.assert_called_once_with(MOCK_DEVICE_ID, 21.0)
 
 
 async def test_set_temperature_below_min_raises(hass, setup_integration):
@@ -145,14 +143,13 @@ async def test_set_temperature_above_max_raises(hass, setup_integration):
         )
 
 
-async def test_set_temperature_holiday_locked(hass, mock_config_entry, mock_api):
+async def test_set_temperature_holiday_locked(hass, mock_config_entry, mock_client):
     """Test that setting temperature is blocked when holiday mode is active."""
-    mock_api.fetch_devices_with_energy_data.return_value = [MOCK_DEVICE_HOLIDAY]
+    mock_client.get_devices.return_value = [MOCK_DEVICE_HOLIDAY]
     mock_config_entry.add_to_hass(hass)
 
-    with patch("custom_components.fenix_tft.FenixTFTApi", return_value=mock_api):
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     entity_id = _get_climate_entity_id(hass)
 
@@ -164,10 +161,10 @@ async def test_set_temperature_holiday_locked(hass, mock_config_entry, mock_api)
             blocking=True,
         )
 
-    mock_api.set_device_temperature.assert_not_called()
+    mock_client.set_target_temperature.assert_not_called()
 
 
-async def test_set_hvac_mode_off(hass, setup_integration, mock_api):
+async def test_set_hvac_mode_off(hass, setup_integration, mock_client):
     """Test HVAC mode OFF calls set_device_preset_mode with PRESET_MODE_OFF."""
     entity_id = _get_climate_entity_id(hass)
 
@@ -178,12 +175,10 @@ async def test_set_hvac_mode_off(hass, setup_integration, mock_api):
         blocking=True,
     )
 
-    mock_api.set_device_preset_mode.assert_called_once_with(
-        MOCK_DEVICE_ID, PRESET_MODE_OFF
-    )
+    mock_client.set_preset_mode.assert_called_once_with(MOCK_DEVICE_ID, PRESET_MODE_OFF)
 
 
-async def test_set_hvac_mode_heat(hass, setup_integration, mock_api):
+async def test_set_hvac_mode_heat(hass, setup_integration, mock_client):
     """Test HVAC mode HEAT calls set_device_preset_mode with PRESET_MODE_MANUAL."""
     entity_id = _get_climate_entity_id(hass)
 
@@ -194,12 +189,12 @@ async def test_set_hvac_mode_heat(hass, setup_integration, mock_api):
         blocking=True,
     )
 
-    mock_api.set_device_preset_mode.assert_called_once_with(
+    mock_client.set_preset_mode.assert_called_once_with(
         MOCK_DEVICE_ID, PRESET_MODE_MANUAL
     )
 
 
-async def test_set_preset_mode(hass, setup_integration, mock_api):
+async def test_set_preset_mode(hass, setup_integration, mock_client):
     """Test that setting a preset mode calls the API with the correct int code."""
     entity_id = _get_climate_entity_id(hass)
 
@@ -210,7 +205,7 @@ async def test_set_preset_mode(hass, setup_integration, mock_api):
         blocking=True,
     )
 
-    mock_api.set_device_preset_mode.assert_called_once_with(
+    mock_client.set_preset_mode.assert_called_once_with(
         MOCK_DEVICE_ID, PRESET_MODE_PROGRAM
     )
 
@@ -229,7 +224,7 @@ async def test_set_preset_mode(hass, setup_integration, mock_api):
 async def test_set_preset_mode_legacy_and_new_names(
     hass,
     setup_integration,
-    mock_api,
+    mock_client,
     preset_mode,
     expected_preset_value,
 ):
@@ -243,19 +238,18 @@ async def test_set_preset_mode_legacy_and_new_names(
         blocking=True,
     )
 
-    mock_api.set_device_preset_mode.assert_called_once_with(
+    mock_client.set_preset_mode.assert_called_once_with(
         MOCK_DEVICE_ID, expected_preset_value
     )
 
 
-async def test_set_preset_mode_holiday_locked(hass, mock_config_entry, mock_api):
+async def test_set_preset_mode_holiday_locked(hass, mock_config_entry, mock_client):
     """Test that changing preset mode is blocked when holiday mode is active."""
-    mock_api.fetch_devices_with_energy_data.return_value = [MOCK_DEVICE_HOLIDAY]
+    mock_client.get_devices.return_value = [MOCK_DEVICE_HOLIDAY]
     mock_config_entry.add_to_hass(hass)
 
-    with patch("custom_components.fenix_tft.FenixTFTApi", return_value=mock_api):
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     entity_id = _get_climate_entity_id(hass)
 
@@ -267,4 +261,4 @@ async def test_set_preset_mode_holiday_locked(hass, mock_config_entry, mock_api)
             blocking=True,
         )
 
-    mock_api.set_device_preset_mode.assert_not_called()
+    mock_client.set_preset_mode.assert_not_called()
