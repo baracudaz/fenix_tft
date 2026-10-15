@@ -477,3 +477,24 @@ async def test_import_historical_statistics_auth_error_starts_reauth(
 
     assert exc_info.value.translation_key == "auth_failed"
     assert len(_reauth_flows(hass)) == 1
+
+
+async def test_unload_entry_detaches_session(hass, mock_config_entry, mock_client):
+    """Unloading the entry detaches its HTTP session without closing it."""
+    session = MagicMock()
+    mock_config_entry.add_to_hass(hass)
+    with patch(
+        "custom_components.fenix_tft.async_create_clientsession",
+        return_value=session,
+    ):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.runtime_data["session"] is session
+    session.detach.assert_not_called()
+
+    assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    session.detach.assert_called_once()
+    session.close.assert_not_called()

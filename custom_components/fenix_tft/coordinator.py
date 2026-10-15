@@ -103,7 +103,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
         try:
             fresh_data = await self._fetch_data()
         except FenixControlAuthError as err:
-            _LOGGER.exception("Authentication failure during coordinator update")
+            _LOGGER.warning("Authentication with the FENIX cloud failed: %s", err)
             raise ConfigEntryAuthFailed(str(err)) from err
         except FenixControlError as err:
             self._handle_update_failure(err)
