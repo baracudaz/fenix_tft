@@ -121,6 +121,22 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
         installations = await self.client.get_installations()
         devices = await self.client.get_devices(installations)
 
+        # Some thermostats stop reporting their own name; the room keeps it
+        room_names = {
+            (installation.id, room.id): room.name
+            for installation in installations
+            for room in installation.rooms
+        }
+        devices = [
+            device
+            if device.name
+            else dataclasses.replace(
+                device,
+                name=room_names.get((device.installation_id, device.room_id)),
+            )
+            for device in devices
+        ]
+
         for installation_id in {device.installation_id for device in devices}:
             await self._trigger_installation_update(installation_id)
 
