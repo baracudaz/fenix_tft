@@ -62,6 +62,15 @@ async def test_coordinator_update_success(coordinator, mock_client):
     mock_client.get_devices.assert_awaited_once_with([MOCK_INSTALLATION])
 
 
+async def test_coordinator_device_name_falls_back_to_room(coordinator, mock_client):
+    """Test a thermostat without its own name is named after its room."""
+    mock_client.get_devices.return_value = [dataclasses.replace(MOCK_DEVICE, name=None)]
+
+    coordinator.data = await coordinator._async_update_data()
+
+    assert coordinator.data.devices[MOCK_DEVICE_ID].name == "Living Room"
+
+
 async def test_coordinator_sums_daily_energy(coordinator, mock_client):
     """Test today's energy is the sum of the room's processed hourly values."""
     data = await coordinator._async_update_data()
