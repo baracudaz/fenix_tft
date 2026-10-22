@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A thermostat that reports no name of its own (seen on a thermostat after its firmware update to v01.09.03) is now named after its room, as in the FENIX app, instead of "<installation> Unnamed Device". Entity IDs don't change; the device name is updated the next time the integration loads, unless you renamed the device ([#159](https://github.com/baracudaz/fenix_tft/pull/159))
+- A thermostat that reports no name of its own (seen on a thermostat after its firmware update to v01.09.03) is now named after its room, as in the FENIX app, instead of `<installation> Unnamed Device`. Entity IDs don't change; the device name is updated the next time the integration loads, unless you renamed the device ([#159](https://github.com/baracudaz/fenix_tft/pull/159))
 
 ### Changed
 
