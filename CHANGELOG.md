@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.1] - 2026-10-22
+
+### Fixed
+
+- A thermostat that reports no name of its own (seen on a thermostat after its firmware update to v01.09.03) is now named after its room, as in the FENIX app, instead of "<installation> Unnamed Device". Entity IDs don't change; the device name is updated the next time the integration loads, unless you renamed the device ([#159](https://github.com/baracudaz/fenix_tft/pull/159))
+
+### Changed
+
+- Development only: the Home Assistant version for tests and `make install` now comes from the exact `pytest-homeassistant-custom-component` pin (2026.10.2), so Dependabot updates no longer fail on a separate `homeassistant` pin; the Docker dev image is on 2026.10.2 and updated by Dependabot ([#160](https://github.com/baracudaz/fenix_tft/pull/160))
+- Tests for the sensor platform and the config flow error paths ([#152](https://github.com/baracudaz/fenix_tft/pull/152), [#153](https://github.com/baracudaz/fenix_tft/pull/153))
+
+---
+
 ## [1.4.0] - 2026-10-15
 
 ### Changed
