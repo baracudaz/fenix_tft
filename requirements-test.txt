@@ -4,4 +4,4 @@ pytest-cov>=7.1.0
 pytest-asyncio>=1.4.0
 # Pins the matching homeassistant release; no separate homeassistant pin, so
 # Dependabot bumps both together
-pytest-homeassistant-custom-component==0.13.373
+pytest-homeassistant-custom-component==0.13.375
