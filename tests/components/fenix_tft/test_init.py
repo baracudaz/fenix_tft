@@ -27,7 +27,7 @@ from custom_components.fenix_tft.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 
-from .conftest import MOCK_DEVICE_ID, MOCK_INSTALLATION_ID
+from .conftest import MOCK_DEVICE_ID, MOCK_INSTALLATION_ID, energy_bucket
 
 
 def _metric(start: str, value: float) -> EnergyMetric:
@@ -477,3 +477,43 @@ async def test_import_historical_statistics_auth_error_starts_reauth(
 
     assert exc_info.value.translation_key == "auth_failed"
     assert len(_reauth_flows(hass)) == 1
+
+
+async def test_fetch_historical_energy_data_books_hourly_buckets_in_their_hour():
+    """Hourly buckets move one hour back; daily buckets keep their stamp."""
+    end_date = dt_util.parse_datetime("2026-11-06T00:00:00+00:00")
+    assert end_date is not None
+    hourly_start = end_date - dt_util.dt.timedelta(days=7)
+    hour = dt_util.dt.timedelta(hours=1)
+    day_stamp = hourly_start - dt_util.dt.timedelta(days=1)
+
+    def respond(_installation, _room, _start, _end, period):
+        if period == EnergyPeriod.HOUR:
+            return [
+                energy_bucket(hourly_start, 50.0),  # hour before the chunk
+                energy_bucket(hourly_start + hour, 100.0),
+                energy_bucket(end_date, 200.0),  # last hour of the range
+                energy_bucket(None, 7.0),  # undated: left for the converter
+            ]
+        return [energy_bucket(day_stamp, 900.0)]
+
+    client = AsyncMock()
+    client.get_room_energy.side_effect = respond
+
+    with patch("custom_components.fenix_tft.asyncio.sleep", return_value=None):
+        result = await fenix_tft._fetch_historical_energy_data(
+            client,
+            "installation-id",
+            "room-id",
+            end_date - dt_util.dt.timedelta(days=8),
+            end_date,
+            8,
+            "Bedroom",
+        )
+
+    assert [(bucket.start, bucket.value) for bucket in result] == [
+        (hourly_start, 100.0),
+        (end_date - hour, 200.0),
+        (None, 7.0),
+        (day_stamp, 900.0),
+    ]

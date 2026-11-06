@@ -239,7 +239,7 @@ data:
 - Data gaps: Backfill missing periods after connectivity issues
 - Migration: Import data when moving from another system
 
-**Note:** Imported data appears as a separate external statistic (e.g., `fenix_tft:bedroom_daily_energy_consumption_history`) that can be added to the Energy Dashboard. This keeps historical imports separate from the main sensor's current data. The service maintains cumulative sum continuity and aligns with Home Assistant's hourly statistic buckets to prevent double-counting.
+**Note:** Imported data appears as a separate external statistic (e.g., `fenix_tft:bedroom_daily_energy_consumption_history`) that can be added to the Energy Dashboard. This keeps historical imports separate from the main sensor's current data. The service maintains cumulative sum continuity and aligns with Home Assistant's hourly statistic buckets to prevent double-counting. Hourly data is booked in the hour it covers: the cloud stamps each hourly bucket with the end of its hour, so the import moves it one hour back.
 
 ## Sensors
 

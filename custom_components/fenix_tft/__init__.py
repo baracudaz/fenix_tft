@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypedDict
@@ -48,6 +49,7 @@ from .const import (
     ATTR_MODE,
     ATTR_START_DATE,
     DOMAIN,
+    ENERGY_BUCKET_OFFSET,
     HOLIDAY_PROPAGATION_DELAY,
     PLATFORMS,
     SERVICE_CANCEL_HOLIDAY_SCHEDULE,
@@ -628,6 +630,27 @@ def _determine_aggregation_period(
     return period, chunk_days
 
 
+def _shift_hourly_buckets(
+    buckets: list[EnergyMetric], chunk_start: dt_util.dt.datetime
+) -> list[EnergyMetric]:
+    """
+    Move hourly buckets to the hour they cover.
+
+    The cloud stamps an hourly bucket with the end of its hour. The bucket
+    stamped at the chunk start covers the hour before the chunk, which the
+    previous chunk already holds, so it is dropped.
+    """
+    shifted = []
+    for bucket in buckets:
+        if bucket.start is None:
+            shifted.append(bucket)
+            continue
+        start = bucket.start - ENERGY_BUCKET_OFFSET
+        if start >= chunk_start:
+            shifted.append(dataclasses.replace(bucket, start=start))
+    return shifted
+
+
 async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
     client: FenixControlClient,
     installation_id: str,
@@ -712,6 +735,8 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
                 chunk_end,
                 period,
             )
+            if period == EnergyPeriod.HOUR:
+                energy_data = _shift_hourly_buckets(energy_data, chunk_start)
             if energy_data:
                 all_energy_data.extend(energy_data)
                 _LOGGER.debug(
