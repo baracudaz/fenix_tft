@@ -105,9 +105,6 @@
       "daily_energy_consumption": {
         "name": "Daily Energy Consumption"
       },
-      "energy": {
-        "name": "Energy"
-      },
       "holiday_mode": {
         "name": "Holiday Mode"
       },

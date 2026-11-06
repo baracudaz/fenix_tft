@@ -317,8 +317,10 @@ async def test_coordinator_pending_optimistic_count(coordinator):
     assert coordinator.pending_optimistic_update_count == 1
 
 
-async def test_coordinator_fetches_each_room_once(coordinator, mock_client):
-    """Test thermostats sharing a room share one energy request over 48 h."""
+async def test_coordinator_fetches_each_room_once(
+    coordinator, mock_client, mock_import_recent_energy
+):
+    """Test thermostats sharing a room share one request and one statistic."""
     second = dataclasses.replace(MOCK_DEVICE, id=MOCK_DEVICE_ID_2)
     mock_client.get_devices.return_value = [MOCK_DEVICE, second]
 
@@ -329,8 +331,10 @@ async def test_coordinator_fetches_each_room_once(coordinator, mock_client):
     assert end - start >= ENERGY_WINDOW
     # The cloud leaves out the bucket stamped at the end: end after this hour
     assert end > dt_util.utcnow()
-    assert data.room_energy[MOCK_DEVICE_ID] is data.room_energy[MOCK_DEVICE_ID_2]
+    assert list(data.room_energy) == [MOCK_ROOM_ID]
+    assert data.room_energy[MOCK_ROOM_ID].name == "Home Living Room"
     assert data.daily_energy[MOCK_DEVICE_ID_2] == pytest.approx(200.5)
+    mock_import_recent_energy.assert_awaited_once()
 
 
 async def test_coordinator_daily_energy_only_counts_today(coordinator, mock_client):
@@ -346,7 +350,7 @@ async def test_coordinator_daily_energy_only_counts_today(coordinator, mock_clie
     data = await coordinator._async_update_data()
 
     assert data.daily_energy[MOCK_DEVICE_ID] == pytest.approx(1300.0)
-    assert len(data.room_energy[MOCK_DEVICE_ID]) == 3
+    assert len(data.room_energy[MOCK_ROOM_ID].buckets) == 3
 
 
 async def test_coordinator_no_energy_without_room(coordinator, mock_client):
@@ -359,7 +363,7 @@ async def test_coordinator_no_energy_without_room(coordinator, mock_client):
 
     mock_client.get_room_energy.assert_not_awaited()
     assert data.daily_energy[MOCK_DEVICE_ID] is None
-    assert data.room_energy[MOCK_DEVICE_ID] is None
+    assert data.room_energy == {}
 
 
 async def test_coordinator_imports_energy_only_when_changed(
@@ -370,8 +374,8 @@ async def test_coordinator_imports_energy_only_when_changed(
     await coordinator._async_update_data()
 
     mock_import_recent_energy.assert_awaited_once()
-    _, device_id, name, buckets = mock_import_recent_energy.call_args.args
-    assert (device_id, name) == (MOCK_DEVICE_ID, "Home Living Room")
+    _, room_id, name, buckets = mock_import_recent_energy.call_args.args
+    assert (room_id, name) == (MOCK_ROOM_ID, "Home Living Room")
     assert [bucket.processed_value for bucket in buckets] == [120.0, 80.5]
 
     late = [*mock_energy(), energy_bucket(dt_util.utcnow(), 50.0)]
@@ -407,3 +411,14 @@ async def test_coordinator_energy_import_error_does_not_fail_update(
     assert MOCK_DEVICE_ID in data.devices
     assert "Failed to import energy statistics" in caplog.text
     assert mock_import_recent_energy.await_count == 2
+
+
+async def test_coordinator_room_name_falls_back_to_device(coordinator, mock_client):
+    """Test a room missing from the installation is named after its thermostat."""
+    mock_client.get_installations.return_value = [
+        dataclasses.replace(MOCK_INSTALLATION, rooms=())
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert data.room_energy[MOCK_ROOM_ID].name == "Home Living Room"

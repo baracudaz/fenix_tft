@@ -253,9 +253,9 @@ def convert_energy_api_data_to_statistics(
     return statistics
 
 
-def recent_energy_statistic_id(device_id: str) -> str:
-    """Return the external statistic ID of a device's hourly energy."""
-    return f"{DOMAIN}:energy_{slugify(device_id)}"
+def recent_energy_statistic_id(room_id: str) -> str:
+    """Return the external statistic ID of a room's hourly energy."""
+    return f"{DOMAIN}:energy_{slugify(room_id)}"
 
 
 def _sum_before(hass: HomeAssistant, statistic_id: str, start: datetime) -> float:
@@ -283,12 +283,12 @@ def _sum_before(hass: HomeAssistant, statistic_id: str, start: datetime) -> floa
 
 async def async_import_recent_energy(
     hass: HomeAssistant,
-    device_id: str,
-    device_name: str,
+    room_id: str,
+    room_name: str,
     buckets: list[EnergyMetric],
 ) -> int:
     """
-    Write a device's recent hourly energy buckets as external statistics.
+    Write a room's recent hourly energy buckets as external statistics.
 
     Each bucket is booked in the hour it covers (its stamp minus
     ENERGY_BUCKET_OFFSET). All hours of the window are rewritten on every call,
@@ -307,7 +307,7 @@ async def async_import_recent_energy(
     if not hourly:
         return 0
 
-    statistic_id = recent_energy_statistic_id(device_id)
+    statistic_id = recent_energy_statistic_id(room_id)
     first = min(hourly)
     running = await get_instance(hass).async_add_executor_job(
         _sum_before, hass, statistic_id, first
@@ -321,7 +321,7 @@ async def async_import_recent_energy(
         has_mean=False,
         has_sum=True,
         mean_type=StatisticMeanType.NONE,
-        name=f"{device_name} energy (hourly)",
+        name=f"{room_name} energy (hourly)",
         source=DOMAIN,
         statistic_id=statistic_id,
         unit_of_measurement=UnitOfEnergy.WATT_HOUR,

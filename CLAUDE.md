@@ -87,7 +87,7 @@ Tests live in `tests/components/fenix_tft/` and cover the climate platform, conf
 - Implements optimistic updates for preset mode changes (10-second duration)
 - Predicts HVAC action based on preset mode during optimistic window
 - Single source of truth for all device data
-- Each refresh: installations → devices → best-effort `trigger_installation_update` per installation → hourly energy per room over 48 h (max 5 concurrent requests) → hourly energy statistics for rooms whose buckets changed
+- Each refresh: installations → devices → best-effort `trigger_installation_update` per installation → hourly energy per room over 48 h (max 5 concurrent requests) → hourly energy statistic per room whose buckets changed
 
 **Entity Base** (`entity.py`):
 
@@ -109,7 +109,7 @@ Coordinator data is `FenixTFTData` (`coordinator.py`):
 FenixTFTData(
     devices: dict[str, pyfenixcontrol.Device],  # keyed by device ID
     daily_energy: dict[str, float | None],  # today's consumption (Wh) per device
-    room_energy: dict[str, list[EnergyMetric] | None],  # room's buckets over 48 h
+    room_energy: dict[str, RoomEnergy],  # per room ID: name + buckets over 48 h
 )
 ```
 
@@ -253,7 +253,7 @@ custom_components/fenix_tft/
 - **Holiday schedules are installation-wide** - affect all thermostats in the home
 - **Temperature precision**: API supports 0.1°C precision via divFactor
 - **Optimistic updates**: Climate entities show immediate feedback for 10 seconds
-- **Energy data timing**: Hourly buckets are stamped at the END of the hour (`ENERGY_BUCKET_OFFSET`, #154) and published ~1 h later. The coordinator fetches each room once per poll over `ENERGY_WINDOW` (48 h). Three outputs are being compared (branch `energy-timing`): daily sensor (resets at local midnight, loses buckets published after midnight), `energy` total sensor (never resets, restore data keeps counted buckets), and the external statistic `fenix_tft:energy_<device>` written with the real hour (`statistics.async_import_recent_energy`, rewrites the window when buckets change). The historical import shifts hourly buckets the same way (`_shift_hourly_buckets` in `__init__.py`); daily/monthly/yearly buckets keep their stamp. The energy endpoint rounds both query bounds down to the full hour and leaves out the bucket stamped at the end, so hourly queries end one hour later (polling: current hour + 1 h; import: chunk + 1 h)
+- **Energy data timing**: Hourly buckets are stamped at the END of the hour (`ENERGY_BUCKET_OFFSET`, #154) and published ~1.5–2 h later. The coordinator fetches each room once per poll over `ENERGY_WINDOW` (48 h) and writes the external statistic `fenix_tft:energy_<room id>` ("<installation> <room> energy (hourly)") with each bucket in the hour it covers (`statistics.async_import_recent_energy`; rewrites the window when buckets change). The daily sensor (resets at local midnight) stays for existing users but is late and loses buckets published after midnight. The historical import shifts hourly buckets the same way (`_shift_hourly_buckets` in `__init__.py`); daily/monthly/yearly buckets keep their stamp. The energy endpoint rounds both query bounds down to the full hour and leaves out the bucket stamped at the end, so hourly queries end one hour later (polling: current hour + 1 h; import: chunk + 1 h)
 - **Statistics imports**: Always use external statistics for historical data to prevent double-counting
 
 ## Debugging

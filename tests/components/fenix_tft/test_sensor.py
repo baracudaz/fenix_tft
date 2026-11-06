@@ -3,19 +3,13 @@
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import PropertyMock, patch
 
 import pytest
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import State
 from homeassistant.helpers import entity_registry as er
-from homeassistant.util import dt as dt_util
 from pyfenixcontrol import FenixControlConnectionError, FenixControlResponseError
-from pytest_homeassistant_custom_component.common import (
-    mock_restore_cache_with_extra_data,
-)
 
 from custom_components.fenix_tft import sensor
 from custom_components.fenix_tft.const import (
@@ -25,7 +19,7 @@ from custom_components.fenix_tft.const import (
     PRESET_MODE_OFF,
 )
 
-from .conftest import MOCK_DEVICE, MOCK_DEVICE_HOLIDAY, MOCK_DEVICE_ID, energy_bucket
+from .conftest import MOCK_DEVICE, MOCK_DEVICE_HOLIDAY, MOCK_DEVICE_ID
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -35,7 +29,6 @@ if TYPE_CHECKING:
 # Sensor key → unique_id suffix (the translation key)
 ALL_SENSORS = (
     "daily_energy_consumption",
-    "energy",
     "hvac_state",
     "preset_mode",
     "holiday_mode",
@@ -430,158 +423,3 @@ async def test_holiday_and_connectivity_without_device(hass, setup_integration):
     connectivity = sensor.FenixConnectivitySensor(coordinator, "UNKNOWN_DEVICE")
     assert connectivity.available is False
     assert connectivity.native_value == "disconnected"
-
-
-def _hour(hours_ago: int) -> datetime:
-    """Return a whole UTC hour ``hours_ago`` hours before now."""
-    now = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
-    return now - timedelta(hours=hours_ago)
-
-
-def _serve_energy(mock_client, *buckets) -> None:
-    """Let the next energy requests return these buckets."""
-    mock_client.get_room_energy.side_effect = None
-    mock_client.get_room_energy.return_value = list(buckets)
-
-
-def _energy_total(hass) -> float:
-    return float(_state(hass, "energy").state)
-
-
-async def test_energy_total_starts_from_window(hass, mock_config_entry, mock_client):
-    """On the first start the buckets of the window are the baseline."""
-    _serve_energy(
-        mock_client, energy_bucket(_hour(30), 550.0), energy_bucket(_hour(2), 100.0)
-    )
-    await _setup(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-
-    assert _energy_total(hass) == pytest.approx(650.0)
-
-
-async def test_energy_total_counts_late_and_grown_buckets(
-    hass, mock_config_entry, mock_client
-):
-    """A bucket arriving late is added, a grown one adds only its increase."""
-    _serve_energy(mock_client, energy_bucket(_hour(3), 100.0))
-    await _setup(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-
-    # The previous hour arrives, and the earlier one grows from 100 to 150 Wh
-    _serve_energy(
-        mock_client, energy_bucket(_hour(3), 150.0), energy_bucket(_hour(2), 400.0)
-    )
-    await _refresh(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-    assert _energy_total(hass) == pytest.approx(550.0)
-
-    # A bucket that shrinks or repeats changes nothing
-    _serve_energy(
-        mock_client, energy_bucket(_hour(3), 120.0), energy_bucket(_hour(2), 400.0)
-    )
-    await _refresh(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-    assert _energy_total(hass) == pytest.approx(550.0)
-
-
-async def test_energy_total_counts_bucket_published_after_midnight(
-    hass, mock_config_entry, mock_client, freezer
-):
-    """The last hours of a day are counted even when they arrive the next day."""
-    await hass.config.async_set_time_zone(TEST_TIME_ZONE)
-    freezer.move_to("2026-11-05 23:30:00+01:00")
-    evening = datetime.fromisoformat("2026-11-05 21:00:00+01:00")
-    _serve_energy(mock_client, energy_bucket(evening, 100.0))
-    await _setup(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-
-    freezer.move_to("2026-11-06 00:30:00+01:00")
-    _serve_energy(
-        mock_client,
-        energy_bucket(evening, 100.0),
-        energy_bucket(datetime.fromisoformat("2026-11-05 23:00:00+01:00"), 1650.0),
-    )
-    await _refresh(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-
-    assert _energy_total(hass) == pytest.approx(1750.0)
-    # The daily sensor already restarted at midnight and never sees it
-    assert float(_state(hass, "daily_energy_consumption").state) == 0.0
-
-
-async def test_energy_total_keeps_value_when_fetch_fails(
-    hass, mock_config_entry, mock_client
-):
-    """A failed energy request keeps the total."""
-    _serve_energy(mock_client, energy_bucket(_hour(2), 100.0))
-    await _setup(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-
-    mock_client.get_room_energy.side_effect = FenixControlResponseError("boom", 500)
-    await _refresh(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-
-    assert _energy_total(hass) == pytest.approx(100.0)
-
-
-async def test_energy_total_forgets_buckets_outside_window(
-    hass, mock_config_entry, mock_client, freezer
-):
-    """Buckets older than the window are dropped from the restore data."""
-    freezer.move_to("2026-11-05 12:00:00+00:00")
-    old = _hour(10)
-    _serve_energy(mock_client, energy_bucket(old, 100.0))
-    await _setup(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-
-    freezer.move_to("2026-11-08 12:00:00+00:00")
-    new = _hour(1)
-    _serve_energy(mock_client, energy_bucket(new, 200.0))
-    await _refresh(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-
-    entity = hass.data["entity_components"]["sensor"].get_entity(
-        _entity_id(hass, "energy")
-    )
-    assert entity.extra_restore_state_data.as_dict() == {
-        "total": 300.0,
-        "seen": {new.isoformat(): 200.0},
-    }
-
-
-async def test_energy_total_restores_after_restart(
-    hass, mock_config_entry, mock_client
-):
-    """The total continues after a restart and counts only new buckets."""
-    counted = _hour(3)
-    mock_restore_cache_with_extra_data(
-        hass,
-        (
-            (
-                State(f"sensor.{MOCK_DEVICE_ID.lower()}_energy", "5000"),
-                {"total": 5000.0, "seen": {counted.isoformat(): 100.0}},
-            ),
-        ),
-    )
-    # The restore cache is keyed by entity_id: register the entity under it
-    er.async_get(hass).async_get_or_create(
-        "sensor",
-        DOMAIN,
-        f"{MOCK_DEVICE_ID}_energy",
-        suggested_object_id=f"{MOCK_DEVICE_ID.lower()}_energy",
-    )
-    _serve_energy(
-        mock_client, energy_bucket(counted, 100.0), energy_bucket(_hour(2), 250.0)
-    )
-    await _setup(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-
-    assert _energy_total(hass) == pytest.approx(5250.0)
-
-
-@pytest.mark.parametrize(
-    "restored",
-    [{}, {"total": "x", "seen": {}}, {"total": 1.0, "seen": None}],
-)
-def test_energy_total_extra_data_rejects_malformed(restored):
-    """Malformed restore data is ignored."""
-    assert sensor.EnergyTotalExtraData.from_dict(restored) is None
-
-
-async def test_energy_total_without_device_has_no_value(hass, setup_integration):
-    """The total sensor has no value and no restore data without its device."""
-    coordinator = setup_integration.runtime_data["coordinator"]
-    entity = sensor.FenixEnergyTotalSensor(coordinator, "UNKNOWN_DEVICE")
-
-    assert entity.available is False
-    assert entity.native_value is None
-    assert entity.extra_restore_state_data is None

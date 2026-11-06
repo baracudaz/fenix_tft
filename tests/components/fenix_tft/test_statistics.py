@@ -14,13 +14,13 @@ from custom_components.fenix_tft.statistics import (
     recent_energy_statistic_id,
 )
 
-from .conftest import MOCK_DEVICE_ID, energy_bucket
+from .conftest import MOCK_ROOM_ID, energy_bucket
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
 NOW = datetime(2026, 11, 6, 0, 30, tzinfo=UTC)
-STATISTIC_ID = recent_energy_statistic_id(MOCK_DEVICE_ID)
+STATISTIC_ID = recent_energy_statistic_id(MOCK_ROOM_ID)
 
 
 def _utc(hour: int, day: int = 5) -> datetime:
@@ -54,14 +54,18 @@ async def test_buckets_booked_in_the_hour_they_cover(hass, recorder):
     """A bucket stamped at the end of an hour is booked at that hour's start."""
     written = await async_import_recent_energy(
         hass,
-        MOCK_DEVICE_ID,
+        MOCK_ROOM_ID,
         "Living Room",
         [energy_bucket(_utc(22), 1650.0), energy_bucket(_utc(21), 100.0)],
     )
 
     assert written == 2
     metadata, rows = _written(recorder)
-    assert metadata["statistic_id"] == STATISTIC_ID == "fenix_tft:energy_aa11bb22cc00"
+    assert (
+        metadata["statistic_id"]
+        == STATISTIC_ID
+        == ("fenix_tft:energy_aaaabbbb_cccc_dddd_eeee_111122223333")
+    )
     assert metadata["name"] == "Living Room energy (hourly)"
     assert metadata["unit_of_measurement"] == "Wh"
     assert metadata["has_sum"] is True
@@ -76,7 +80,7 @@ async def test_continues_sum_before_window(hass, recorder):
         return_value={STATISTIC_ID: [{"sum": 9000.0}, {"sum": 9500.0}]},
     ) as during:
         await async_import_recent_energy(
-            hass, MOCK_DEVICE_ID, "Room", [energy_bucket(_utc(22), 100.0)]
+            hass, MOCK_ROOM_ID, "Room", [energy_bucket(_utc(22), 100.0)]
         )
 
     _, rows = _written(recorder)
@@ -94,7 +98,7 @@ async def test_continues_older_sum_after_long_downtime(hass, recorder):
         return_value={STATISTIC_ID: [{"start": old, "sum": 4000.0}]},
     ):
         await async_import_recent_energy(
-            hass, MOCK_DEVICE_ID, "Room", [energy_bucket(_utc(22), 100.0)]
+            hass, MOCK_ROOM_ID, "Room", [energy_bucket(_utc(22), 100.0)]
         )
 
     _, rows = _written(recorder)
@@ -110,7 +114,7 @@ async def test_ignores_last_row_inside_window(hass, recorder):
         return_value={STATISTIC_ID: [{"start": inside, "sum": 4000.0}]},
     ):
         await async_import_recent_energy(
-            hass, MOCK_DEVICE_ID, "Room", [energy_bucket(_utc(22), 100.0)]
+            hass, MOCK_ROOM_ID, "Room", [energy_bucket(_utc(22), 100.0)]
         )
 
     _, rows = _written(recorder)
@@ -121,7 +125,7 @@ async def test_skips_incomplete_and_undated_buckets(hass, recorder):
     """Hours not over yet, undated buckets and negative values are not written."""
     written = await async_import_recent_energy(
         hass,
-        MOCK_DEVICE_ID,
+        MOCK_ROOM_ID,
         "Room",
         [
             energy_bucket(_utc(0, day=6), 50.0),  # 23:00-24:00 UTC: complete
@@ -139,7 +143,7 @@ async def test_skips_incomplete_and_undated_buckets(hass, recorder):
 async def test_nothing_to_write(hass, recorder):
     """Without complete hours nothing is written."""
     written = await async_import_recent_energy(
-        hass, MOCK_DEVICE_ID, "Room", [energy_bucket(_utc(1, day=6), 30.0)]
+        hass, MOCK_ROOM_ID, "Room", [energy_bucket(_utc(1, day=6), 30.0)]
     )
 
     assert written == 0
@@ -150,13 +154,13 @@ async def test_late_bucket_rewrites_following_sums(hass, recorder):
     """A bucket filled in late raises the sums of the hours after it."""
     await async_import_recent_energy(
         hass,
-        MOCK_DEVICE_ID,
+        MOCK_ROOM_ID,
         "Room",
         [energy_bucket(_utc(20), 100.0), energy_bucket(_utc(22), 300.0)],
     )
     await async_import_recent_energy(
         hass,
-        MOCK_DEVICE_ID,
+        MOCK_ROOM_ID,
         "Room",
         [
             energy_bucket(_utc(20), 100.0),
