@@ -267,6 +267,7 @@ async def test_daily_energy_none_when_fetch_fails(hass, mock_config_entry, mock_
 
 async def test_daily_energy_zero_without_buckets(hass, mock_config_entry, mock_client):
     """No energy buckets yet today means 0 Wh."""
+    mock_client.get_room_energy.side_effect = None
     mock_client.get_room_energy.return_value = []
     await _setup(hass, mock_config_entry, mock_client, MOCK_DEVICE)
 

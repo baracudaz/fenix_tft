@@ -5,7 +5,7 @@ import dataclasses
 import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryAuthFailed
 from homeassistant.helpers import issue_registry as ir
@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 from pyfenixcontrol import (
     Device,
+    EnergyMetric,
     EnergyPeriod,
     FenixControlAuthError,
     FenixControlClient,
@@ -21,6 +22,7 @@ from pyfenixcontrol import (
 
 from .const import (
     DOMAIN,
+    ENERGY_WINDOW,
     HVAC_ACTION_HEATING,
     HVAC_ACTION_IDLE,
     HVAC_ACTION_OFF,
@@ -29,6 +31,8 @@ from .const import (
     POLLING_INTERVAL,
     PRESET_MODE_OFF,
 )
+from .helpers import device_display_name
+from .statistics import async_import_recent_energy
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -38,6 +42,17 @@ CONSECUTIVE_FAILURES_BEFORE_ISSUE = 3
 _LOGGER = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True, slots=True)
+class RoomEnergy:
+    """Hourly energy buckets of one room."""
+
+    # "<installation> <room>", like the names of the room's thermostats
+    name: str
+    # Buckets over ENERGY_WINDOW as stamped by the cloud (end of the hour);
+    # None if they could not be fetched
+    buckets: list[EnergyMetric] | None
+
+
 @dataclass(slots=True)
 class FenixTFTData:
     """Snapshot of all thermostats of the account."""
@@ -45,6 +60,8 @@ class FenixTFTData:
     devices: dict[str, Device] = field(default_factory=dict)
     # Today's energy consumption per device (Wh); None if it could not be fetched
     daily_energy: dict[str, float | None] = field(default_factory=dict)
+    # Hourly energy of each room with thermostats, keyed by room ID
+    room_energy: dict[str, RoomEnergy] = field(default_factory=dict)
 
 
 def _predict_hvac_action(
@@ -68,6 +85,28 @@ def _predict_hvac_action(
     ):
         return HVAC_ACTION_HEATING
     return HVAC_ACTION_IDLE
+
+
+def _sum_today(buckets: list[EnergyMetric] | None) -> float | None:
+    """Return the energy (Wh) of the buckets stamped since local midnight."""
+    if buckets is None:
+        return None
+    midnight = dt_util.start_of_local_day()
+    return sum(
+        (
+            bucket.processed_value
+            for bucket in buckets
+            if bucket.start is not None and bucket.start >= midnight
+        ),
+        0.0,
+    )
+
+
+def _room_display_name(room_name: str | None, device: Device) -> str:
+    """Return "<installation> <room>", falling back to the thermostat's name."""
+    return device_display_name(
+        dataclasses.replace(device, name=room_name) if room_name else device
+    )
 
 
 class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
@@ -96,6 +135,8 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
         self._optimistic_updates: dict[str, tuple[int, int, float]] = {}
         self._consecutive_failures: int = 0
         self._unavailable_logged: bool = False
+        # Energy buckets per room last written as statistics
+        self._imported_energy: dict[str, tuple[tuple[Any, float], ...]] = {}
 
     async def _async_update_data(self) -> FenixTFTData:
         """Fetch data from the FENIX cloud."""
@@ -113,11 +154,12 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
             len(fresh_data.devices),
         )
         self._handle_update_success()
+        await self._import_energy_statistics(fresh_data)
         self._apply_optimistic_updates(fresh_data)
         return fresh_data
 
     async def _fetch_data(self) -> FenixTFTData:
-        """Fetch device state, trigger device reports and add today's energy."""
+        """Fetch device state, trigger device reports and add room energy."""
         installations = await self.client.get_installations()
         devices = await self.client.get_devices(installations)
 
@@ -140,15 +182,38 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
         for installation_id in {device.installation_id for device in devices}:
             await self._trigger_installation_update(installation_id)
 
+        # The cloud reports energy per room: fetch each room once
+        rooms = {
+            (device.installation_id, device.room_id): device
+            for device in devices
+            if device.installation_id is not None and device.room_id is not None
+        }
         semaphore = asyncio.Semaphore(MAX_CONCURRENT_ENERGY_REQUESTS)
-        energy = await asyncio.gather(
-            *(self._fetch_daily_energy(semaphore, device) for device in devices)
+        metrics = await asyncio.gather(
+            *(self._fetch_room_energy(semaphore, *room) for room in rooms)
         )
+        room_energy = {
+            room_id: RoomEnergy(
+                name=_room_display_name(
+                    room_names.get((installation_id, room_id)), device
+                ),
+                buckets=buckets,
+            )
+            for ((installation_id, room_id), device), buckets in zip(
+                rooms.items(), metrics, strict=True
+            )
+        }
         return FenixTFTData(
             devices={device.id: device for device in devices},
             daily_energy={
-                device.id: value for device, value in zip(devices, energy, strict=True)
+                device.id: _sum_today(
+                    room_energy[device.room_id].buckets
+                    if device.room_id in room_energy
+                    else None
+                )
+                for device in devices
             },
+            room_energy=room_energy,
         )
 
     async def _trigger_installation_update(self, installation_id: str) -> None:
@@ -166,32 +231,51 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
                 err,
             )
 
-    async def _fetch_daily_energy(
-        self, semaphore: asyncio.Semaphore, device: Device
-    ) -> float | None:
-        """Return today's energy consumption (Wh) of the device's room."""
-        # Midnight in Home Assistant's timezone, which may differ from the host's.
-        # The end is clamped to now; some backends return no data for the future.
-        start = dt_util.start_of_local_day()
-        end = min(start + timedelta(days=1, microseconds=-1), dt_util.now())
+    async def _fetch_room_energy(
+        self, semaphore: asyncio.Semaphore, installation_id: str, room_id: str
+    ) -> list[EnergyMetric] | None:
+        """Return the room's hourly energy buckets over the last ENERGY_WINDOW."""
+        # The cloud rounds both bounds down to the full hour and leaves out the
+        # bucket stamped at the end, so end one hour after the current one: the
+        # newest bucket (stamped this hour, covering the hour before) is then
+        # returned as soon as it is published.
+        hour = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+        start = hour - ENERGY_WINDOW
+        end = hour + timedelta(hours=1)
         async with semaphore:
             try:
-                metrics = await self.client.get_room_energy(
-                    device.installation_id,
-                    device.room_id,
-                    start,
-                    end,
-                    EnergyPeriod.HOUR,
+                return await self.client.get_room_energy(
+                    installation_id, room_id, start, end, EnergyPeriod.HOUR
                 )
             except FenixControlAuthError:
                 raise
             except FenixControlError as err:
                 # Don't fail the entire update if energy data fails
                 _LOGGER.debug(
-                    "Failed to fetch energy data for device %s: %s", device.id, err
+                    "Failed to fetch energy data for room %s: %s", room_id, err
                 )
                 return None
-        return sum((metric.processed_value for metric in metrics), 0.0)
+
+    async def _import_energy_statistics(self, data: FenixTFTData) -> None:
+        """Write new or changed hourly energy buckets as external statistics."""
+        for room_id, room in data.room_energy.items():
+            if not room.buckets:
+                continue
+            fingerprint = tuple(
+                (bucket.start, bucket.processed_value) for bucket in room.buckets
+            )
+            if self._imported_energy.get(room_id) == fingerprint:
+                continue
+            try:
+                await async_import_recent_energy(
+                    self.hass, room_id, room.name, room.buckets
+                )
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to import energy statistics for room %s", room_id
+                )
+                continue
+            self._imported_energy[room_id] = fingerprint
 
     def _handle_update_failure(self, err: FenixControlError) -> None:
         """Handle a failed data update: log, track failures, and raise."""
