@@ -636,9 +636,8 @@ def _shift_hourly_buckets(
     """
     Move hourly buckets to the hour they cover.
 
-    The cloud stamps an hourly bucket with the end of its hour. The bucket
-    stamped at the chunk start covers the hour before the chunk, which the
-    previous chunk already holds, so it is dropped.
+    The cloud stamps an hourly bucket with the end of its hour. Buckets that
+    then fall before the chunk belong to the previous chunk and are dropped.
     """
     shifted = []
     for bucket in buckets:
@@ -727,12 +726,20 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
             chunk_days,
         )
 
+        # Hourly buckets are stamped with the end of their hour, and the cloud
+        # leaves out the bucket stamped at the query's end: query one hour later
+        # to get the buckets covering the chunk.
+        query_offset = (
+            ENERGY_BUCKET_OFFSET
+            if period == EnergyPeriod.HOUR
+            else dt_util.dt.timedelta(0)
+        )
         try:
             energy_data = await client.get_room_energy(
                 installation_id,
                 room_id,
-                chunk_start,
-                chunk_end,
+                chunk_start + query_offset,
+                chunk_end + query_offset,
                 period,
             )
             if period == EnergyPeriod.HOUR:

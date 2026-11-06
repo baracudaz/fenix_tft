@@ -327,6 +327,8 @@ async def test_coordinator_fetches_each_room_once(coordinator, mock_client):
     mock_client.get_room_energy.assert_awaited_once()
     _, _, start, end, _ = mock_client.get_room_energy.call_args.args
     assert end - start >= ENERGY_WINDOW
+    # The cloud leaves out the bucket stamped at the end: end after this hour
+    assert end > dt_util.utcnow()
     assert data.room_energy[MOCK_DEVICE_ID] is data.room_energy[MOCK_DEVICE_ID_2]
     assert data.daily_energy[MOCK_DEVICE_ID_2] == pytest.approx(200.5)
 

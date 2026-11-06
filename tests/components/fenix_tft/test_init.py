@@ -511,6 +511,14 @@ async def test_fetch_historical_energy_data_books_hourly_buckets_in_their_hour()
             "Bedroom",
         )
 
+    hourly_call, daily_call = client.get_room_energy.await_args_list
+    # Hourly chunks are queried one hour later: the end stamp is left out
+    assert hourly_call.args[2:] == (
+        hourly_start + hour,
+        end_date + hour,
+        EnergyPeriod.HOUR,
+    )
+    assert daily_call.args[3] == hourly_start
     assert [(bucket.start, bucket.value) for bucket in result] == [
         (hourly_start, 100.0),
         (end_date - hour, 200.0),

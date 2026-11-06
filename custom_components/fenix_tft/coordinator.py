@@ -210,9 +210,13 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
         self, semaphore: asyncio.Semaphore, installation_id: str, room_id: str
     ) -> list[EnergyMetric] | None:
         """Return the room's hourly energy buckets over the last ENERGY_WINDOW."""
-        # The end is now; some backends return no data for the future.
-        end = dt_util.utcnow()
-        start = end.replace(minute=0, second=0, microsecond=0) - ENERGY_WINDOW
+        # The cloud rounds both bounds down to the full hour and leaves out the
+        # bucket stamped at the end, so end one hour after the current one: the
+        # newest bucket (stamped this hour, covering the hour before) is then
+        # returned as soon as it is published.
+        hour = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+        start = hour - ENERGY_WINDOW
+        end = hour + timedelta(hours=1)
         async with semaphore:
             try:
                 return await self.client.get_room_energy(
