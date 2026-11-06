@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from pyfenixcontrol import EnergyMetric
 
 from homeassistant.components.recorder import get_instance
@@ -15,12 +14,19 @@ from homeassistant.components.recorder.statistics import (
     StatisticData,
     StatisticMeanType,
     StatisticMetaData,
+    async_add_external_statistics,
     get_last_statistics,
     statistics_during_period,
 )
 from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
+from homeassistant.util import slugify
+
+from .const import DOMAIN, ENERGY_BUCKET_OFFSET
+
+# How far back to look for the running sum before the imported window
+SUM_LOOKBACK = timedelta(days=7)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -245,3 +251,89 @@ def convert_energy_api_data_to_statistics(
     )
 
     return statistics
+
+
+def recent_energy_statistic_id(device_id: str) -> str:
+    """Return the external statistic ID of a device's hourly energy."""
+    return f"{DOMAIN}:energy_{slugify(device_id)}"
+
+
+def _sum_before(hass: HomeAssistant, statistic_id: str, start: datetime) -> float:
+    """Return the running sum of the statistic just before ``start`` (0 if none)."""
+    rows = statistics_during_period(
+        hass,
+        start - SUM_LOOKBACK,
+        start,
+        {statistic_id},
+        "hour",
+        None,
+        {"sum"},
+    ).get(statistic_id)
+    if not rows:
+        # Nothing in the look-back window: continue from the last row if it is
+        # older (e.g. Home Assistant was off for a while), otherwise start at 0.
+        last = get_last_statistics(
+            hass, 1, statistic_id, convert_units=True, types={"sum"}
+        ).get(statistic_id)
+        if not last or last[0]["start"] >= start.timestamp():
+            return 0.0
+        rows = last
+    return float(rows[-1].get("sum") or 0.0)
+
+
+async def async_import_recent_energy(
+    hass: HomeAssistant,
+    device_id: str,
+    device_name: str,
+    buckets: list[EnergyMetric],
+) -> int:
+    """
+    Write a device's recent hourly energy buckets as external statistics.
+
+    Each bucket is booked in the hour it covers (its stamp minus
+    ENERGY_BUCKET_OFFSET). All hours of the window are rewritten on every call,
+    so buckets that arrive late or change later fix the running sum of the
+    hours after them. Returns the number of hours written.
+    """
+    now = dt_util.utcnow()
+    hourly: dict[datetime, float] = {}
+    for bucket in buckets:
+        if bucket.start is None:
+            continue
+        start = bucket.start - ENERGY_BUCKET_OFFSET
+        if start + timedelta(hours=1) > now:
+            continue  # not complete yet
+        hourly[start] = hourly.get(start, 0.0) + max(bucket.processed_value, 0.0)
+    if not hourly:
+        return 0
+
+    statistic_id = recent_energy_statistic_id(device_id)
+    first = min(hourly)
+    running = await get_instance(hass).async_add_executor_job(
+        _sum_before, hass, statistic_id, first
+    )
+    statistics: list[StatisticData] = []
+    for start in sorted(hourly):
+        running += hourly[start]
+        statistics.append(StatisticData(start=start, state=hourly[start], sum=running))
+
+    metadata = StatisticMetaData(
+        has_mean=False,
+        has_sum=True,
+        mean_type=StatisticMeanType.NONE,
+        name=f"{device_name} energy (hourly)",
+        source=DOMAIN,
+        statistic_id=statistic_id,
+        unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        unit_class="energy",
+    )
+    async_add_external_statistics(hass, metadata, statistics)
+    _LOGGER.debug(
+        "Imported %d hourly energy statistic(s) for %s (%s to %s, sum %.0f Wh)",
+        len(statistics),
+        statistic_id,
+        statistics[0]["start"].isoformat(),
+        statistics[-1]["start"].isoformat(),
+        running,
+    )
+    return len(statistics)

@@ -3,18 +3,24 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from homeassistant.components.sensor import (
+    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
 from homeassistant.const import UnitOfEnergy, UnitOfTemperature
+from homeassistant.core import callback
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.restore_state import ExtraStoredData
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    ENERGY_WINDOW,
     HOLIDAY_MODE_DISPLAY_NAMES,
     HOLIDAY_MODE_NONE,
     HVAC_ACTION_HEATING,
@@ -53,6 +59,7 @@ async def async_setup_entry(
         # 1. Daily Energy Consumption (Enabled)
         if dev.room_id is not None and dev.installation_id is not None:
             entities.append(FenixEnergyConsumptionSensor(coordinator, device_id))
+            entities.append(FenixEnergyTotalSensor(coordinator, device_id))
 
         # 2. HVAC state (Enabled)
         if dev.hvac_state is not None:
@@ -381,6 +388,121 @@ class FenixEnergyConsumptionSensor(FenixTFTEntity, SensorEntity):
         if self._device is None:
             return None
         return self.coordinator.data.daily_energy.get(self._device_id)
+
+
+@dataclass(slots=True)
+class EnergyTotalExtraData(ExtraStoredData):
+    """Running energy total and the buckets already counted in it."""
+
+    total: float
+    # Bucket stamp (ISO 8601, UTC) → value already counted (Wh)
+    seen: dict[str, float]
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return a dict representation for restore state storage."""
+        return {"total": self.total, "seen": dict(self.seen)}
+
+    @classmethod
+    def from_dict(cls, restored: dict[str, Any]) -> EnergyTotalExtraData | None:
+        """Build from restored data; None if it is malformed."""
+        try:
+            return cls(
+                total=float(restored["total"]),
+                seen={str(k): float(v) for k, v in restored["seen"].items()},
+            )
+        except KeyError, TypeError, ValueError, AttributeError:
+            return None
+
+
+class FenixEnergyTotalSensor(FenixTFTEntity, RestoreSensor):
+    """
+    Energy consumed by the device's room, as a total that never resets.
+
+    The cloud publishes hourly buckets about an hour late (sometimes later), so
+    a total since midnight misses buckets that arrive after midnight. This total
+    adds every bucket of the polling window once, whenever it arrives, and only
+    the increase if a bucket grows later.
+    """
+
+    _attr_translation_key = "energy"
+    _attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_suggested_display_precision = 0
+
+    def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
+        """Initialize a Fenix TFT energy total sensor."""
+        super().__init__(coordinator, device_id)
+        self._attr_unique_id = f"{device_id}_energy"
+        self._total: float | None = None
+        self._seen: dict[str, float] = {}
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the running total, then count the current buckets."""
+        await super().async_added_to_hass()
+        if (extra := await self.async_get_last_extra_data()) is not None and (
+            restored := EnergyTotalExtraData.from_dict(extra.as_dict())
+        ) is not None:
+            self._total = restored.total
+            self._seen = restored.seen
+        self._count_new_buckets()
+
+    @property
+    def extra_restore_state_data(self) -> EnergyTotalExtraData | None:
+        """Return the running total and counted buckets to keep across restarts."""
+        if self._total is None:
+            return None
+        return EnergyTotalExtraData(self._total, self._seen)
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Count new buckets before writing the state."""
+        self._count_new_buckets()
+        super()._handle_coordinator_update()
+
+    def _count_new_buckets(self) -> None:
+        """Add buckets not counted yet and increases of counted ones."""
+        buckets = self.coordinator.data.room_energy.get(self._device_id)
+        if buckets is None:
+            return  # fetch failed: keep the total
+        current = {
+            bucket.start.isoformat(): max(bucket.processed_value, 0.0)
+            for bucket in buckets
+            if bucket.start is not None
+        }
+        if self._total is None:
+            # First start: the window so far is the baseline
+            self._total = sum(current.values(), 0.0)
+            self._seen = current
+            return
+        for stamp, value in current.items():
+            counted = self._seen.get(stamp, 0.0)
+            if value > counted:
+                self._total += value - counted
+                self._seen[stamp] = value
+        # Forget buckets that left the window (with some margin)
+        oldest = (dt_util.utcnow() - ENERGY_WINDOW - timedelta(hours=2)).isoformat()
+        self._seen = {
+            stamp: value for stamp, value in self._seen.items() if stamp >= oldest
+        }
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        dev = self._device
+        return (
+            super().available
+            and dev is not None
+            and dev.room_id is not None
+            and dev.installation_id is not None
+        )
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the running energy total."""
+        if self._device is None:
+            return None
+        return self._total
 
 
 class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):

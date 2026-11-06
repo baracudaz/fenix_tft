@@ -105,6 +105,9 @@
       "daily_energy_consumption": {
         "name": "Consommation énergétique quotidienne"
       },
+      "energy": {
+        "name": "Énergie"
+      },
       "holiday_mode": {
         "name": "Mode vacances"
       },

@@ -3,6 +3,7 @@
 # Sequence is used in a module-level Final[] annotation, which is eagerly
 # introspectable (e.g. via __annotations__), so it can't move behind TYPE_CHECKING.
 from collections.abc import Sequence  # noqa: TC003
+from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final[str] = "fenix_tft"
@@ -13,6 +14,16 @@ OPTIMISTIC_UPDATE_DURATION: Final[int] = 10  # Optimistic update duration (secon
 
 # Max concurrent energy consumption requests per refresh
 MAX_CONCURRENT_ENERGY_REQUESTS: Final[int] = 5
+
+# Hourly energy buckets fetched on each refresh. The cloud publishes a bucket
+# about an hour after it ends and sometimes later, so a window much longer than
+# that lets late buckets still be counted.
+ENERGY_WINDOW: Final[timedelta] = timedelta(hours=48)
+
+# The cloud stamps an hourly energy bucket with the END of the hour it covers
+# (compared against a grid meter, see issue #154): subtract this to get the
+# start of the hour.
+ENERGY_BUCKET_OFFSET: Final[timedelta] = timedelta(hours=1)
 
 # Preset mode constants
 PRESET_MODE_OFF: Final[int] = 0

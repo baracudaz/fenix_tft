@@ -105,6 +105,9 @@
       "daily_energy_consumption": {
         "name": "Denní spotřeba energie"
       },
+      "energy": {
+        "name": "Energie"
+      },
       "holiday_mode": {
         "name": "Režim prázdnin"
       },
