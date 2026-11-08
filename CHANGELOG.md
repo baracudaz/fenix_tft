@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- In Program, Defrost and Boost mode the thermostat shows the temperature it actually regulates to as its target (for example the program's 20 °C, Defrost 7 °C or Boost 24 °C, as on the thermostat's display), instead of no target. Changing the target in these modes switches the thermostat to manual (Heat) with that temperature, as before in manual mode. pyfenixcontrol 0.3.0 ([#186](https://github.com/baracudaz/fenix_tft/issues/186))
+
 ---
 
 ## [1.5.1] - 2026-11-08

@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 
 import pytest
-from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate import ClimateEntityFeature, HVACMode
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from pyfenixcontrol import FenixControlConnectionError
@@ -115,6 +115,72 @@ async def test_climate_hvac_action_unknown_during_holiday(
 
     state = hass.states.get(_get_climate_entity_id(hass))
     assert state.attributes.get("hvac_action") is None
+
+
+@pytest.mark.parametrize(
+    ("device_mode", "setpoint"),
+    [
+        (PRESET_MODE_PROGRAM, 20.0),
+        (PRESET_MODE_DEFROST, 7.0),
+        (PRESET_MODE_BOOST, 24.0),
+    ],
+)
+async def test_climate_target_is_active_setpoint(
+    hass, mock_config_entry, mock_client, device_mode, setpoint
+):
+    """Program, Defrost and Boost show the setpoint the thermostat uses (#186)."""
+    mock_client.get_devices.return_value = [
+        dataclasses.replace(
+            MOCK_DEVICE, preset_mode=device_mode, active_target_temperature=setpoint
+        )
+    ]
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(_get_climate_entity_id(hass))
+    assert float(state.attributes["temperature"]) == pytest.approx(setpoint)
+    assert (
+        state.attributes["supported_features"] & ClimateEntityFeature.TARGET_TEMPERATURE
+    )
+
+
+async def test_climate_no_target_when_off(hass, mock_config_entry, mock_client):
+    """An off thermostat shows no target temperature."""
+    mock_client.get_devices.return_value = [
+        dataclasses.replace(MOCK_DEVICE, preset_mode=PRESET_MODE_OFF)
+    ]
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(_get_climate_entity_id(hass))
+    assert state.attributes.get("temperature") is None
+
+
+async def test_set_temperature_in_program_switches_to_manual(
+    hass, mock_config_entry, mock_client
+):
+    """Changing the target in program mode switches the thermostat to manual."""
+    mock_client.get_devices.return_value = [
+        dataclasses.replace(
+            MOCK_DEVICE, preset_mode=PRESET_MODE_PROGRAM, active_target_temperature=20.0
+        )
+    ]
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    entity_id = _get_climate_entity_id(hass)
+
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {"entity_id": entity_id, ATTR_TEMPERATURE: 21.5},
+        blocking=True,
+    )
+
+    mock_client.set_target_temperature.assert_called_once_with(MOCK_DEVICE_ID, 21.5)
+    assert hass.states.get(entity_id).state == HVACMode.HEAT
 
 
 async def test_climate_min_max_temp(hass, setup_integration):

@@ -1,5 +1,6 @@
 """Platform for Fenix TFT climate entities."""
 
+import dataclasses
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -55,6 +56,11 @@ HVAC_MODE_MAP: dict[int, str] = {
     PRESET_MODE_PROGRAM: "auto",  # Automatic program mode
     PRESET_MODE_MANUAL: "manual",  # Manual temperature control
 }
+
+# Modes that regulate to their own setpoint, reported as the active setpoint (Sp)
+SETPOINT_PRESET_MODES: frozenset[int] = frozenset(
+    {PRESET_MODE_PROGRAM, PRESET_MODE_DEFROST, PRESET_MODE_BOOST}
+)
 
 # Map device preset_mode values to Home Assistant's standard presets (same as the
 # core fenix_control integration). Note: PRESET_MODE_PROGRAM (2) appears in both
@@ -185,13 +191,19 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     @property
     def target_temperature(self) -> float | None:
         """
-        Return the target temperature set on the thermostat.
+        Return the temperature the thermostat regulates to.
 
-        Note: In holiday mode, returns the normal target (Ma) that will resume
-        after holiday ends. The active holiday target (Sp) is shown as an attribute.
+        Manual mode uses its own target (Ma). Program, Defrost and Boost show the
+        setpoint the thermostat currently uses (Sp, set on the device or by the
+        program). During a holiday no target is shown; the holiday setpoint is a
+        sensor attribute.
         """
         dev = self._device
-        return dev.target_temperature if dev else None
+        if dev is None:
+            return None
+        if dev.preset_mode in SETPOINT_PRESET_MODES:
+            return dev.active_target_temperature
+        return dev.target_temperature
 
     @property
     def hvac_action(self) -> HVACAction | None:
@@ -242,8 +254,9 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
 
-        # Enable temperature control only in manual mode
-        if hvac_mode_str == "manual":
+        # A target is shown in manual mode and in modes with their own setpoint;
+        # changing it switches the thermostat to manual
+        if hvac_mode_str == "manual" or raw_preset in SETPOINT_PRESET_MODES:
             return (
                 ClimateEntityFeature.TARGET_TEMPERATURE
                 | ClimateEntityFeature.PRESET_MODE
@@ -326,6 +339,14 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
                 "Temperature set successfully for device %s: %.1f°C",
                 self._device_id,
                 temp,
+            )
+            # The command also switches the thermostat to manual
+            if (dev := self._device) is not None:
+                self.coordinator.data.devices[self._device_id] = dataclasses.replace(
+                    dev, target_temperature=temp
+                )
+            self.coordinator.update_device_preset_mode(
+                self._device_id, PRESET_MODE_MANUAL
             )
             # Request fresh data from coordinator to update UI
             await self.coordinator.async_request_refresh()
