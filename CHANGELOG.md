@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **The floor temperature sensor showed the thermostat's Boost setpoint, not the floor temperature.** The library read the wrong cloud property (checked on a thermostat: Boost setting 24.0 °C, floor probe 23.1 °C, sensor 24.0 °C). It now reads the floor temperature, but the cloud doesn't report one for TFT Wi-Fi thermostats, even with a floor probe connected. So the *Floor temperature* and *Floor-air difference* sensors become unavailable and aren't created on new installs; you can delete the old entities. They come back if the cloud starts reporting the floor temperature. pyfenixcontrol 0.1.1 ([#183](https://github.com/baracudaz/fenix_tft/issues/183))
+- **The floor temperature sensor showed the thermostat's Boost setpoint, not the floor temperature.** The library read the wrong cloud property (checked on a thermostat: Boost setting 24.0 °C, floor probe 23.1 °C, sensor 24.0 °C). It now reads the floor temperature, but the cloud doesn't report one for TFT Wi-Fi thermostats, even with a floor probe connected. So the *Floor temperature* and *Floor-air difference* sensors are no longer created: after updating, Home Assistant lists the existing ones as no longer provided, and you can delete them. If the cloud starts reporting the floor temperature, they come back the next time the integration loads (restart or reload). pyfenixcontrol 0.1.1 ([#183](https://github.com/baracudaz/fenix_tft/issues/183))
 
 ### Changed
 
