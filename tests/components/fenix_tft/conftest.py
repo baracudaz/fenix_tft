@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from pyfenixcontrol import Device, EnergyMetric, Installation, Room
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.fenix_tft.const import DOMAIN, PRESET_MODE_MANUAL
 

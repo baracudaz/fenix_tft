@@ -59,7 +59,7 @@ async def test_async_migrate_entry_current_version(
 async def test_async_migrate_entry_future_version(hass, mock_client):
     """Return False for an unknown future version that cannot be migrated."""
     from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    from pytest_homeassistant.common import MockConfigEntry
 
     from .conftest import MOCK_PASSWORD, MOCK_USERNAME
 

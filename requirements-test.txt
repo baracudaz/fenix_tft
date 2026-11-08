@@ -2,6 +2,7 @@ pre-commit>=4.7.0
 pytest>=9.0.3
 pytest-cov>=7.1.0
 pytest-asyncio>=1.4.0
-# Pins the matching homeassistant release; no separate homeassistant pin, so
+# Home Assistant's own test package (replaces pytest-homeassistant-custom-component);
+# it pins the matching homeassistant release, so no separate homeassistant pin and
 # Dependabot bumps both together
-pytest-homeassistant-custom-component==0.13.373
+pytest-homeassistant==2026.11.0
