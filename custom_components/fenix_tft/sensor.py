@@ -18,8 +18,8 @@ from .const import (
     HOLIDAY_MODE_DISPLAY_NAMES,
     HOLIDAY_MODE_NONE,
     HVAC_ACTION_HEATING,
-    HVAC_ACTION_IDLE,
     PRESET_MODE_DISPLAY_NAMES,
+    PRESET_MODE_OFF,
 )
 from .entity import FenixTFTEntity
 from .helpers import parse_holiday_end
@@ -240,10 +240,11 @@ class FenixHvacStateSensor(FenixTFTEntity, SensorEntity):
 
         hvac_action = dev.hvac_state
 
-        # Map numeric HVAC action to string state
+        # Not heating is reported as 2 by TFT thermostats (also when the target is
+        # reached) and as 0 by the WiFi Box; only the off mode means "off".
         if hvac_action == HVAC_ACTION_HEATING:
             return "heating"
-        return "idle" if hvac_action == HVAC_ACTION_IDLE else "off"
+        return "off" if dev.preset_mode == PRESET_MODE_OFF else "idle"
 
 
 class FenixPresetModeSensor(FenixTFTEntity, SensorEntity):

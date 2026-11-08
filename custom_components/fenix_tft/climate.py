@@ -20,6 +20,7 @@ from .const import (
     DOMAIN,
     HOLIDAY_LOCKED_MSG,
     HOLIDAY_MODE_NONE,
+    HVAC_ACTION_HEATING,
     PRESET_MODE_BOOST,
     PRESET_MODE_DEFROST,
     PRESET_MODE_HOLIDAYS,
@@ -45,14 +46,6 @@ _LOGGER = logging.getLogger(__name__)
 
 # Configure parallel updates for climate platform - serialize to prevent API overwhelm
 PARALLEL_UPDATES = 1
-
-# Map Fenix TFT API hvac_action values to Home Assistant HVAC actions
-FENIX_TFT_TO_HASS_HVAC_ACTION: dict[int | None, HVACAction] = {
-    1: HVACAction.HEATING,  # Device is actively heating
-    2: HVACAction.OFF,  # Device is off
-    0: HVACAction.IDLE,  # Device is on but not heating
-    None: HVACAction.OFF,  # Fallback for unknown states
-}
 
 # Map Fenix TFT preset mode values to operational mode strings
 # Used to determine which Home Assistant HVAC mode to display
@@ -201,12 +194,18 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         return dev.target_temperature if dev else None
 
     @property
-    def hvac_action(self) -> HVACAction:
+    def hvac_action(self) -> HVACAction | None:
         """Return the current HVAC action (heating, idle, off)."""
         dev = self._device
-        raw_action = dev.hvac_state if dev else None
-        # Map device's numeric action to Home Assistant's HVAC action
-        return FENIX_TFT_TO_HASS_HVAC_ACTION.get(raw_action, HVACAction.OFF)
+        if dev is None or dev.hvac_state is None:
+            return None
+        if self.hvac_mode == HVACMode.OFF:
+            return HVACAction.OFF
+        if dev.hvac_state == HVAC_ACTION_HEATING:
+            return HVACAction.HEATING
+        # Not heating. TFT thermostats report 2 for this (also when the target is
+        # reached), the WiFi Box 0; only the off mode means the device is off.
+        return HVACAction.IDLE
 
     @property
     def preset_mode(self) -> str | None:

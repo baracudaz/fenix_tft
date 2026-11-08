@@ -16,6 +16,7 @@ from custom_components.fenix_tft.const import (
     DOMAIN,
     HOLIDAY_MODE_REDUCE,
     PRESET_MODE_DEFROST,
+    PRESET_MODE_MANUAL,
     PRESET_MODE_OFF,
 )
 
@@ -124,18 +125,27 @@ async def test_sensor_values(hass, mock_config_entry, mock_client):
 
 
 @pytest.mark.parametrize(
-    ("hvac_state", "expected"),
-    [(0, "idle"), (1, "heating"), (2, "off"), (99, "off")],
+    ("preset_mode", "hvac_state", "expected"),
+    [
+        (PRESET_MODE_MANUAL, 0, "idle"),
+        (PRESET_MODE_MANUAL, 1, "heating"),
+        (PRESET_MODE_MANUAL, 2, "idle"),
+        (PRESET_MODE_MANUAL, 99, "idle"),
+        (PRESET_MODE_OFF, 0, "off"),
+        (PRESET_MODE_OFF, 2, "off"),
+    ],
 )
-async def test_hvac_state_values(
-    hass, mock_config_entry, mock_client, hvac_state, expected
+async def test_hvac_state_values(  # noqa: PLR0913, PLR0917
+    hass, mock_config_entry, mock_client, preset_mode, hvac_state, expected
 ):
-    """The HVAC state sensor maps the thermostat's heating state."""
+    """Not heating is idle unless the thermostat is off (TFTs report 2, #184)."""
     await _setup(
         hass,
         mock_config_entry,
         mock_client,
-        dataclasses.replace(MOCK_DEVICE, hvac_state=hvac_state),
+        dataclasses.replace(
+            MOCK_DEVICE, preset_mode=preset_mode, hvac_state=hvac_state
+        ),
     )
 
     assert _state(hass, "hvac_state").state == expected
