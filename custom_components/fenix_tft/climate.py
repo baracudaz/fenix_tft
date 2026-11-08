@@ -1,6 +1,7 @@
 """Platform for Fenix TFT climate entities."""
 
 import logging
+import math
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from homeassistant.components.climate import ClimateEntity
@@ -56,6 +57,16 @@ HVAC_MODE_MAP: dict[int, str] = {
     PRESET_MODE_MANUAL: "manual",  # Manual temperature control
 }
 
+# Modes that regulate to their own setpoint, reported as the active setpoint (Sp)
+SETPOINT_PRESET_MODES: frozenset[int] = frozenset(
+    {PRESET_MODE_PROGRAM, PRESET_MODE_DEFROST, PRESET_MODE_BOOST}
+)
+# Modes with their own setpoint (df, bo) besides manual (Ma): changing the target
+# in them sets that setpoint and keeps the mode.
+OWN_SETPOINT_PRESET_MODES: frozenset[int] = frozenset(
+    {PRESET_MODE_DEFROST, PRESET_MODE_BOOST}
+)
+
 # Map device preset_mode values to Home Assistant's standard presets (same as the
 # core fenix_control integration). Note: PRESET_MODE_PROGRAM (2) appears in both
 # maps - shows as AUTO + "home".
@@ -86,9 +97,9 @@ PRESET_CANONICAL_MAP: dict[str, str] = {
 }
 
 PRESET_ICON_MAP: dict[str, str] = {
-    PRESET_HOME: "mdi:home",
+    PRESET_HOME: "mdi:clock-outline",
     PRESET_AWAY: "mdi:snowflake",
-    PRESET_BOOST: "mdi:rocket-launch",
+    PRESET_BOOST: "mdi:fire",
 }
 
 
@@ -130,8 +141,6 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     _normalized_preset_modes: ClassVar[frozenset[str]] = frozenset(PRESET_INVERTED)
 
     _attr_temperature_unit: ClassVar[str] = UnitOfTemperature.CELSIUS
-    _attr_min_temp: ClassVar[float] = TEMP_MIN
-    _attr_max_temp: ClassVar[float] = TEMP_MAX
     _attr_target_temperature_step: ClassVar[float] = TEMP_STEP
     _attr_translation_key: str = "thermostat"  # Translation key for entity name
 
@@ -185,13 +194,62 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     @property
     def target_temperature(self) -> float | None:
         """
-        Return the target temperature set on the thermostat.
+        Return the temperature the thermostat regulates to.
 
-        Note: In holiday mode, returns the normal target (Ma) that will resume
-        after holiday ends. The active holiday target (Sp) is shown as an attribute.
+        Manual mode uses its own target (Ma), Defrost and Boost the setpoints set
+        on the thermostat (df, bo), Program the setpoint the program currently
+        uses (Sp). During a holiday no target is shown; the holiday setpoint is a
+        sensor attribute.
         """
         dev = self._device
-        return dev.target_temperature if dev else None
+        if dev is None:
+            return None
+        if not self._is_holiday_active():
+            if dev.preset_mode == PRESET_MODE_DEFROST:
+                return dev.defrost_temperature
+            if dev.preset_mode == PRESET_MODE_BOOST:
+                return dev.boost_temperature
+            if dev.preset_mode == PRESET_MODE_PROGRAM:
+                return dev.active_target_temperature
+        return dev.target_temperature
+
+    def _setpoint_range(self) -> tuple[float, float]:
+        """
+        Return the range the device accepts for the setpoint changed in this mode.
+
+        Defrost and Boost have their own ranges (df, bo; for example 2-15 °C
+        for frost protection on TFT thermostats); in the other modes a change
+        sets the manual target (Ma, 10-30 °C on the WiFi Box). The bounds are
+        rounded inwards to the 0.5 °C step; without a reported range the
+        default 5-35 °C applies.
+        """
+        dev = self._device
+        if dev is None:
+            return TEMP_MIN, TEMP_MAX
+        if dev.preset_mode == PRESET_MODE_DEFROST:
+            device_range = dev.defrost_temperature_range
+        elif dev.preset_mode == PRESET_MODE_BOOST:
+            device_range = dev.boost_temperature_range
+        else:
+            device_range = dev.target_temperature_range
+        if device_range is None:
+            return TEMP_MIN, TEMP_MAX
+        # Round to 0.01 first: the °F conversion leaves tiny errors (10.000001).
+        low = math.ceil(round(device_range[0], 2) / TEMP_STEP) * TEMP_STEP
+        high = math.floor(round(device_range[1], 2) / TEMP_STEP) * TEMP_STEP
+        if low > high:
+            return TEMP_MIN, TEMP_MAX
+        return low, high
+
+    @property
+    def min_temp(self) -> float:
+        """Return the lowest target the device accepts in the current mode."""
+        return self._setpoint_range()[0]
+
+    @property
+    def max_temp(self) -> float:
+        """Return the highest target the device accepts in the current mode."""
+        return self._setpoint_range()[1]
 
     @property
     def hvac_action(self) -> HVACAction | None:
@@ -242,8 +300,9 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
 
-        # Enable temperature control only in manual mode
-        if hvac_mode_str == "manual":
+        # A target is shown in manual mode and in modes with their own setpoint;
+        # changing it switches the thermostat to manual
+        if hvac_mode_str == "manual" or raw_preset in SETPOINT_PRESET_MODES:
             return (
                 ClimateEntityFeature.TARGET_TEMPERATURE
                 | ClimateEntityFeature.PRESET_MODE
@@ -291,18 +350,19 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             msg = HOLIDAY_LOCKED_MSG
             raise HomeAssistantError(msg)
 
-        if not TEMP_MIN <= temp <= TEMP_MAX:
+        low, high = self._setpoint_range()
+        if not low <= temp <= high:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="temperature_out_of_range",
                 translation_placeholders={
-                    "min": str(TEMP_MIN),
-                    "max": str(TEMP_MAX),
+                    "min": str(low),
+                    "max": str(high),
                     "temp": str(temp),
                 },
             )
 
-        steps = (temp - TEMP_MIN) / TEMP_STEP
+        steps = temp / TEMP_STEP
         if abs(steps - round(steps)) > TEMP_STEP_EPSILON:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
@@ -319,14 +379,27 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             temp,
         )
 
+        dev = self._device
+        # Defrost and Boost keep their mode and get a new setpoint; in the other
+        # modes the change sets the manual target and switches to manual.
+        mode = (
+            dev.preset_mode
+            if dev is not None and dev.preset_mode in OWN_SETPOINT_PRESET_MODES
+            else PRESET_MODE_MANUAL
+        )
         try:
-            # Send temperature change to device via API
-            await self._client.set_target_temperature(self._device_id, temp)
+            await self._client.set_setpoint(self._device_id, mode, temp)
             _LOGGER.info(
-                "Temperature set successfully for device %s: %.1f°C",
+                "Temperature set successfully for device %s: %.1f°C (mode %s)",
                 self._device_id,
                 temp,
+                mode,
             )
+            # Keep the mode and its new setpoint until the cloud reports them
+            self.coordinator.update_device_preset_mode(
+                self._device_id, mode, target_temperature=temp
+            )
+            self.async_write_ha_state()
             # Request fresh data from coordinator to update UI
             await self.coordinator.async_request_refresh()
         except FenixControlError as err:

@@ -57,7 +57,16 @@
   "entity": {
     "climate": {
       "thermostat": {
-        "name": "Thermostat"
+        "name": "Thermostat",
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "home": "Programm",
+              "away": "Frostschutz",
+              "boost": "Timer"
+            }
+          }
+        }
       }
     },
     "sensor": {
@@ -83,7 +92,7 @@
           "holidays": "Urlaub",
           "program": "Programm",
           "defrost": "Frostschutz",
-          "boost": "Boost",
+          "boost": "Timer",
           "manual": "Manuell"
         }
       },

@@ -57,7 +57,16 @@
   "entity": {
     "climate": {
       "thermostat": {
-        "name": "Thermostat"
+        "name": "Thermostat",
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "home": "Programme",
+              "away": "Hors gel",
+              "boost": "Dérogation temporaire"
+            }
+          }
+        }
       }
     },
     "sensor": {
@@ -79,11 +88,11 @@
       "preset_mode": {
         "name": "Mode prédéfini",
         "state": {
-          "off": "Éteint",
+          "off": "Arrêt",
           "holidays": "Vacances",
           "program": "Programme",
-          "defrost": "Hors-gel",
-          "boost": "Boost",
+          "defrost": "Hors gel",
+          "boost": "Dérogation temporaire",
           "manual": "Manuel"
         }
       },
