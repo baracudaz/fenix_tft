@@ -48,6 +48,8 @@ class FenixTFTEntity(CoordinatorEntity[FenixTFTCoordinator]):
             manufacturer="Fenix",
             model=dev.model_name if dev else None,
             model_id=dev.model if dev else None,
+            # Clear the type code that older versions stored as hardware version
+            hw_version=None,
             sw_version=dev.software_version if dev else None,
             serial_number=dev.id if dev else None,
         )
