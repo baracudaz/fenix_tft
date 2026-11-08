@@ -118,11 +118,11 @@
         },
         "start_date": {
           "name": "Date de début",
-          "description": "La date et l'heure auxquelles le calendrier de vacances doit commencer."
+          "description": "La date et l'heure auxquelles le calendrier de vacances doit commencer. Les thermostats TFT l'arrondissent à l'heure pleine inférieure."
         },
         "end_date": {
           "name": "Date de fin",
-          "description": "La date et l'heure auxquelles le calendrier de vacances doit se terminer et le programme normal doit reprendre."
+          "description": "La date et l'heure auxquelles le calendrier de vacances doit se terminer et le programme normal doit reprendre. Les thermostats TFT l'arrondissent à l'heure pleine inférieure."
         },
         "mode": {
           "name": "Mode",

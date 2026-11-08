@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The device model shows the product name of the thermostat (TFT Wi-Fi, TFT Wi-Fi RF or WiFi Box) instead of "TFT WiFi Thermostat" for every device, and the type code (for example P07542) as the model ID instead of the hardware version, as in the core integration. Unknown device types show only the type code. pyfenixcontrol 0.2.0 ([#185](https://github.com/baracudaz/fenix_tft/issues/185))
+- Documentation: TFT thermostats round holiday start and end down to the full hour (README and the holiday service fields); new "Known limitations" section in the README: floor temperature, open-window detection, floor limit and Professional Mode aren't reported by the cloud ([#188](https://github.com/baracudaz/fenix_tft/issues/188))
 
 ---
 

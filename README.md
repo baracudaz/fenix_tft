@@ -143,6 +143,9 @@ Set a holiday schedule for all thermostats in the installation. This overrides t
 - `entity_id` (required): Any thermostat entity from the installation (schedule applies to all thermostats sharing its installation)
 - `start_date` (required): When the holiday schedule should start
 - `end_date` (required): When the holiday schedule should end
+
+TFT thermostats round the start and end down to the full hour: a holiday from 15:25 to 17:23 runs from 15:00 to 17:00. The WiFi Box keeps the exact times.
+
 - `mode` (required): Heating mode during the holiday period
   - `off`: Turn heating off completely
   - `reduce`: Eco/reduced temperature mode
@@ -257,6 +260,15 @@ Each thermostat provides a set of sensors you can use in dashboards, automations
 | `*_daily_energy_consumption` | Accumulated energy for today (Wh). |
 | `*_holiday_mode` | Display name of the current holiday mode or `None`. Includes rich attributes. |
 | `*_holiday_schedule_until` | Timestamp when the holiday ends (if active). |
+
+## Known limitations
+
+These come from what the FENIX cloud reports, so the integration can't show or change them:
+
+- **Floor temperature:** not reported for TFT Wi-Fi thermostats, even with a floor probe connected ([#183](https://github.com/baracudaz/fenix_tft/issues/183)).
+- **Open-window detection and the floor temperature limit** (warning triangle on the display) are not reported. When the thermostat stops heating because of an open window or the floor limit, it looks the same as a thermostat that has reached its target.
+- **Professional Mode** (touchscreen lock) is not reported. Commands from Home Assistant still work while it's on.
+- **Settings made on the thermostat** (Defrost and Boost temperatures, Boost duration, heater power) can't be changed from Home Assistant.
 
 ## Inspiration
 

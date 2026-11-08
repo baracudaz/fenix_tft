@@ -118,11 +118,11 @@
         },
         "start_date": {
           "name": "Startdatum",
-          "description": "Datum und Uhrzeit, zu der der Urlaubsplan beginnen soll."
+          "description": "Datum und Uhrzeit, zu der der Urlaubsplan beginnen soll. TFT-Thermostate runden sie auf die volle Stunde ab."
         },
         "end_date": {
           "name": "Enddatum",
-          "description": "Datum und Uhrzeit, zu der der Urlaubsplan enden und das normale Programm wieder aufgenommen werden soll."
+          "description": "Datum und Uhrzeit, zu der der Urlaubsplan enden und das normale Programm wieder aufgenommen werden soll. TFT-Thermostate runden sie auf die volle Stunde ab."
         },
         "mode": {
           "name": "Modus",
