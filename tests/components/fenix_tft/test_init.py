@@ -77,6 +77,17 @@ async def test_async_migrate_entry_future_version(hass, mock_client):
     assert result is False
 
 
+async def test_device_model(hass, mock_config_entry, setup_integration):
+    """The device shows the product name and the type code of the thermostat."""
+    device_entry = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, MOCK_DEVICE_ID), mock_config_entry.entry_id
+    )
+    assert device_entry is not None
+    assert device_entry.manufacturer == "Fenix"
+    assert device_entry.model == "TFT Wi-Fi"
+    assert device_entry.model_id == "P07542"
+
+
 async def test_async_remove_config_entry_device_active_device(
     hass, mock_config_entry, setup_integration
 ):
