@@ -103,6 +103,19 @@ async def test_climate_hvac_action(  # noqa: PLR0913, PLR0917
     assert state.attributes.get("hvac_action") == action
 
 
+async def test_climate_hvac_action_unknown_during_holiday(
+    hass, mock_config_entry, mock_client
+):
+    """During a holiday the heating state carries the holiday mode: no action."""
+    mock_client.get_devices.return_value = [MOCK_DEVICE_HOLIDAY]
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(_get_climate_entity_id(hass))
+    assert state.attributes.get("hvac_action") is None
+
+
 async def test_climate_min_max_temp(hass, setup_integration):
     """Test min/max temperature attributes match constants."""
     entity_id = _get_climate_entity_id(hass)

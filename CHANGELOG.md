@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A thermostat that has reached its target temperature shows the HVAC action "Idle" instead of "Off". TFT thermostats report the same value for "not heating" and "off", so the action and the *HVAC state* sensor now show "Off" only when the thermostat's mode is off. The climate entity reports no action when the thermostat doesn't send its heating state ([#184](https://github.com/baracudaz/fenix_tft/issues/184))
+- A thermostat that has reached its target temperature shows the HVAC action "Idle" instead of "Off". TFT thermostats report the same value for "not heating" and "off", so the action and the *HVAC state* sensor now show "Off" only when the thermostat's mode is off. The climate entity reports no action when the thermostat doesn't send its heating state or a holiday is active (the thermostat then reports the holiday mode in that field) ([#184](https://github.com/baracudaz/fenix_tft/issues/184))
 
 ---
 
