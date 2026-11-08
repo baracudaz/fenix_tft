@@ -17,7 +17,7 @@
     ],
     "quality_scale": "silver",
     "requirements": [
-        "pyfenixcontrol==0.1.0"
+        "pyfenixcontrol==0.1.1"
     ],
     "version": "1.4.1"
 }

@@ -248,10 +248,10 @@ Each thermostat provides a set of sensors you can use in dashboards, automations
 | Sensor | Description |
 | -------- | ------------- |
 | `*_ambient_temperature` | Current room temperature (°C). |
-| `*_floor_temperature` | Floor probe temperature (°C). |
+| `*_floor_temperature` | Floor probe temperature (°C). Only if the thermostat reports one; TFT Wi-Fi thermostats currently don't ([#183](https://github.com/baracudaz/fenix_tft/issues/183)). |
 | `*_target_temperature` | Target temperature (°C). |
 | `*_temperature_difference` | Target minus current temperature (°C). |
-| `*_floor_air_difference` | Floor minus ambient temperature (°C). |
+| `*_floor_air_difference` | Floor minus ambient temperature (°C). Same condition as the floor temperature. |
 | `*_hvac_state` | Heating state: `heating`, `idle`, `off`. |
 | `*_connectivity_status` | `connected` / `disconnected`. |
 | `*_daily_energy_consumption` | Accumulated energy for today (Wh). |

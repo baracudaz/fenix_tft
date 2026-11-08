@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The floor temperature sensor showed the thermostat's Boost setpoint, not the floor temperature.** The library read the wrong cloud property (checked on a thermostat: Boost setting 24.0 °C, floor probe 23.1 °C, sensor 24.0 °C). It now reads the floor temperature, but the cloud doesn't report one for TFT Wi-Fi thermostats, even with a floor probe connected. So the *Floor temperature* and *Floor-air difference* sensors become unavailable and aren't created on new installs; you can delete the old entities. They come back if the cloud starts reporting the floor temperature. pyfenixcontrol 0.1.1 ([#183](https://github.com/baracudaz/fenix_tft/issues/183))
+
 ### Changed
 
 - **Presets use Home Assistant's standard names, as in the core FENIX Control integration:** Program is `home` ("Home"), Defrost is `away` ("Away", was `eco` "Eco 15°C") and Boost is `boost` ("Boost", was `comfort` "Comfort 23°C"). The old labels showed fixed temperatures, but the Defrost and Boost setpoints are set on each thermostat (Defrost is 7 °C by default), so they were often wrong. Labels are now translated by Home Assistant in every language. `climate.set_preset_mode` still accepts `eco`, `comfort`, `defrost` and `program`, so service calls keep working. **Update automations, conditions and dashboards that check for the preset `eco` or `comfort`.** The preset mode sensor keeps its states; its `defrost` and `boost` states are now labelled "Defrost" and "Boost" ([#178](https://github.com/baracudaz/fenix_tft/issues/178))
