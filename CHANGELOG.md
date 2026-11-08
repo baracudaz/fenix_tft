@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The presets are labelled with FENIX's names, as in the FENIX Control app and on the preset mode sensor: `home` is "Program", `away` "Defrost" (Slovak "Protimrazová ochrana", Czech "Ochrana proti zamrznutí") and `boost` "Boost" (Czech "Časovač"), with the app's icons (clock, snowflake, flame). The preset keys are unchanged, so automations keep working. Czech texts use the mode names from the thermostat's Czech manual, including "dovolená" for holiday.
+- The presets are labelled with FENIX's names, as in the FENIX Control app and on the preset mode sensor: `home` is "Program", `away` "Defrost" and `boost` "Boost", with the app's icons (clock, snowflake, flame). Czech, German and French use the mode names of the thermostat's menu from its manual: Defrost is "Ochrana proti zamrznutí" / "Frostschutz" / "Hors gel", Boost "Časovač" / "Timer" / "Dérogation temporaire" (Czech also "Dovolená" for holiday). The preset keys are unchanged, so automations keep working.
 
 ---
 

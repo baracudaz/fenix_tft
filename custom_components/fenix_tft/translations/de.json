@@ -63,7 +63,7 @@
             "state": {
               "home": "Programm",
               "away": "Frostschutz",
-              "boost": "Boost"
+              "boost": "Timer"
             }
           }
         }
@@ -92,7 +92,7 @@
           "holidays": "Urlaub",
           "program": "Programm",
           "defrost": "Frostschutz",
-          "boost": "Boost",
+          "boost": "Timer",
           "manual": "Manuell"
         }
       },

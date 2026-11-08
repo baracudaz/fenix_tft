@@ -62,8 +62,8 @@
           "preset_mode": {
             "state": {
               "home": "Programme",
-              "away": "Hors-gel",
-              "boost": "Boost"
+              "away": "Hors gel",
+              "boost": "Dérogation temporaire"
             }
           }
         }
@@ -88,11 +88,11 @@
       "preset_mode": {
         "name": "Mode prédéfini",
         "state": {
-          "off": "Éteint",
+          "off": "Arrêt",
           "holidays": "Vacances",
           "program": "Programme",
-          "defrost": "Hors-gel",
-          "boost": "Boost",
+          "defrost": "Hors gel",
+          "boost": "Dérogation temporaire",
           "manual": "Manuel"
         }
       },
