@@ -242,9 +242,9 @@ class FenixHvacStateSensor(FenixTFTEntity, SensorEntity):
 
         # Not heating is reported as 2 by TFT thermostats (also when the target is
         # reached) and as 0 by the WiFi Box; only the off mode means "off".
-        if hvac_action == HVAC_ACTION_HEATING:
-            return "heating"
-        return "off" if dev.preset_mode == PRESET_MODE_OFF else "idle"
+        if dev.preset_mode == PRESET_MODE_OFF:
+            return "off"
+        return "heating" if hvac_action == HVAC_ACTION_HEATING else "idle"
 
 
 class FenixPresetModeSensor(FenixTFTEntity, SensorEntity):

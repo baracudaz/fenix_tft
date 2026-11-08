@@ -133,6 +133,7 @@ async def test_sensor_values(hass, mock_config_entry, mock_client):
         (PRESET_MODE_MANUAL, 99, "idle"),
         (PRESET_MODE_OFF, 0, "off"),
         (PRESET_MODE_OFF, 2, "off"),
+        (PRESET_MODE_OFF, 1, "off"),
     ],
 )
 async def test_hvac_state_values(  # noqa: PLR0913, PLR0917

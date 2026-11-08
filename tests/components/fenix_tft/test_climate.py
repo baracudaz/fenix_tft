@@ -85,6 +85,7 @@ async def test_climate_reports_standard_presets(  # noqa: PLR0913, PLR0917
         (PRESET_MODE_PROGRAM, 0, "idle"),  # WiFi Box: not heating
         (PRESET_MODE_OFF, 2, "off"),
         (PRESET_MODE_OFF, 0, "off"),
+        (PRESET_MODE_OFF, 1, "off"),
         (PRESET_MODE_MANUAL, None, None),
     ],
 )
