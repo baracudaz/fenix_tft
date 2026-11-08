@@ -74,7 +74,8 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
     """Data update coordinator for Fenix TFT."""
 
     client: FenixControlClient
-    _optimistic_updates: dict[str, tuple[int, int, float]]
+    # device_id -> (preset_mode, hvac_action, timestamp, target_temperature or None)
+    _optimistic_updates: dict[str, tuple[int, int, float, float | None]]
     _consecutive_failures: int
     _unavailable_logged: bool
 
@@ -238,7 +239,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
         current_time: float = self.hass.loop.time()
         expired_updates: list[str] = []
 
-        for device_id, (preset_mode, hvac_action, timestamp) in list(
+        for device_id, (preset_mode, hvac_action, timestamp, target) in list(
             self._optimistic_updates.items()
         ):
             if current_time - timestamp > OPTIMISTIC_UPDATE_DURATION:
@@ -253,7 +254,12 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
                     hvac_action,
                 )
                 fresh_data.devices[device_id] = dataclasses.replace(
-                    device, preset_mode=preset_mode, hvac_state=hvac_action
+                    device,
+                    preset_mode=preset_mode,
+                    hvac_state=hvac_action,
+                    target_temperature=(
+                        device.target_temperature if target is None else target
+                    ),
                 )
 
         for device_id in expired_updates:
@@ -268,8 +274,13 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
                 "Removed %d expired optimistic update(s)", len(expired_updates)
             )
 
-    def update_device_preset_mode(self, device_id: str, preset_mode: int) -> None:
-        """Optimistically update device preset mode in coordinator data."""
+    def update_device_preset_mode(
+        self,
+        device_id: str,
+        preset_mode: int,
+        target_temperature: float | None = None,
+    ) -> None:
+        """Optimistically update the preset mode (and target) in coordinator data."""
         if not self.data or not self.data.devices:
             _LOGGER.warning(
                 "Cannot apply optimistic update for device %s: no coordinator data",
@@ -285,6 +296,8 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
             )
             return
 
+        if target_temperature is not None:
+            device = dataclasses.replace(device, target_temperature=target_temperature)
         target_temp = device.target_temperature
         current_temp = device.room_temperature
         predicted_hvac_action = _predict_hvac_action(
@@ -294,6 +307,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
             preset_mode,
             predicted_hvac_action,
             self.hass.loop.time(),
+            target_temperature,
         )
         self.data.devices[device_id] = dataclasses.replace(
             device, preset_mode=preset_mode, hvac_state=predicted_hvac_action

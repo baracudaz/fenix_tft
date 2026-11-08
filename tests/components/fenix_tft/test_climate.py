@@ -180,7 +180,10 @@ async def test_set_temperature_in_program_switches_to_manual(
     )
 
     mock_client.set_target_temperature.assert_called_once_with(MOCK_DEVICE_ID, 21.5)
-    assert hass.states.get(entity_id).state == HVACMode.HEAT
+    # The refresh still returns the old data; the new mode and target are kept
+    state = hass.states.get(entity_id)
+    assert state.state == HVACMode.HEAT
+    assert float(state.attributes["temperature"]) == pytest.approx(21.5)
 
 
 async def test_climate_min_max_temp(hass, setup_integration):

@@ -1,6 +1,5 @@
 """Platform for Fenix TFT climate entities."""
 
-import dataclasses
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -201,7 +200,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         dev = self._device
         if dev is None:
             return None
-        if dev.preset_mode in SETPOINT_PRESET_MODES:
+        if dev.preset_mode in SETPOINT_PRESET_MODES and not self._is_holiday_active():
             return dev.active_target_temperature
         return dev.target_temperature
 
@@ -340,14 +339,12 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
                 self._device_id,
                 temp,
             )
-            # The command also switches the thermostat to manual
-            if (dev := self._device) is not None:
-                self.coordinator.data.devices[self._device_id] = dataclasses.replace(
-                    dev, target_temperature=temp
-                )
+            # The command also switches the thermostat to manual; keep the new
+            # mode and target until the cloud reports them
             self.coordinator.update_device_preset_mode(
-                self._device_id, PRESET_MODE_MANUAL
+                self._device_id, PRESET_MODE_MANUAL, target_temperature=temp
             )
+            self.async_write_ha_state()
             # Request fresh data from coordinator to update UI
             await self.coordinator.async_request_refresh()
         except FenixControlError as err:

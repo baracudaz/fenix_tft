@@ -277,10 +277,10 @@ async def test_optimistic_update_expires_on_next_refresh(coordinator):
     assert coordinator.pending_optimistic_update_count == 1
 
     # Simulate expiry by backdating the timestamp
-    device_id, (preset, hvac, _timestamp) = next(
+    device_id, (preset, hvac, _timestamp, target) = next(
         iter(coordinator._optimistic_updates.items())
     )
-    coordinator._optimistic_updates[device_id] = (preset, hvac, 0.0)
+    coordinator._optimistic_updates[device_id] = (preset, hvac, 0.0, target)
 
     # Second refresh should clear the expired optimistic update
     coordinator.data = await coordinator._async_update_data()
