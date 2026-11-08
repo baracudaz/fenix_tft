@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- Development only: tests run on Home Assistant 2026.11.0 with Home Assistant's own test package `pytest-homeassistant`, which replaces the retired `pytest-homeassistant-custom-component`; the Docker dev image is on 2026.11.0 ([#180](https://github.com/baracudaz/fenix_tft/pull/180))
+
 ## [1.4.1] - 2026-10-22
 
 ### Fixed
