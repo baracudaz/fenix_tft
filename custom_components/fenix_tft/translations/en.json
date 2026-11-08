@@ -62,8 +62,8 @@
           "preset_mode": {
             "state": {
               "home": "Program",
-              "eco": "Eco 15°C",
-              "comfort": "Comfort 23°C"
+              "away": "Defrost",
+              "boost": "Boost"
             }
           }
         }
@@ -91,8 +91,8 @@
           "off": "Off",
           "holidays": "Holidays",
           "program": "Program",
-          "defrost": "Eco 15°C",
-          "boost": "Comfort 23°C",
+          "defrost": "Defrost",
+          "boost": "Boost",
           "manual": "Manual"
         }
       },
@@ -127,11 +127,11 @@
         },
         "start_date": {
           "name": "Start date",
-          "description": "The date and time when the holiday schedule should start."
+          "description": "The date and time when the holiday schedule should start. TFT thermostats round it down to the full hour."
         },
         "end_date": {
           "name": "End date",
-          "description": "The date and time when the holiday schedule should end and normal programming should resume."
+          "description": "The date and time when the holiday schedule should end and normal programming should resume. TFT thermostats round it down to the full hour."
         },
         "mode": {
           "name": "Mode",

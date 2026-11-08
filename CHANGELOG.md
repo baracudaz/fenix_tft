@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+---
+
+## [1.6.0] - 2026-11-08
+
+### Added
+
+- The thermostat shows a target temperature outside manual mode too, instead of none ([#186](https://github.com/baracudaz/fenix_tft/issues/186)):
+  - Program: the temperature the program currently regulates to (for example 20 °C). Changing it switches the thermostat to manual (Heat) with that temperature.
+  - Defrost and Boost: their own setpoints (for example Defrost 7 °C, Boost 24 °C, as on the thermostat's display), right after switching the mode. Changing the target sets that setpoint and keeps the thermostat in Defrost or Boost ([#197](https://github.com/baracudaz/fenix_tft/issues/197)).
+- The temperature range follows what each thermostat accepts in the current mode, for example 2–15 °C for Defrost on TFT thermostats and 10–30 °C on the WiFi Box ([#187](https://github.com/baracudaz/fenix_tft/issues/187)). Before, it was always 5–35 °C.
+- pyfenixcontrol 0.4.0.
+
+### Changed
+
+- The presets are labelled with FENIX's names, as in the FENIX Control app and on the preset mode sensor: `home` is "Program", `away` "Defrost" and `boost` "Boost", with the app's icons (clock, snowflake, flame). Czech, German and French use the mode names of the thermostat's menu from its manual: Defrost is "Ochrana proti zamrznutí" / "Frostschutz" / "Hors gel", Boost "Časovač" / "Timer" / "Dérogation temporaire" (Czech also "Dovolená" for holiday). The preset keys are unchanged, so automations keep working.
+
+---
+
+## [1.5.1] - 2026-11-08
+
+### Fixed
+
+- A thermostat that has reached its target temperature shows the HVAC action "Idle" instead of "Off". TFT thermostats report the same value for "not heating" and "off", so the action and the *HVAC state* sensor now show "Off" only when the thermostat's mode is off. The climate entity reports no action when the thermostat doesn't send its heating state or a holiday is active (the thermostat then reports the holiday mode in that field) ([#184](https://github.com/baracudaz/fenix_tft/issues/184))
+
+### Changed
+
+- The device model shows the product name of the thermostat (TFT Wi-Fi, TFT Wi-Fi RF or WiFi Box) instead of "TFT WiFi Thermostat" for every device, and the type code (for example P07542) as the model ID instead of the hardware version, as in the core integration. Unknown device types show only the type code. pyfenixcontrol 0.2.0 ([#185](https://github.com/baracudaz/fenix_tft/issues/185))
+- Documentation: TFT thermostats round holiday start and end down to the full hour (README and the holiday service fields); new "Known limitations" section in the README: floor temperature, open-window detection, floor limit and Professional Mode aren't reported by the cloud ([#188](https://github.com/baracudaz/fenix_tft/issues/188))
+
+---
+
+## [1.5.0] - 2026-11-08
+
+**Breaking:** automations, conditions and dashboards that check for the preset `eco` or `comfort` need updating to `away` / `boost` (see Changed). The floor sensors are no longer created (see Fixed).
+
+### Fixed
+
+- **The floor temperature sensor showed the thermostat's Boost setpoint, not the floor temperature.** The library read the wrong cloud property (checked on a thermostat: Boost setting 24.0 °C, floor probe 23.1 °C, sensor 24.0 °C). It now reads the floor temperature, but the cloud doesn't report one for TFT Wi-Fi thermostats, even with a floor probe connected. So the *Floor temperature* and *Floor-air difference* sensors are no longer created: after updating, Home Assistant lists the existing ones as no longer provided, and you can delete them. If the cloud starts reporting the floor temperature, they come back the next time the integration loads (restart or reload). pyfenixcontrol 0.1.1 ([#183](https://github.com/baracudaz/fenix_tft/issues/183))
+
+### Changed
+
+- **Presets use Home Assistant's standard names, as in the core FENIX Control integration:** Program is `home` ("Home"), Defrost is `away` ("Away", was `eco` "Eco 15°C") and Boost is `boost` ("Boost", was `comfort` "Comfort 23°C"). The old labels showed fixed temperatures, but the Defrost and Boost setpoints are set on each thermostat (Defrost is 7 °C by default), so they were often wrong. Labels are now translated by Home Assistant in every language. `climate.set_preset_mode` still accepts `eco`, `comfort`, `defrost` and `program`, so service calls keep working. **Update automations, conditions and dashboards that check for the preset `eco` or `comfort`.** The preset mode sensor keeps its states; its `defrost` and `boost` states are now labelled "Defrost" and "Boost" ([#178](https://github.com/baracudaz/fenix_tft/issues/178))
+- Development only: tests run on Home Assistant 2026.11.0 with Home Assistant's own test package `pytest-homeassistant`, which replaces the retired `pytest-homeassistant-custom-component`; the Docker dev image is on 2026.11.0 ([#180](https://github.com/baracudaz/fenix_tft/pull/180))
+
 ## [1.4.1] - 2026-10-22
 
 ### Fixed

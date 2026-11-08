@@ -62,8 +62,8 @@
           "preset_mode": {
             "state": {
               "home": "Program",
-              "eco": "Eco 15°C",
-              "comfort": "Komfort 23°C"
+              "away": "Ochrana proti zamrznutí",
+              "boost": "Časovač"
             }
           }
         }
@@ -89,10 +89,10 @@
         "name": "Režim předvolby",
         "state": {
           "off": "Vypnuto",
-          "holidays": "Prázdniny",
+          "holidays": "Dovolená",
           "program": "Program",
-          "defrost": "Eco 15°C",
-          "boost": "Komfort 23°C",
+          "defrost": "Ochrana proti zamrznutí",
+          "boost": "Časovač",
           "manual": "Manuální"
         }
       },
@@ -106,42 +106,42 @@
         "name": "Denní spotřeba energie"
       },
       "holiday_mode": {
-        "name": "Režim prázdnin"
+        "name": "Režim dovolené"
       },
       "holiday_schedule_until": {
-        "name": "Plán prázdnin do"
+        "name": "Plán dovolené do"
       },
       "holiday_target_temperature": {
-        "name": "Cílová teplota během prázdnin"
+        "name": "Cílová teplota během dovolené"
       }
     }
   },
   "services": {
     "set_holiday_schedule": {
-      "name": "Nastavit plán prázdnin",
-      "description": "Nastavit plán prázdnin pro všechny termostaty v instalaci. Tím se přepíše běžný týdenní program na zadané období.",
+      "name": "Nastavit plán dovolené",
+      "description": "Nastavit plán dovolené pro všechny termostaty v instalaci. Tím se přepíše běžný týdenní program na zadané období.",
       "fields": {
         "entity_id": {
           "name": "Termostat",
-          "description": "Libovolná entita termostatu z instalace (prázdniny platí pro celou instalaci)."
+          "description": "Libovolná entita termostatu z instalace (dovolená platí pro celou instalaci)."
         },
         "start_date": {
           "name": "Datum zahájení",
-          "description": "Datum a čas, kdy má začít plán prázdnin."
+          "description": "Datum a čas, kdy má začít plán dovolené. Termostaty TFT ho zaokrouhlí dolů na celou hodinu."
         },
         "end_date": {
           "name": "Datum ukončení",
-          "description": "Datum a čas, kdy má plán prázdnin skončit a obnovit se běžné programování."
+          "description": "Datum a čas, kdy má plán dovolené skončit a obnovit se běžné programování. Termostaty TFT ho zaokrouhlí dolů na celou hodinu."
         },
         "mode": {
           "name": "Režim",
-          "description": "Režim vytápění, který se má použít během prázdnin."
+          "description": "Režim vytápění, který se má použít během dovolené."
         }
       }
     },
     "cancel_holiday_schedule": {
-      "name": "Zrušit plán prázdnin",
-      "description": "Zrušit aktivní nebo naplánované prázdniny pro všechny termostaty v instalaci a vrátit je k běžnému týdenímu programu.",
+      "name": "Zrušit plán dovolené",
+      "description": "Zrušit aktivní nebo naplánovanou dovolenou pro všechny termostaty v instalaci a vrátit je k běžnému týdennímu programu.",
       "fields": {
         "entity_id": {
           "name": "Termostat",
@@ -185,10 +185,10 @@
       "message": "ID instalace chybí pro vybrané zařízení."
     },
     "api_error_set_holiday": {
-      "message": "Nepodařilo se nastavit plán prázdnin. Zkontrolujte prosím připojení a zkuste to znovu."
+      "message": "Nepodařilo se nastavit plán dovolené. Zkontrolujte prosím připojení a zkuste to znovu."
     },
     "api_error_cancel_holiday": {
-      "message": "Nepodařilo se zrušit plán prázdnin. Zkontrolujte prosím připojení a zkuste to znovu."
+      "message": "Nepodařilo se zrušit plán dovolené. Zkontrolujte prosím připojení a zkuste to znovu."
     },
     "integration_not_loaded": {
       "message": "Integrace není načtena. Prosím restartujte integraci a zkuste to znovu."

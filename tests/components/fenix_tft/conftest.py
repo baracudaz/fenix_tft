@@ -17,7 +17,7 @@ import pytest
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.util import dt as dt_util
 from pyfenixcontrol import Device, EnergyMetric, Installation, Room
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.fenix_tft.const import DOMAIN, PRESET_MODE_MANUAL
 
@@ -121,7 +121,7 @@ def mock_client() -> Generator[AsyncMock]:
     mock.get_devices.return_value = [MOCK_DEVICE]
     mock.trigger_installation_update.return_value = None
     mock.get_room_energy.side_effect = mock_energy
-    mock.set_target_temperature.return_value = None
+    mock.set_setpoint.return_value = None
     mock.set_preset_mode.return_value = None
     mock.set_holiday_schedule.return_value = None
     mock.cancel_holiday_schedule.return_value = None

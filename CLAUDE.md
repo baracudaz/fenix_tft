@@ -56,7 +56,7 @@ ruff check . --fix
 ### Testing
 
 ```bash
-# Run the test suite (pytest + pytest-homeassistant-custom-component)
+# Run the test suite (pytest + pytest-homeassistant)
 make test
 ```
 

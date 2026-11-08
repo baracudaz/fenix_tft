@@ -30,7 +30,7 @@ Here is the thermostat integration in action.
 
 ## Features
 
-- **Climate Control**: Temperature control (5–35 °C, 0.5 °C precision), heating modes (Off/Manual/Program), real-time monitoring
+- **Climate Control**: Temperature control (in the range each thermostat accepts, usually 5–35 °C; 0.5 °C steps), heating modes (Off/Manual/Program), real-time monitoring
 - **Energy Monitoring**: Daily consumption tracking with Home Assistant Energy Dashboard integration
 - **Holiday Mode**: Set and cancel holiday schedules with automatic control locking during holidays
 - **Multi-Sensor Support**: Room/floor temperatures, target & difference metrics, HVAC status, connectivity, energy, holiday state & end timestamp
@@ -143,6 +143,9 @@ Set a holiday schedule for all thermostats in the installation. This overrides t
 - `entity_id` (required): Any thermostat entity from the installation (schedule applies to all thermostats sharing its installation)
 - `start_date` (required): When the holiday schedule should start
 - `end_date` (required): When the holiday schedule should end
+
+TFT thermostats round the start and end down to the full hour: a holiday from 15:25 to 17:23 runs from 15:00 to 17:00. The WiFi Box keeps the exact times.
+
 - `mode` (required): Heating mode during the holiday period
   - `off`: Turn heating off completely
   - `reduce`: Eco/reduced temperature mode
@@ -248,10 +251,10 @@ Each thermostat provides a set of sensors you can use in dashboards, automations
 | Sensor | Description |
 | -------- | ------------- |
 | `*_ambient_temperature` | Current room temperature (°C). |
-| `*_floor_temperature` | Floor probe temperature (°C). |
+| `*_floor_temperature` | Floor probe temperature (°C). Only if the thermostat reports one; TFT Wi-Fi thermostats currently don't ([#183](https://github.com/baracudaz/fenix_tft/issues/183)). |
 | `*_target_temperature` | Target temperature (°C). |
 | `*_temperature_difference` | Target minus current temperature (°C). |
-| `*_floor_air_difference` | Floor minus ambient temperature (°C). |
+| `*_floor_air_difference` | Floor minus ambient temperature (°C). Same condition as the floor temperature. |
 | `*_hvac_state` | Heating state: `heating`, `idle`, `off`. |
 | `*_connectivity_status` | `connected` / `disconnected`. |
 | `*_daily_energy_consumption` | Accumulated energy for today (Wh). |
@@ -277,6 +280,15 @@ covers. Two sources are available:
 Add only one source per room to the Energy Dashboard. Don't combine the hourly
 statistic with a "(History)" statistic from `import_historical_statistics` for the
 same room and period; the overlapping hours would be counted twice.
+
+## Known limitations
+
+These come from what the FENIX cloud reports, so the integration can't show or change them:
+
+- **Floor temperature:** not reported for TFT Wi-Fi thermostats, even with a floor probe connected ([#183](https://github.com/baracudaz/fenix_tft/issues/183)).
+- **Open-window detection and the floor temperature limit** (warning triangle on the display) are not reported. When the thermostat stops heating because of an open window or the floor limit, it looks the same as a thermostat that has reached its target.
+- **Professional Mode** (touchscreen lock) is not reported. Commands from Home Assistant still work while it's on.
+- **Other settings made on the thermostat** (Boost duration, heater power) can't be changed from Home Assistant. The Defrost and Boost temperatures can: change the target while the thermostat is in Defrost or Boost.
 
 ## Inspiration
 

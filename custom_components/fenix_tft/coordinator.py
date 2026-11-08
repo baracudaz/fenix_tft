@@ -29,6 +29,8 @@ from .const import (
     MAX_CONCURRENT_ENERGY_REQUESTS,
     OPTIMISTIC_UPDATE_DURATION,
     POLLING_INTERVAL,
+    PRESET_MODE_BOOST,
+    PRESET_MODE_DEFROST,
     PRESET_MODE_OFF,
 )
 from .helpers import device_display_name
@@ -62,6 +64,19 @@ class FenixTFTData:
     daily_energy: dict[str, float | None] = field(default_factory=dict)
     # Hourly energy of each room with thermostats, keyed by room ID
     room_energy: dict[str, RoomEnergy] = field(default_factory=dict)
+
+
+# Device field holding the setpoint of each mode that has its own one (Ma, df, bo);
+# the other modes keep the manual target.
+_SETPOINT_FIELDS: dict[int, str] = {
+    PRESET_MODE_DEFROST: "defrost_temperature",
+    PRESET_MODE_BOOST: "boost_temperature",
+}
+
+
+def _setpoint_field(preset_mode: int) -> str:
+    """Return the device field holding the setpoint of ``preset_mode``."""
+    return _SETPOINT_FIELDS.get(preset_mode, "target_temperature")
 
 
 def _predict_hvac_action(
@@ -113,7 +128,8 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
     """Data update coordinator for Fenix TFT."""
 
     client: FenixControlClient
-    _optimistic_updates: dict[str, tuple[int, int, float]]
+    # device_id -> (preset_mode, hvac_action, timestamp, target_temperature or None)
+    _optimistic_updates: dict[str, tuple[int, int, float, float | None]]
     _consecutive_failures: int
     _unavailable_logged: bool
 
@@ -322,7 +338,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
         current_time: float = self.hass.loop.time()
         expired_updates: list[str] = []
 
-        for device_id, (preset_mode, hvac_action, timestamp) in list(
+        for device_id, (preset_mode, hvac_action, timestamp, target) in list(
             self._optimistic_updates.items()
         ):
             if current_time - timestamp > OPTIMISTIC_UPDATE_DURATION:
@@ -336,6 +352,10 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
                     preset_mode,
                     hvac_action,
                 )
+                if target is not None:
+                    device = dataclasses.replace(
+                        device, **{_setpoint_field(preset_mode): target}
+                    )
                 fresh_data.devices[device_id] = dataclasses.replace(
                     device, preset_mode=preset_mode, hvac_state=hvac_action
                 )
@@ -352,8 +372,18 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
                 "Removed %d expired optimistic update(s)", len(expired_updates)
             )
 
-    def update_device_preset_mode(self, device_id: str, preset_mode: int) -> None:
-        """Optimistically update device preset mode in coordinator data."""
+    def update_device_preset_mode(
+        self,
+        device_id: str,
+        preset_mode: int,
+        target_temperature: float | None = None,
+    ) -> None:
+        """
+        Optimistically update the preset mode (and its setpoint) in coordinator data.
+
+        ``target_temperature`` is the new setpoint of ``preset_mode``: the manual
+        target, or the Defrost or Boost setpoint.
+        """
         if not self.data or not self.data.devices:
             _LOGGER.warning(
                 "Cannot apply optimistic update for device %s: no coordinator data",
@@ -369,7 +399,10 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
             )
             return
 
-        target_temp = device.target_temperature
+        field = _setpoint_field(preset_mode)
+        if target_temperature is not None:
+            device = dataclasses.replace(device, **{field: target_temperature})
+        target_temp: float | None = getattr(device, field)
         current_temp = device.room_temperature
         predicted_hvac_action = _predict_hvac_action(
             preset_mode, target_temp, current_temp
@@ -378,6 +411,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
             preset_mode,
             predicted_hvac_action,
             self.hass.loop.time(),
+            target_temperature,
         )
         self.data.devices[device_id] = dataclasses.replace(
             device, preset_mode=preset_mode, hvac_state=predicted_hvac_action

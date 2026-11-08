@@ -59,7 +59,7 @@ async def test_async_migrate_entry_current_version(
 async def test_async_migrate_entry_future_version(hass, mock_client):
     """Return False for an unknown future version that cannot be migrated."""
     from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    from pytest_homeassistant.common import MockConfigEntry
 
     from .conftest import MOCK_PASSWORD, MOCK_USERNAME
 
@@ -75,6 +75,29 @@ async def test_async_migrate_entry_future_version(hass, mock_client):
     result = await async_migrate_entry(hass, future_entry)
 
     assert result is False
+
+
+async def test_device_model(hass, mock_config_entry, mock_client):
+    """The device shows the product name and the type code of the thermostat."""
+    mock_config_entry.add_to_hass(hass)
+    # Device entry as created by an older version: type code as hardware version
+    dr.async_get(hass).async_get_or_create(
+        config_entry_id=mock_config_entry.entry_id,
+        identifiers={(DOMAIN, MOCK_DEVICE_ID)},
+        model="TFT WiFi Thermostat",
+        hw_version="P07542",
+    )
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    device_entry = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, MOCK_DEVICE_ID), mock_config_entry.entry_id
+    )
+    assert device_entry is not None
+    assert device_entry.manufacturer == "Fenix"
+    assert device_entry.model == "TFT Wi-Fi"
+    assert device_entry.model_id == "P07542"
+    assert device_entry.hw_version is None
 
 
 async def test_async_remove_config_entry_device_active_device(

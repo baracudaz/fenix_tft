@@ -62,8 +62,8 @@
           "preset_mode": {
             "state": {
               "home": "Programme",
-              "eco": "Éco 15°C",
-              "comfort": "Confort 23°C"
+              "away": "Hors gel",
+              "boost": "Dérogation temporaire"
             }
           }
         }
@@ -88,11 +88,11 @@
       "preset_mode": {
         "name": "Mode prédéfini",
         "state": {
-          "off": "Éteint",
+          "off": "Arrêt",
           "holidays": "Vacances",
           "program": "Programme",
-          "defrost": "Éco 15°C",
-          "boost": "Confort 23°C",
+          "defrost": "Hors gel",
+          "boost": "Dérogation temporaire",
           "manual": "Manuel"
         }
       },
@@ -127,11 +127,11 @@
         },
         "start_date": {
           "name": "Date de début",
-          "description": "La date et l'heure auxquelles le calendrier de vacances doit commencer."
+          "description": "La date et l'heure auxquelles le calendrier de vacances doit commencer. Les thermostats TFT l'arrondissent à l'heure pleine inférieure."
         },
         "end_date": {
           "name": "Date de fin",
-          "description": "La date et l'heure auxquelles le calendrier de vacances doit se terminer et le programme normal doit reprendre."
+          "description": "La date et l'heure auxquelles le calendrier de vacances doit se terminer et le programme normal doit reprendre. Les thermostats TFT l'arrondissent à l'heure pleine inférieure."
         },
         "mode": {
           "name": "Mode",
