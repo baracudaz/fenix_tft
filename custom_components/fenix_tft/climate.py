@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
+    PRESET_AWAY,
+    PRESET_BOOST,
+    PRESET_HOME,
     ClimateEntityFeature,
     HVACAction,
     HVACMode,
@@ -60,35 +63,39 @@ HVAC_MODE_MAP: dict[int, str] = {
     PRESET_MODE_MANUAL: "manual",  # Manual temperature control
 }
 
-# Map device preset_mode values to Home Assistant preset mode strings.
-# Note: PRESET_MODE_PROGRAM (2) appears in both maps - shows as AUTO + "program".
+# Map device preset_mode values to Home Assistant's standard presets (same as the
+# core fenix_control integration). Note: PRESET_MODE_PROGRAM (2) appears in both
+# maps - shows as AUTO + "home".
 PRESET_MAP: dict[int, str] = {
-    PRESET_MODE_PROGRAM: "home",  # Follow programmed schedule
-    PRESET_MODE_DEFROST: "eco",  # Eco hold (15°C)
-    PRESET_MODE_BOOST: "comfort",  # Comfort hold (23°C)
+    PRESET_MODE_PROGRAM: PRESET_HOME,  # Follow programmed schedule
+    PRESET_MODE_DEFROST: PRESET_AWAY,  # Defrost (frost protection setpoint)
+    PRESET_MODE_BOOST: PRESET_BOOST,  # Boost (boost setpoint on the device)
 }
 PRESET_INVERTED: dict[str, int] = {
-    "home": PRESET_MODE_PROGRAM,
+    PRESET_HOME: PRESET_MODE_PROGRAM,
     "program": PRESET_MODE_PROGRAM,
-    "eco": PRESET_MODE_DEFROST,
+    PRESET_AWAY: PRESET_MODE_DEFROST,
     "defrost": PRESET_MODE_DEFROST,
-    "comfort": PRESET_MODE_BOOST,
-    "boost": PRESET_MODE_BOOST,
+    "eco": PRESET_MODE_DEFROST,  # Former preset name
+    PRESET_BOOST: PRESET_MODE_BOOST,
+    "comfort": PRESET_MODE_BOOST,  # Former preset name
 }
 
+# Older and FENIX names still accepted by climate.set_preset_mode
 PRESET_CANONICAL_MAP: dict[str, str] = {
-    "home": "home",
-    "program": "home",
-    "eco": "eco",
-    "defrost": "eco",
-    "comfort": "comfort",
-    "boost": "comfort",
+    PRESET_HOME: PRESET_HOME,
+    "program": PRESET_HOME,
+    PRESET_AWAY: PRESET_AWAY,
+    "defrost": PRESET_AWAY,
+    "eco": PRESET_AWAY,
+    PRESET_BOOST: PRESET_BOOST,
+    "comfort": PRESET_BOOST,
 }
 
 PRESET_ICON_MAP: dict[str, str] = {
-    "home": "mdi:home",
-    "eco": "mdi:leaf",
-    "comfort": "mdi:sofa",
+    PRESET_HOME: "mdi:home",
+    PRESET_AWAY: "mdi:snowflake",
+    PRESET_BOOST: "mdi:rocket-launch",
 }
 
 
@@ -123,9 +130,9 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
 
     # Define supported preset modes for special operations
     _attr_preset_modes: ClassVar[list[str]] = [
-        "home",  # Follow programmed schedule
-        "eco",  # Eco hold (15°C)
-        "comfort",  # Comfort hold (23°C)
+        PRESET_HOME,  # Follow programmed schedule
+        PRESET_AWAY,  # Defrost
+        PRESET_BOOST,  # Boost
     ]
     _normalized_preset_modes: ClassVar[frozenset[str]] = frozenset(PRESET_INVERTED)
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 from homeassistant.components.climate import HVACMode
 from homeassistant.const import ATTR_TEMPERATURE
@@ -18,7 +20,7 @@ from custom_components.fenix_tft.const import (
     TEMP_MIN,
 )
 
-from .conftest import MOCK_DEVICE_HOLIDAY, MOCK_DEVICE_ID
+from .conftest import MOCK_DEVICE, MOCK_DEVICE_HOLIDAY, MOCK_DEVICE_ID
 
 
 def _get_climate_entity_id(hass):
@@ -47,6 +49,32 @@ async def test_climate_initial_state(hass, setup_integration):
     assert float(state.attributes["temperature"]) == pytest.approx(22.5)
     # MANUAL mode does not map to a HA preset; preset_mode is None for HVAC modes
     assert state.attributes["preset_mode"] is None
+
+
+@pytest.mark.parametrize(
+    ("device_mode", "preset", "icon"),
+    [
+        (PRESET_MODE_PROGRAM, "home", "mdi:home"),
+        (PRESET_MODE_DEFROST, "away", "mdi:snowflake"),
+        (PRESET_MODE_BOOST, "boost", "mdi:rocket-launch"),
+    ],
+)
+async def test_climate_reports_standard_presets(  # noqa: PLR0913, PLR0917
+    hass, mock_config_entry, mock_client, device_mode, preset, icon
+):
+    """Program, Defrost and Boost show as HA's home, away and boost presets."""
+    mock_client.get_devices.return_value = [
+        dataclasses.replace(MOCK_DEVICE, preset_mode=device_mode)
+    ]
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(_get_climate_entity_id(hass))
+    assert state.state == HVACMode.AUTO
+    assert state.attributes["preset_modes"] == ["home", "away", "boost"]
+    assert state.attributes["preset_mode"] == preset
+    assert state.attributes["icon"] == icon
 
 
 async def test_climate_min_max_temp(hass, setup_integration):
@@ -216,10 +244,11 @@ async def test_set_preset_mode(hass, setup_integration, mock_client):
     [
         ("home", PRESET_MODE_PROGRAM),
         ("program", PRESET_MODE_PROGRAM),
-        ("eco", PRESET_MODE_DEFROST),
+        ("away", PRESET_MODE_DEFROST),
         ("defrost", PRESET_MODE_DEFROST),
-        ("comfort", PRESET_MODE_BOOST),
+        ("eco", PRESET_MODE_DEFROST),
         ("boost", PRESET_MODE_BOOST),
+        ("comfort", PRESET_MODE_BOOST),
     ],
 )
 async def test_set_preset_mode_legacy_and_new_names(
@@ -282,7 +311,7 @@ async def test_set_preset_mode_holiday_locked(hass, mock_config_entry, mock_clie
         ),
         (
             "set_preset_mode",
-            {"preset_mode": "eco"},
+            {"preset_mode": "away"},
             "set_preset_mode",
             "api_error_set_preset_mode",
         ),
