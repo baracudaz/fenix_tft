@@ -27,6 +27,8 @@ from .const import (
     MAX_CONCURRENT_ENERGY_REQUESTS,
     OPTIMISTIC_UPDATE_DURATION,
     POLLING_INTERVAL,
+    PRESET_MODE_BOOST,
+    PRESET_MODE_DEFROST,
     PRESET_MODE_OFF,
 )
 
@@ -45,6 +47,19 @@ class FenixTFTData:
     devices: dict[str, Device] = field(default_factory=dict)
     # Today's energy consumption per device (Wh); None if it could not be fetched
     daily_energy: dict[str, float | None] = field(default_factory=dict)
+
+
+# Device field holding the setpoint of each mode that has its own one (Ma, df, bo);
+# the other modes keep the manual target.
+_SETPOINT_FIELDS: dict[int, str] = {
+    PRESET_MODE_DEFROST: "defrost_temperature",
+    PRESET_MODE_BOOST: "boost_temperature",
+}
+
+
+def _setpoint_field(preset_mode: int) -> str:
+    """Return the device field holding the setpoint of ``preset_mode``."""
+    return _SETPOINT_FIELDS.get(preset_mode, "target_temperature")
 
 
 def _predict_hvac_action(
@@ -253,13 +268,12 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
                     preset_mode,
                     hvac_action,
                 )
+                if target is not None:
+                    device = dataclasses.replace(
+                        device, **{_setpoint_field(preset_mode): target}
+                    )
                 fresh_data.devices[device_id] = dataclasses.replace(
-                    device,
-                    preset_mode=preset_mode,
-                    hvac_state=hvac_action,
-                    target_temperature=(
-                        device.target_temperature if target is None else target
-                    ),
+                    device, preset_mode=preset_mode, hvac_state=hvac_action
                 )
 
         for device_id in expired_updates:
@@ -280,7 +294,12 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
         preset_mode: int,
         target_temperature: float | None = None,
     ) -> None:
-        """Optimistically update the preset mode (and target) in coordinator data."""
+        """
+        Optimistically update the preset mode (and its setpoint) in coordinator data.
+
+        ``target_temperature`` is the new setpoint of ``preset_mode``: the manual
+        target, or the Defrost or Boost setpoint.
+        """
         if not self.data or not self.data.devices:
             _LOGGER.warning(
                 "Cannot apply optimistic update for device %s: no coordinator data",
@@ -296,9 +315,10 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
             )
             return
 
+        field = _setpoint_field(preset_mode)
         if target_temperature is not None:
-            device = dataclasses.replace(device, target_temperature=target_temperature)
-        target_temp = device.target_temperature
+            device = dataclasses.replace(device, **{field: target_temperature})
+        target_temp: float | None = getattr(device, field)
         current_temp = device.room_temperature
         predicted_hvac_action = _predict_hvac_action(
             preset_mode, target_temp, current_temp

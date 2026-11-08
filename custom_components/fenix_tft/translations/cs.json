@@ -57,7 +57,16 @@
   "entity": {
     "climate": {
       "thermostat": {
-        "name": "Termostat"
+        "name": "Termostat",
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "home": "Program",
+              "away": "Protimrazová ochrana",
+              "boost": "Boost"
+            }
+          }
+        }
       }
     },
     "sensor": {

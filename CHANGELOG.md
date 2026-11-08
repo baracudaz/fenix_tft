@@ -11,7 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- In Program, Defrost and Boost mode the thermostat shows the temperature it actually regulates to as its target (for example the program's 20 °C, Defrost 7 °C or Boost 24 °C, as on the thermostat's display), instead of no target. Changing the target in these modes switches the thermostat to manual (Heat) with that temperature, as before in manual mode. pyfenixcontrol 0.3.0 ([#186](https://github.com/baracudaz/fenix_tft/issues/186))
+- The thermostat shows a target temperature outside manual mode too, instead of none ([#186](https://github.com/baracudaz/fenix_tft/issues/186)):
+  - Program: the temperature the program currently regulates to (for example 20 °C). Changing it switches the thermostat to manual (Heat) with that temperature.
+  - Defrost and Boost: their own setpoints (for example Defrost 7 °C, Boost 24 °C, as on the thermostat's display), right after switching the mode. Changing the target sets that setpoint and keeps the thermostat in Defrost or Boost ([#197](https://github.com/baracudaz/fenix_tft/issues/197)).
+- The temperature range follows what each thermostat accepts in the current mode, for example 2–15 °C for Defrost on TFT thermostats and 10–30 °C on the WiFi Box ([#187](https://github.com/baracudaz/fenix_tft/issues/187)). Before, it was always 5–35 °C.
+- pyfenixcontrol 0.4.0.
+
+### Changed
+
+- The presets are labelled with FENIX's names, as in the FENIX Control app and on the preset mode sensor: `home` is "Program", `away` "Defrost" ("Protimrazová ochrana" in Slovak and Czech) and `boost` "Boost", with the app's icons (clock, snowflake, flame). The preset keys are unchanged, so automations keep working.
 
 ---
 

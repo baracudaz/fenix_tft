@@ -30,7 +30,7 @@ Here is the thermostat integration in action.
 
 ## Features
 
-- **Climate Control**: Temperature control (5–35 °C, 0.5 °C precision), heating modes (Off/Manual/Program), real-time monitoring
+- **Climate Control**: Temperature control (in the range each thermostat accepts, usually 5–35 °C; 0.5 °C steps), heating modes (Off/Manual/Program), real-time monitoring
 - **Energy Monitoring**: Daily consumption tracking with Home Assistant Energy Dashboard integration
 - **Holiday Mode**: Set and cancel holiday schedules with automatic control locking during holidays
 - **Multi-Sensor Support**: Room/floor temperatures, target & difference metrics, HVAC status, connectivity, energy, holiday state & end timestamp
@@ -268,7 +268,7 @@ These come from what the FENIX cloud reports, so the integration can't show or c
 - **Floor temperature:** not reported for TFT Wi-Fi thermostats, even with a floor probe connected ([#183](https://github.com/baracudaz/fenix_tft/issues/183)).
 - **Open-window detection and the floor temperature limit** (warning triangle on the display) are not reported. When the thermostat stops heating because of an open window or the floor limit, it looks the same as a thermostat that has reached its target.
 - **Professional Mode** (touchscreen lock) is not reported. Commands from Home Assistant still work while it's on.
-- **Settings made on the thermostat** (Defrost and Boost temperatures, Boost duration, heater power) can't be changed from Home Assistant.
+- **Other settings made on the thermostat** (Boost duration, heater power) can't be changed from Home Assistant. The Defrost and Boost temperatures can: change the target while the thermostat is in Defrost or Boost.
 
 ## Inspiration
 

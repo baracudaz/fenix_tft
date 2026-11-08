@@ -99,7 +99,7 @@ def mock_client() -> Generator[AsyncMock]:
     mock.get_devices.return_value = [MOCK_DEVICE]
     mock.trigger_installation_update.return_value = None
     mock.get_room_energy.return_value = MOCK_ENERGY
-    mock.set_target_temperature.return_value = None
+    mock.set_setpoint.return_value = None
     mock.set_preset_mode.return_value = None
     mock.set_holiday_schedule.return_value = None
     mock.cancel_holiday_schedule.return_value = None
