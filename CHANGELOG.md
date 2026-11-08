@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation: TFT thermostats round holiday start and end down to the full hour (README and the holiday service fields); new "Known limitations" section in the README: floor temperature, open-window detection, floor limit and Professional Mode aren't reported by the cloud ([#188](https://github.com/baracudaz/fenix_tft/issues/188))
+
 ---
 
 ## [1.5.0] - 2026-11-08

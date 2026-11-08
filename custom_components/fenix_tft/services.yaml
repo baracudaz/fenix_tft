@@ -12,13 +12,13 @@ set_holiday_schedule:
           domain: climate
     start_date:
       name: Start date
-      description: The date and time when the holiday schedule should start.
+      description: The date and time when the holiday schedule should start. TFT thermostats round it down to the full hour.
       required: true
       selector:
         datetime:
     end_date:
       name: End date
-      description: The date and time when the holiday schedule should end and normal programming should resume.
+      description: The date and time when the holiday schedule should end and normal programming should resume. TFT thermostats round it down to the full hour.
       required: true
       selector:
         datetime:

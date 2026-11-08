@@ -118,11 +118,11 @@
         },
         "start_date": {
           "name": "Datum zahájení",
-          "description": "Datum a čas, kdy má začít plán prázdnin."
+          "description": "Datum a čas, kdy má začít plán prázdnin. Termostaty TFT ho zaokrouhlí dolů na celou hodinu."
         },
         "end_date": {
           "name": "Datum ukončení",
-          "description": "Datum a čas, kdy má plán prázdnin skončit a obnovit se běžné programování."
+          "description": "Datum a čas, kdy má plán prázdnin skončit a obnovit se běžné programování. Termostaty TFT ho zaokrouhlí dolů na celou hodinu."
         },
         "mode": {
           "name": "Režim",

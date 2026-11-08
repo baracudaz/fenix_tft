@@ -118,11 +118,11 @@
         },
         "start_date": {
           "name": "Dátum začiatku",
-          "description": "Dátum a čas, kedy má začať plán dovolenky."
+          "description": "Dátum a čas, kedy má začať plán dovolenky. Termostaty TFT ho zaokrúhlia nadol na celú hodinu."
         },
         "end_date": {
           "name": "Dátum ukončenia",
-          "description": "Dátum a čas, kedy má plán dovolenky skončiť a obnoviť sa bežné programovanie."
+          "description": "Dátum a čas, kedy má plán dovolenky skončiť a obnoviť sa bežné programovanie. Termostaty TFT ho zaokrúhlia nadol na celú hodinu."
         },
         "mode": {
           "name": "Režim",
