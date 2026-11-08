@@ -266,7 +266,8 @@ Each thermostat provides a set of sensors you can use in dashboards, automations
 These come from what the FENIX cloud reports, so the integration can't show or change them:
 
 - **Floor temperature:** not reported for TFT Wi-Fi thermostats, even with a floor probe connected ([#183](https://github.com/baracudaz/fenix_tft/issues/183)).
-- **Open-window detection, the floor temperature limit and Professional Mode** (touchscreen lock) are not reported. When the thermostat stops heating because of an open window or the floor limit, it looks the same as a thermostat that has reached its target.
+- **Open-window detection and the floor temperature limit** (warning triangle on the display) are not reported. When the thermostat stops heating because of an open window or the floor limit, it looks the same as a thermostat that has reached its target.
+- **Professional Mode** (touchscreen lock) is not reported. Commands from Home Assistant still work while it's on.
 - **Settings made on the thermostat** (Defrost and Boost temperatures, Boost duration, heater power) can't be changed from Home Assistant.
 
 ## Inspiration
