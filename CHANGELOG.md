@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.6.0] - 2026-11-08
+
 ### Added
 
 - The thermostat shows a target temperature outside manual mode too, instead of none ([#186](https://github.com/baracudaz/fenix_tft/issues/186)):
