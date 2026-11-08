@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Presets use Home Assistant's standard names, as in the core FENIX Control integration:** Program is `home` ("Home"), Defrost is `away` ("Away", was `eco` "Eco 15°C") and Boost is `boost` ("Boost", was `comfort` "Comfort 23°C"). The old labels showed fixed temperatures, but the Defrost and Boost setpoints are set on each thermostat (Defrost is 7 °C by default), so they were often wrong. Labels are now translated by Home Assistant in every language. `climate.set_preset_mode` still accepts `eco`, `comfort`, `defrost` and `program`, so service calls keep working. **Update automations, conditions and dashboards that check for the preset `eco` or `comfort`.** The preset mode sensor keeps its states; its `defrost` and `boost` states are now labelled "Defrost" and "Boost" ([#178](https://github.com/baracudaz/fenix_tft/issues/178))
 - Development only: tests run on Home Assistant 2026.11.0 with Home Assistant's own test package `pytest-homeassistant`, which replaces the retired `pytest-homeassistant-custom-component`; the Docker dev image is on 2026.11.0 ([#180](https://github.com/baracudaz/fenix_tft/pull/180))
 
 ## [1.4.1] - 2026-10-22
