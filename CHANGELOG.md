@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A thermostat that has reached its target temperature shows the HVAC action "Idle" instead of "Off". TFT thermostats report the same value for "not heating" and "off", so the action and the *HVAC state* sensor now show "Off" only when the thermostat's mode is off. The climate entity reports no action when the thermostat doesn't send its heating state or a holiday is active (the thermostat then reports the holiday mode in that field) ([#184](https://github.com/baracudaz/fenix_tft/issues/184))
+
 ### Changed
 
 - The device model shows the product name of the thermostat (TFT Wi-Fi, TFT Wi-Fi RF or WiFi Box) instead of "TFT WiFi Thermostat" for every device, and the type code (for example P07542) as the model ID instead of the hardware version, as in the core integration. Unknown device types show only the type code. pyfenixcontrol 0.2.0 ([#185](https://github.com/baracudaz/fenix_tft/issues/185))
