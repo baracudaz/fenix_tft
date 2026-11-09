@@ -9,13 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.6.2] - 2026-11-09
+
 ### Fixed
 
-- A mode or temperature change no longer reverts to the old value when a slow poll that started before the change finishes more than 10 seconds after it.
+- A mode or temperature change no longer reverts to the old value when a slow poll that started before the change finishes more than 10 seconds after it ([#204](https://github.com/baracudaz/fenix_tft/pull/204)).
 
 ### Changed
 
-- README: energy is calculated from the heating time and the heater power set on the thermostat, not measured; why it can differ from the electricity meter (heater power setting, HDO tariffs, #179).
+- README: energy is calculated from the heating time and the heater power set on the thermostat, not measured; why it can differ from the electricity meter (heater power setting, HDO tariffs, [#179](https://github.com/baracudaz/fenix_tft/issues/179); [#202](https://github.com/baracudaz/fenix_tft/pull/202)).
+- README: where to set the heater power on the thermostat ([#203](https://github.com/baracudaz/fenix_tft/pull/203)).
 
 ---
 
