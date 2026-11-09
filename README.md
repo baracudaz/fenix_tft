@@ -269,8 +269,10 @@ from your electricity meter:
 
 - **Heater power setting**: if the configured power (often a default of 1 kW)
   is higher or lower than the real power of the heating mat or cable, every
-  hour is off by the same ratio. Set the real value on the thermostat itself;
-  it can't be changed from Home Assistant.
+  hour is off by the same ratio. Set the real value on the thermostat itself
+  (installation menu → Statistics → Heating Power; the TFT Wi-Fi RF has
+  separate levels for its wired and RF outputs). It can't be changed from
+  Home Assistant.
 - **Tariffs with ripple control (HDO)**: on direct-heating tariffs the
   distributor switches the heating circuits off for a few hours a day. The
   thermostat stays powered and keeps counting while the room cools, so energy
