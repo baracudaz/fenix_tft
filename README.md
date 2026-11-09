@@ -286,14 +286,17 @@ from your electricity meter:
 
 - **Heater power setting**: if the configured power (often a default of 1 kW)
   is higher or lower than the real power of the heating mat or cable, every
-  hour is off by the same ratio. Set the real value on the thermostat itself
-  (installation menu → Statistics → Heating Power; the TFT Wi-Fi RF has
-  separate levels for its wired and RF outputs). It can't be changed from
-  Home Assistant.
+  hour is off by the same ratio. Set the installed power of the mat or cable on
+  the thermostat itself (Settings (gear) → Statistics → Heating power; the
+  TFT Wi-Fi RF has separate levels for its wired and RF outputs). It can't be
+  changed from Home Assistant.
 - **Tariffs with ripple control (HDO)**: on direct-heating tariffs the
   distributor switches the heating circuits off for a few hours a day. The
-  thermostat stays powered and keeps counting while the room cools, so energy
-  is reported for hours in which the heater got no current ([#179](https://github.com/baracudaz/fenix_tft/issues/179)).
+  thermostat has no input for the blocking signal. It's usually wired so that
+  HDO switches it off together with the heating, and then nothing is counted.
+  If the thermostat stays powered during blocking, it keeps counting while the
+  room cools, so energy is reported for hours in which the heater got no
+  current ([#179](https://github.com/baracudaz/fenix_tft/issues/179)).
 
 The integration shows the energy as the cloud reports it and doesn't correct it.
 
