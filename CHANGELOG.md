@@ -11,6 +11,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.0] - 2026-11-09
+
+### Changed
+
+- Requires Home Assistant 2026.11 or newer. The thermostat uses the climate entity's new `native_*` temperature members; the old names logged deprecation warnings since 2026.11 and stop working in 2027.11 ([#222](https://github.com/baracudaz/fenix_tft/pull/222)).
+- README: installation count badge from Home Assistant analytics; obsolete badges removed ([#208](https://github.com/baracudaz/fenix_tft/pull/208)).
+
+---
+
+## [1.6.3] - 2026-11-09
+
+### Changed
+
+- README: installation via the Marketplace built into Home Assistant 2026.11 and newer; HACS instructions kept for 2026.10 and older ([#206](https://github.com/baracudaz/fenix_tft/pull/206)).
+- README: the integration is now developed in cooperation with FENIX (technical support, documentation, test devices) and is coming to Home Assistant as FENIX Control; the "reverse engineered, not affiliated" notes are gone ([#206](https://github.com/baracudaz/fenix_tft/pull/206)).
+
+---
+
+## [1.6.2] - 2026-11-09
+
+### Fixed
+
+- A mode or temperature change no longer reverts to the old value when a slow poll that started before the change finishes more than 10 seconds after it ([#204](https://github.com/baracudaz/fenix_tft/pull/204)).
+
+### Changed
+
+- README: energy is calculated from the heating time and the heater power set on the thermostat, not measured; why it can differ from the electricity meter (heater power setting, HDO tariffs, [#179](https://github.com/baracudaz/fenix_tft/issues/179); [#202](https://github.com/baracudaz/fenix_tft/pull/202)).
+- README: where to set the heater power on the thermostat ([#203](https://github.com/baracudaz/fenix_tft/pull/203)).
+
+---
+
 ## [1.6.1] - 2026-11-09
 
 ### Fixed

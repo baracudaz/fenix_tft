@@ -1,8 +1,5 @@
-<!-- [![GitHub Stars](https://img.shields.io/github/stars/baracudaz/fenix_tft)](https://github.com/baracudaz/fenix_tft/stargazers) -->
-<!-- ![Installations](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=Installations&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.fenix_tft.total) -->
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+![Installations](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=Installations&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.fenix_tft.total)
 ![GitHub release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/baracudaz/fenix_tft?include_prereleases)
-![GitHub License](https://img.shields.io/github/license/baracudaz/fenix_tft)
 ![Lint](https://img.shields.io/github/actions/workflow/status/baracudaz/fenix_tft/lint.yml?label=lint)
 ![Validate](https://img.shields.io/github/actions/workflow/status/baracudaz/fenix_tft/validate.yml?label=validate)
 ![CodeQL](https://img.shields.io/github/actions/workflow/status/baracudaz/fenix_tft/codeql.yml?label=codeql)
@@ -25,8 +22,9 @@ Here is the thermostat integration in action.
 
 ## Project status
 
-- **Reverse engineered API**: This integration is based on reverse engineering the FENIX cloud API. It is a work in progress and intended as a fun project for developers and advanced users.
-- **Not officially supported**: This is not an official FENIX Group product and is not affiliated with them.
+- **Developed in cooperation with FENIX**: Since October 2026, this integration has been developed in cooperation with [FENIX Trading s.r.o.](https://www.fenixgroup.cz/en/), the maker of the thermostats, which provides technical support, documentation and test devices.
+- **Coming to Home Assistant**: The same work brings the thermostats into Home Assistant itself as the **FENIX Control** integration ([home-assistant/core#187322](https://github.com/home-assistant/core/pull/187322), in review). This custom integration stays available and keeps the features that aren't in Home Assistant yet, such as holiday schedules and the historical energy import.
+- **Support**: Report problems in this repository's [issue tracker](https://github.com/baracudaz/fenix_tft/issues).
 
 ## Features
 
@@ -97,6 +95,42 @@ To use this integration, you only need your **FENIX account email and password**
 
 ### Installation
 
+#### Home Assistant 2026.11 and newer: Marketplace
+
+Since 2026.11, HACS is built into Home Assistant as the **Marketplace**, and HACS can no longer be installed on its own. This integration isn't in the Marketplace catalog, so add it from its link:
+
+[![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=baracudaz&repository=fenix_tft)
+
+Or add it by hand:
+
+1. Go to **Settings → Marketplace**. The first time, accept the warning about community content.
+2. Select **Add from link** in the upper right, enter `https://github.com/baracudaz/fenix_tft` as the **GitHub link** and select **Add**.
+3. Open **Fenix TFT WiFi Thermostat** in the list and install it.
+4. Set up the integration in the dialog that opens, with your **email** and **password**. If you close it, or the Marketplace asks you to restart first, add it later via **Settings → Devices & Services → Add Integration**.
+
+Adding and updating repositories from a link requires a GitHub connection, which the Marketplace asks for when needed.
+
+If you installed this integration with HACS before 2026.11, there's nothing to do: Home Assistant moves it into the Marketplace, where updates now show up.
+
+#### Home Assistant 2026.10 and older: HACS
+
+Releases after 1.6.3 need Home Assistant 2026.11 or newer. On older versions, HACS can install up to 1.6.3.
+
+The quick-add button opens HACS with this repository pre-filled:
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=baracudaz&repository=fenix_tft&category=integration)
+
+Or add it by hand:
+
+1. Open [HACS](https://www.hacs.xyz) in your Home Assistant instance.
+2. Click the three-dot menu **⋮** in the top right and select **Custom repositories**.
+3. Enter `https://github.com/baracudaz/fenix_tft` as the repository URL and select **Integration** as the category, then click **Add**.
+4. Search for **Fenix TFT** in HACS and install it.
+5. Restart Home Assistant.
+6. Add the integration via **Settings → Devices & Services → Add Integration** and provide your **email** and **password**.
+
+> **Note:** This is an integration, not an app (add-on). Add the repository in the **Marketplace** or **HACS**, not in the app or add-on store, which will show "not a valid add-on repository".
+
 #### Manual installation
 
 1. Clone this repository into your Home Assistant `custom_components` folder:
@@ -106,24 +140,7 @@ To use this integration, you only need your **FENIX account email and password**
     ```
 
 2. Restart Home Assistant.
-3. Add the integration via the Home Assistant and provide your **email** and **password**.
-
-#### Installation via HACS
-
-The easiest way is to use the quick-add button below, which opens HACS directly with this repository pre-filled.
-
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=baracudaz&repository=fenix_tft&category=integration)
-
-Alternatively, add it manually:
-
-1. Open [HACS](https://www.hacs.xyz) in your Home Assistant instance.
-2. Click the three-dot menu **⋮** in the top right and select **Custom repositories**.
-3. Enter `https://github.com/baracudaz/fenix_tft` as the repository URL and select **Integration** as the category, then click **Add**.
-4. Search for **Fenix TFT** in HACS and install it.
-5. Restart Home Assistant.
-6. Add the integration via **Settings → Devices & Services → Add Integration** and provide your **email** and **password**.
-
-> **Note:** Make sure you are adding this repository through **HACS** (not through Home Assistant's built-in **Settings → Add-ons → Add-on Store**, which is a different system and will show "not a valid add-on repository").
+3. Add the integration via **Settings → Devices & Services → Add Integration** and provide your **email** and **password**.
 
 ### Configuration
 
@@ -281,6 +298,25 @@ Add only one source per room to the Energy Dashboard. Don't combine the hourly
 statistic with a "(History)" statistic from `import_historical_statistics` for the
 same room and period; the overlapping hours would be counted twice.
 
+## Energy is calculated, not measured
+
+The thermostat has no power meter. The cloud's energy is the time the heating relay
+was on multiplied by the heater power configured on the thermostat. It can differ
+from your electricity meter:
+
+- **Heater power setting**: if the configured power (often a default of 1 kW)
+  is higher or lower than the real power of the heating mat or cable, every
+  hour is off by the same ratio. Set the real value on the thermostat itself
+  (installation menu → Statistics → Heating Power; the TFT Wi-Fi RF has
+  separate levels for its wired and RF outputs). It can't be changed from
+  Home Assistant.
+- **Tariffs with ripple control (HDO)**: on direct-heating tariffs the
+  distributor switches the heating circuits off for a few hours a day. The
+  thermostat stays powered and keeps counting while the room cools, so energy
+  is reported for hours in which the heater got no current ([#179](https://github.com/baracudaz/fenix_tft/issues/179)).
+
+The integration shows the energy as the cloud reports it and doesn't correct it.
+
 ## Known limitations
 
 These come from what the FENIX cloud reports, so the integration can't show or change them:
@@ -289,13 +325,6 @@ These come from what the FENIX cloud reports, so the integration can't show or c
 - **Open-window detection and the floor temperature limit** (warning triangle on the display) are not reported. When the thermostat stops heating because of an open window or the floor limit, it looks the same as a thermostat that has reached its target.
 - **Professional Mode** (touchscreen lock) is not reported. Commands from Home Assistant still work while it's on.
 - **Other settings made on the thermostat** (Boost duration, heater power) can't be changed from Home Assistant. The Defrost and Boost temperatures can: change the target while the thermostat is in Defrost or Boost.
-
-## Inspiration
-
-This project was inspired by:
-
-- [Watts Vision for Home Assistant](https://github.com/pwesters/watts_vision)
-- [homebridge-fenix-tft-wifi](https://github.com/tomas-kulhanek/homebridge-fenix-tft-wifi)
 
 ## Product information
 

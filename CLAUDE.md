@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Home Assistant custom integration for the FENIX TFT WiFi thermostat. It communicates with the FENIX cloud API (reverse-engineered) through the [`pyfenixcontrol`](https://github.com/baracudaz/pyfenixcontrol) library to provide climate control, energy monitoring, and holiday scheduling features.
+This is a Home Assistant custom integration for the FENIX TFT WiFi thermostat. It is developed in cooperation with FENIX and communicates with the FENIX cloud API through the [`pyfenixcontrol`](https://github.com/baracudaz/pyfenixcontrol) library to provide climate control, energy monitoring, and holiday scheduling features.
 
 **Key characteristics:**
 
