@@ -203,6 +203,13 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
         for installation_id in {device.installation_id for device in devices}:
             await self._trigger_installation_update(installation_id)
 
+        # The hourly statistic is named after the room, not a thermostat in it
+        room_names = {
+            (installation.id, room.id): room.name
+            for installation in installations
+            for room in installation.rooms
+        }
+
         # The cloud reports energy per room: fetch each room once
         rooms = {
             (device.installation_id, device.room_id): device
