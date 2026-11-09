@@ -25,8 +25,9 @@ Here is the thermostat integration in action.
 
 ## Project status
 
-- **Reverse engineered API**: This integration is based on reverse engineering the FENIX cloud API. It is a work in progress and intended as a fun project for developers and advanced users.
-- **Not officially supported**: This is not an official FENIX Group product and is not affiliated with them.
+- **Developed in cooperation with FENIX**: Since October 2026, this integration has been developed in cooperation with [FENIX Trading s.r.o.](https://www.fenixgroup.cz/en/), the maker of the thermostats, which provides technical documentation and test devices.
+- **Coming to Home Assistant**: The same work brings the thermostats into Home Assistant itself as the **FENIX Control** integration ([home-assistant/core#187322](https://github.com/home-assistant/core/pull/187322), in review). This custom integration stays available and keeps the features that aren't in Home Assistant yet, such as holiday schedules and the historical energy import.
+- **Support**: Report problems in this repository's [issue tracker](https://github.com/baracudaz/fenix_tft/issues), not to FENIX customer support.
 
 ## Features
 
