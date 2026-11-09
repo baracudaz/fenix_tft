@@ -307,13 +307,6 @@ These come from what the FENIX cloud reports, so the integration can't show or c
 - **Professional Mode** (touchscreen lock) is not reported. Commands from Home Assistant still work while it's on.
 - **Other settings made on the thermostat** (Boost duration, heater power) can't be changed from Home Assistant. The Defrost and Boost temperatures can: change the target while the thermostat is in Defrost or Boost.
 
-## Inspiration
-
-This project was inspired by:
-
-- [Watts Vision for Home Assistant](https://github.com/pwesters/watts_vision)
-- [homebridge-fenix-tft-wifi](https://github.com/tomas-kulhanek/homebridge-fenix-tft-wifi)
-
 ## Product information
 
 - [FENIX TFT WiFi Thermostat product page](https://www.fenixgroup.cz/en/products/thermostat-fenix-tft-wifi)
