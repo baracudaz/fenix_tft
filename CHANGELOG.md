@@ -9,10 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.6.3] - 2026-11-09
+
 ### Changed
 
-- README: installation via the Marketplace built into Home Assistant 2026.11 and newer; HACS instructions kept for 2026.10 and older.
-- README: the integration is now developed in cooperation with FENIX (technical support, documentation, test devices) and is coming to Home Assistant as FENIX Control; the "reverse engineered, not affiliated" notes are gone.
+- README: installation via the Marketplace built into Home Assistant 2026.11 and newer; HACS instructions kept for 2026.10 and older ([#206](https://github.com/baracudaz/fenix_tft/pull/206)).
+- README: the integration is now developed in cooperation with FENIX (technical support, documentation, test devices) and is coming to Home Assistant as FENIX Control; the "reverse engineered, not affiliated" notes are gone ([#206](https://github.com/baracudaz/fenix_tft/pull/206)).
 
 ---
 
