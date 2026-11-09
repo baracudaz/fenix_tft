@@ -140,7 +140,7 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     ]
     _normalized_preset_modes: ClassVar[frozenset[str]] = frozenset(PRESET_INVERTED)
 
-    _attr_temperature_unit: ClassVar[str] = UnitOfTemperature.CELSIUS
+    _attr_native_temperature_unit: ClassVar[str] = UnitOfTemperature.CELSIUS
     _attr_target_temperature_step: ClassVar[float] = TEMP_STEP
     _attr_translation_key: str = "thermostat"  # Translation key for entity name
 
@@ -186,13 +186,13 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         return active_holiday_mode not in (None, HOLIDAY_MODE_NONE)
 
     @property
-    def current_temperature(self) -> float | None:
+    def native_current_temperature(self) -> float | None:
         """Return the current temperature measured by the thermostat."""
         dev = self._device
         return dev.room_temperature if dev else None
 
     @property
-    def target_temperature(self) -> float | None:
+    def native_target_temperature(self) -> float | None:
         """
         Return the temperature the thermostat regulates to.
 
