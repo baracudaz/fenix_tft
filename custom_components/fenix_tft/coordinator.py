@@ -137,6 +137,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
     async def _async_update_data(self) -> FenixTFTData:
         """Fetch data from the FENIX cloud."""
         _LOGGER.debug("Starting coordinator data update")
+        poll_start = self.hass.loop.time()
         try:
             fresh_data = await self._fetch_data()
         except FenixControlAuthError as err:
@@ -150,7 +151,7 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
             len(fresh_data.devices),
         )
         self._handle_update_success()
-        self._apply_optimistic_updates(fresh_data)
+        self._apply_optimistic_updates(fresh_data, poll_start)
         return fresh_data
 
     async def _fetch_data(self) -> FenixTFTData:
@@ -254,15 +255,25 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
         """Return the repair issue ID scoped to this coordinator's config entry."""
         return f"coordinator_unavailable_{self.config_entry.entry_id}"
 
-    def _apply_optimistic_updates(self, fresh_data: FenixTFTData) -> None:
-        """Overlay in-flight optimistic updates onto freshly fetched device data."""
+    def _apply_optimistic_updates(
+        self, fresh_data: FenixTFTData, poll_start: float
+    ) -> None:
+        """
+        Overlay in-flight optimistic updates onto freshly fetched device data.
+
+        An update made after the poll started is kept however long the poll
+        took: the fetched data may predate the command.
+        """
         current_time: float = self.hass.loop.time()
         expired_updates: list[str] = []
 
         for device_id, (preset_mode, hvac_action, timestamp, target) in list(
             self._optimistic_updates.items()
         ):
-            if current_time - timestamp > OPTIMISTIC_UPDATE_DURATION:
+            if (
+                timestamp < poll_start
+                and current_time - timestamp > OPTIMISTIC_UPDATE_DURATION
+            ):
                 expired_updates.append(device_id)
                 continue
             if (device := fresh_data.devices.get(device_id)) is not None:

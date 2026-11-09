@@ -261,6 +261,29 @@ async def test_optimistic_update_survives_refresh(coordinator):
     assert coordinator.pending_optimistic_update_count == 1
 
 
+async def test_slow_poll_keeps_command_made_during_it(
+    coordinator, mock_client, monkeypatch
+):
+    """Test a poll that started before a command doesn't revert it, however slow."""
+    coordinator.data = await coordinator._async_update_data()
+    clock = [1000.0]
+    monkeypatch.setattr(coordinator.hass.loop, "time", lambda: clock[0])
+
+    async def slow_get_devices(*args):
+        # The command arrives while the poll waits for the cloud ...
+        clock[0] += 1
+        coordinator.update_device_preset_mode(MOCK_DEVICE_ID, PRESET_MODE_OFF)
+        # ... and the poll returns long after the optimistic window
+        clock[0] += 60
+        return [MOCK_DEVICE]
+
+    mock_client.get_devices.side_effect = slow_get_devices
+    coordinator.data = await coordinator._async_update_data()
+
+    assert coordinator.data.devices[MOCK_DEVICE_ID].preset_mode == PRESET_MODE_OFF
+    assert coordinator.pending_optimistic_update_count == 1
+
+
 async def test_optimistic_mode_change_clears_active_setpoint(coordinator, mock_client):
     """Test the old mode's active setpoint (Sp) isn't shown for the new mode."""
     defrost = dataclasses.replace(
