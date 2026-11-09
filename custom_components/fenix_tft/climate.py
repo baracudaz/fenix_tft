@@ -350,6 +350,21 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
             msg = HOLIDAY_LOCKED_MSG
             raise HomeAssistantError(msg)
 
+        steps = temp / TEMP_STEP
+        if self.hass.config.units.temperature_unit != UnitOfTemperature.CELSIUS:
+            # Converted from Fahrenheit by Home Assistant (72 °F arrives as
+            # 22.22 °C): use the nearest step instead of rejecting it
+            temp = round(steps) * TEMP_STEP
+        elif abs(steps - round(steps)) > TEMP_STEP_EPSILON:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="temperature_step_invalid",
+                translation_placeholders={
+                    "step": str(TEMP_STEP),
+                    "temp": str(temp),
+                },
+            )
+
         low, high = self._setpoint_range()
         if not low <= temp <= high:
             raise ServiceValidationError(
@@ -358,17 +373,6 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
                 translation_placeholders={
                     "min": str(low),
                     "max": str(high),
-                    "temp": str(temp),
-                },
-            )
-
-        steps = temp / TEMP_STEP
-        if abs(steps - round(steps)) > TEMP_STEP_EPSILON:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="temperature_step_invalid",
-                translation_placeholders={
-                    "step": str(TEMP_STEP),
                     "temp": str(temp),
                 },
             )

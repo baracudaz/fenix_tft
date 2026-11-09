@@ -8,6 +8,7 @@ import pytest
 from homeassistant.components.climate import ClimateEntityFeature, HVACMode
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 from pyfenixcontrol import FenixControlConnectionError
 
 from custom_components.fenix_tft.const import (
@@ -387,6 +388,23 @@ async def test_set_temperature_non_step_aligned_raises(
         )
 
     mock_client.set_setpoint.assert_not_called()
+
+
+async def test_set_temperature_fahrenheit_rounds_to_step(
+    hass, setup_integration, mock_client
+):
+    """Round a target converted from °F to the 0.5 °C step instead of rejecting it."""
+    entity_id = _get_climate_entity_id(hass)
+    hass.config.units = US_CUSTOMARY_SYSTEM
+
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {"entity_id": entity_id, ATTR_TEMPERATURE: 72},
+        blocking=True,
+    )
+
+    assert mock_client.set_setpoint.call_args.args[2] == 22.0
 
 
 async def test_set_temperature_calls_api(hass, setup_integration, mock_client):

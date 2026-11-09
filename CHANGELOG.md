@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Setting a target temperature in Fahrenheit no longer fails with "not a valid step": the converted value is rounded to the thermostat's 0.5 °C step.
+
 ---
 
 ## [1.7.0] - 2026-11-09
