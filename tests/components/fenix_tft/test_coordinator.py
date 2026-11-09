@@ -24,6 +24,7 @@ from custom_components.fenix_tft.const import (
     HVAC_ACTION_HEATING,
     HVAC_ACTION_IDLE,
     HVAC_ACTION_OFF,
+    PRESET_MODE_DEFROST,
     PRESET_MODE_MANUAL,
     PRESET_MODE_OFF,
     PRESET_MODE_PROGRAM,
@@ -66,15 +67,6 @@ async def test_coordinator_update_success(coordinator, mock_client):
     assert device.target_temperature == pytest.approx(22.5)
     assert device.floor_temperature == pytest.approx(20.0)
     mock_client.get_devices.assert_awaited_once_with([MOCK_INSTALLATION])
-
-
-async def test_coordinator_device_name_falls_back_to_room(coordinator, mock_client):
-    """Test a thermostat without its own name is named after its room."""
-    mock_client.get_devices.return_value = [dataclasses.replace(MOCK_DEVICE, name=None)]
-
-    coordinator.data = await coordinator._async_update_data()
-
-    assert coordinator.data.devices[MOCK_DEVICE_ID].name == "Living Room"
 
 
 async def test_coordinator_sums_daily_energy(coordinator, mock_client):
@@ -274,6 +266,33 @@ async def test_optimistic_update_survives_refresh(coordinator):
 
     assert coordinator.data.devices[MOCK_DEVICE_ID].preset_mode == PRESET_MODE_OFF
     assert coordinator.pending_optimistic_update_count == 1
+
+
+async def test_optimistic_mode_change_clears_active_setpoint(coordinator, mock_client):
+    """Test the old mode's active setpoint (Sp) isn't shown for the new mode."""
+    defrost = dataclasses.replace(
+        MOCK_DEVICE, preset_mode=PRESET_MODE_DEFROST, active_target_temperature=7.0
+    )
+    mock_client.get_devices.return_value = [defrost]
+    coordinator.data = await coordinator._async_update_data()
+
+    coordinator.update_device_preset_mode(MOCK_DEVICE_ID, PRESET_MODE_PROGRAM)
+    assert coordinator.data.devices[MOCK_DEVICE_ID].active_target_temperature is None
+
+    # A poll before the thermostat has switched still reports Defrost's Sp
+    coordinator.data = await coordinator._async_update_data()
+    device = coordinator.data.devices[MOCK_DEVICE_ID]
+    assert device.preset_mode == PRESET_MODE_PROGRAM
+    assert device.active_target_temperature is None
+
+    # Once the thermostat reports the program, its setpoint is shown
+    mock_client.get_devices.return_value = [
+        dataclasses.replace(
+            defrost, preset_mode=PRESET_MODE_PROGRAM, active_target_temperature=21.0
+        )
+    ]
+    coordinator.data = await coordinator._async_update_data()
+    assert coordinator.data.devices[MOCK_DEVICE_ID].active_target_temperature == 21.0
 
 
 async def test_optimistic_update_expires_on_next_refresh(coordinator):

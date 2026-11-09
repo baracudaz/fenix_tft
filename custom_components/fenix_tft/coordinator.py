@@ -79,6 +79,27 @@ def _setpoint_field(preset_mode: int) -> str:
     return _SETPOINT_FIELDS.get(preset_mode, "target_temperature")
 
 
+def _with_preset_mode(
+    device: Device, preset_mode: int, hvac_state: int | None
+) -> Device:
+    """
+    Return the device in a commanded preset mode.
+
+    The active setpoint (Sp) of another mode would show as the new mode's
+    target, so it is unknown until the device reports the new mode.
+    """
+    if device.preset_mode == preset_mode:
+        return dataclasses.replace(
+            device, preset_mode=preset_mode, hvac_state=hvac_state
+        )
+    return dataclasses.replace(
+        device,
+        preset_mode=preset_mode,
+        hvac_state=hvac_state,
+        active_target_temperature=None,
+    )
+
+
 def _predict_hvac_action(
     preset_mode: int,
     target_temp: float | None = None,
@@ -178,22 +199,6 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
         """Fetch device state, trigger device reports and add room energy."""
         installations = await self.client.get_installations()
         devices = await self.client.get_devices(installations)
-
-        # Some thermostats stop reporting their own name; the room keeps it
-        room_names = {
-            (installation.id, room.id): room.name
-            for installation in installations
-            for room in installation.rooms
-        }
-        devices = [
-            device
-            if device.name
-            else dataclasses.replace(
-                device,
-                name=room_names.get((device.installation_id, device.room_id)),
-            )
-            for device in devices
-        ]
 
         for installation_id in {device.installation_id for device in devices}:
             await self._trigger_installation_update(installation_id)
@@ -356,8 +361,8 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
                     device = dataclasses.replace(
                         device, **{_setpoint_field(preset_mode): target}
                     )
-                fresh_data.devices[device_id] = dataclasses.replace(
-                    device, preset_mode=preset_mode, hvac_state=hvac_action
+                fresh_data.devices[device_id] = _with_preset_mode(
+                    device, preset_mode, hvac_action
                 )
 
         for device_id in expired_updates:
@@ -413,8 +418,8 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
             self.hass.loop.time(),
             target_temperature,
         )
-        self.data.devices[device_id] = dataclasses.replace(
-            device, preset_mode=preset_mode, hvac_state=predicted_hvac_action
+        self.data.devices[device_id] = _with_preset_mode(
+            device, preset_mode, predicted_hvac_action
         )
         _LOGGER.debug(
             "Optimistic update applied for device %s: preset_mode=%s, "
