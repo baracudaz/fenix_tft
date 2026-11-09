@@ -9,9 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.7.0] - 2026-11-09
+
 ### Changed
 
-- Requires Home Assistant 2026.11 or newer. The thermostat uses the climate entity's new `native_*` temperature members; the old names logged deprecation warnings since 2026.11 and stop working in 2027.11.
+- Requires Home Assistant 2026.11 or newer. The thermostat uses the climate entity's new `native_*` temperature members; the old names logged deprecation warnings since 2026.11 and stop working in 2027.11 ([#222](https://github.com/baracudaz/fenix_tft/pull/222)).
+- README: installation count badge from Home Assistant analytics; obsolete badges removed ([#208](https://github.com/baracudaz/fenix_tft/pull/208)).
 
 ---
 
