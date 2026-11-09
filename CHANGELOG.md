@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.6.1] - 2026-11-09
+
 ### Fixed
 
-- After switching the preset to Program, the thermostat briefly showed the previous mode's temperature (for example Defrost's 7 °C) as the Program target until the next update. It now shows no target until the thermostat reports the program's temperature.
+- After switching the preset to Program, the thermostat briefly showed the previous mode's temperature (for example Defrost's 7 °C) as the Program target until the next update. It now shows no target until the thermostat reports the program's temperature ([#200](https://github.com/baracudaz/fenix_tft/pull/200)).
 
 ### Changed
 
