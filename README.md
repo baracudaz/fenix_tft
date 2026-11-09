@@ -97,6 +97,40 @@ To use this integration, you only need your **FENIX account email and password**
 
 ### Installation
 
+#### Home Assistant 2026.11 and newer: Marketplace
+
+Since 2026.11, HACS is built into Home Assistant as the **Marketplace**, and HACS can no longer be installed on its own. This integration isn't in the Marketplace catalog, so add it from its link:
+
+[![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=baracudaz&repository=fenix_tft)
+
+Or add it by hand:
+
+1. Go to **Settings → Marketplace**. The first time, accept the warning about community content.
+2. Select **Add from link** in the upper right, enter `https://github.com/baracudaz/fenix_tft` as the **GitHub link** and select **Add**.
+3. Open **Fenix TFT WiFi Thermostat** in the list and install it.
+4. Set up the integration in the dialog that opens, with your **email** and **password**. If you close it, or the Marketplace asks you to restart first, add it later via **Settings → Devices & Services → Add Integration**.
+
+Adding and updating repositories from a link requires a GitHub connection, which the Marketplace asks for when needed.
+
+If you installed this integration with HACS before 2026.11, there's nothing to do: Home Assistant moves it into the Marketplace, where updates now show up.
+
+#### Home Assistant 2026.10 and older: HACS
+
+The quick-add button opens HACS with this repository pre-filled:
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=baracudaz&repository=fenix_tft&category=integration)
+
+Or add it by hand:
+
+1. Open [HACS](https://www.hacs.xyz) in your Home Assistant instance.
+2. Click the three-dot menu **⋮** in the top right and select **Custom repositories**.
+3. Enter `https://github.com/baracudaz/fenix_tft` as the repository URL and select **Integration** as the category, then click **Add**.
+4. Search for **Fenix TFT** in HACS and install it.
+5. Restart Home Assistant.
+6. Add the integration via **Settings → Devices & Services → Add Integration** and provide your **email** and **password**.
+
+> **Note:** This is an integration, not an app (add-on). Add the repository in the **Marketplace** or **HACS**, not in the app or add-on store, which will show "not a valid add-on repository".
+
 #### Manual installation
 
 1. Clone this repository into your Home Assistant `custom_components` folder:
@@ -106,24 +140,7 @@ To use this integration, you only need your **FENIX account email and password**
     ```
 
 2. Restart Home Assistant.
-3. Add the integration via the Home Assistant and provide your **email** and **password**.
-
-#### Installation via HACS
-
-The easiest way is to use the quick-add button below, which opens HACS directly with this repository pre-filled.
-
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=baracudaz&repository=fenix_tft&category=integration)
-
-Alternatively, add it manually:
-
-1. Open [HACS](https://www.hacs.xyz) in your Home Assistant instance.
-2. Click the three-dot menu **⋮** in the top right and select **Custom repositories**.
-3. Enter `https://github.com/baracudaz/fenix_tft` as the repository URL and select **Integration** as the category, then click **Add**.
-4. Search for **Fenix TFT** in HACS and install it.
-5. Restart Home Assistant.
-6. Add the integration via **Settings → Devices & Services → Add Integration** and provide your **email** and **password**.
-
-> **Note:** Make sure you are adding this repository through **HACS** (not through Home Assistant's built-in **Settings → Add-ons → Add-on Store**, which is a different system and will show "not a valid add-on repository").
+3. Add the integration via **Settings → Devices & Services → Add Integration** and provide your **email** and **password**.
 
 ### Configuration
 

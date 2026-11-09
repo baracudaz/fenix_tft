@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- README: installation via the Marketplace built into Home Assistant 2026.11 and newer; HACS instructions kept for 2026.10 and older.
+
 ---
 
 ## [1.6.2] - 2026-11-09
