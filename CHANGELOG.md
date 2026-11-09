@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- After switching the preset to Program, the thermostat briefly showed the previous mode's temperature (for example Defrost's 7 °C) as the Program target until the next update. It now shows no target until the thermostat reports the program's temperature.
+
+### Changed
+
+- pyfenixcontrol 0.5.0: naming a thermostat that reports no name after its room now happens in the library (same result as 1.4.1).
+
 ---
 
 ## [1.6.0] - 2026-11-08
