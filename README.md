@@ -1,8 +1,5 @@
-<!-- [![GitHub Stars](https://img.shields.io/github/stars/baracudaz/fenix_tft)](https://github.com/baracudaz/fenix_tft/stargazers) -->
-<!-- ![Installations](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=Installations&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.fenix_tft.total) -->
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+![Installations](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=Installations&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.fenix_tft.total)
 ![GitHub release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/baracudaz/fenix_tft?include_prereleases)
-![GitHub License](https://img.shields.io/github/license/baracudaz/fenix_tft)
 ![Lint](https://img.shields.io/github/actions/workflow/status/baracudaz/fenix_tft/lint.yml?label=lint)
 ![Validate](https://img.shields.io/github/actions/workflow/status/baracudaz/fenix_tft/validate.yml?label=validate)
 ![CodeQL](https://img.shields.io/github/actions/workflow/status/baracudaz/fenix_tft/codeql.yml?label=codeql)
