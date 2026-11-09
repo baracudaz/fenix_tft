@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - README: installation via the Marketplace built into Home Assistant 2026.11 and newer; HACS instructions kept for 2026.10 and older.
-- README: the integration is now developed in cooperation with FENIX (documentation, test devices) and is coming to Home Assistant as FENIX Control; the "reverse engineered, not affiliated" notes are gone.
+- README: the integration is now developed in cooperation with FENIX (technical support, documentation, test devices) and is coming to Home Assistant as FENIX Control; the "reverse engineered, not affiliated" notes are gone.
 
 ---
 
