@@ -261,6 +261,23 @@ Each thermostat provides a set of sensors you can use in dashboards, automations
 | `*_holiday_mode` | Display name of the current holiday mode or `None`. Includes rich attributes. |
 | `*_holiday_schedule_until` | Timestamp when the holiday ends (if active). |
 
+## Energy is calculated, not measured
+
+The thermostat has no power meter. The cloud's energy is the time the heating relay
+was on multiplied by the heater power configured on the thermostat. It can differ
+from your electricity meter:
+
+- **Heater power setting**: if the configured power (often a default of 1 kW)
+  is higher or lower than the real power of the heating mat or cable, every
+  hour is off by the same ratio. Set the real value on the thermostat itself;
+  it can't be changed from Home Assistant.
+- **Tariffs with ripple control (HDO)**: on direct-heating tariffs the
+  distributor switches the heating circuits off for a few hours a day. The
+  thermostat stays powered and keeps counting while the room cools, so energy
+  is reported for hours in which the heater got no current ([#179](https://github.com/baracudaz/fenix_tft/issues/179)).
+
+The integration shows the energy as the cloud reports it and doesn't correct it.
+
 ## Known limitations
 
 These come from what the FENIX cloud reports, so the integration can't show or change them:
