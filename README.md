@@ -117,6 +117,8 @@ If you installed this integration with HACS before 2026.11, there's nothing to d
 
 #### Home Assistant 2026.10 and older: HACS
 
+Releases after 1.6.3 need Home Assistant 2026.11 or newer. On older versions, HACS can install up to 1.6.3.
+
 The quick-add button opens HACS with this repository pre-filled:
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=baracudaz&repository=fenix_tft&category=integration)

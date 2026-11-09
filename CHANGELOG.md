@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Requires Home Assistant 2026.11 or newer. The thermostat uses the climate entity's new `native_*` temperature members; the old names logged deprecation warnings since 2026.11 and stop working in 2027.11.
+
 ---
 
 ## [1.6.3] - 2026-11-09
