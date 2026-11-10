@@ -5,7 +5,11 @@ from __future__ import annotations
 import dataclasses
 
 import pytest
-from homeassistant.components.climate import ClimateEntityFeature, HVACMode
+from homeassistant.components.climate import (
+    ATTR_TARGET_TEMP_STEP,
+    ClimateEntityFeature,
+    HVACMode,
+)
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
@@ -405,6 +409,24 @@ async def test_set_temperature_fahrenheit_rounds_to_step(
     )
 
     assert mock_client.set_setpoint.call_args.args[2] == 22.0
+
+
+async def test_fahrenheit_target_step(hass, setup_integration, mock_client):
+    """Step whole °F, so one step down reaches a new 0.5 °C target."""
+    entity_id = _get_climate_entity_id(hass)
+    assert hass.states.get(entity_id).attributes[ATTR_TARGET_TEMP_STEP] == 0.5
+    hass.config.units = US_CUSTOMARY_SYSTEM
+
+    # 20.5 °C shows as 69 °F; 0.5 °F down would round back to 20.5 °C
+    for target_f, expected_c in ((69, 20.5), (68, 20.0)):
+        await hass.services.async_call(
+            "climate",
+            "set_temperature",
+            {"entity_id": entity_id, ATTR_TEMPERATURE: target_f},
+            blocking=True,
+        )
+        assert mock_client.set_setpoint.call_args.args[2] == expected_c
+    assert hass.states.get(entity_id).attributes[ATTR_TARGET_TEMP_STEP] == 1
 
 
 async def test_set_temperature_calls_api(hass, setup_integration, mock_client):

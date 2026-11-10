@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Setting a target temperature in Fahrenheit no longer fails with "not a valid step": the converted value is rounded to the thermostat's 0.5 °C step.
+- With Fahrenheit, the thermostat card now steps the target by 1 °F; a 0.5 °F step was rounded back to the same 0.5 °C target, so the buttons seemed to do nothing.
 
 ---
 
