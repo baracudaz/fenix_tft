@@ -220,6 +220,12 @@
     "temperature_step_invalid": {
       "message": "La température {temp}°C n'est pas alignée sur le pas de {step}°C."
     },
+    "no_target_mode": {
+      "message": "Le thermostat est éteint ou dans un mode sans température de consigne. Indiquez un mode avec la température ou allumez d'abord le thermostat."
+    },
+    "unsupported_hvac_mode": {
+      "message": "Le mode {hvac_mode} n'est pas pris en charge."
+    },
     "api_error_set_temperature": {
       "message": "Impossible de définir la température cible. Vérifiez votre connexion et réessayez."
     },

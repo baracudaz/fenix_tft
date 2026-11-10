@@ -220,6 +220,12 @@
     "temperature_step_invalid": {
       "message": "Temperature {temp}°C is not aligned to the {step}°C step size."
     },
+    "no_target_mode": {
+      "message": "Termostat je vypnutý alebo v režime bez cieľovej teploty. Nastavte režim spolu s teplotou alebo termostat najprv zapnite."
+    },
+    "unsupported_hvac_mode": {
+      "message": "Režim {hvac_mode} nie je podporovaný."
+    },
     "api_error_set_temperature": {
       "message": "Nepodarilo sa nastaviť cieľovú teplotu. Skontrolujte pripojenie a skúste to znova."
     },

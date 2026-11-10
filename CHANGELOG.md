@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `climate.set_temperature` with a temperature and an HVAC mode now works while the thermostat is off (for example `hvac_mode: heat` turns it on with that target); before, Home Assistant rejected the call. The HVAC mode given with a temperature is now applied in the other modes too; it used to be ignored. A temperature without an HVAC mode is still rejected while the thermostat is off, so it can't switch the heating on by itself ([#232](https://github.com/baracudaz/fenix_tft/pull/232)).
+
 ---
 
 ## [1.7.2] - 2026-11-10
