@@ -220,6 +220,12 @@
     "temperature_step_invalid": {
       "message": "Temperature {temp}°C is not aligned to the {step}°C step size."
     },
+    "no_target_mode": {
+      "message": "Der Thermostat ist ausgeschaltet oder in einem Modus ohne Solltemperatur. Legen Sie zusammen mit der Temperatur einen Modus fest oder schalten Sie den Thermostat zuerst ein."
+    },
+    "unsupported_hvac_mode": {
+      "message": "Der Modus {hvac_mode} wird nicht unterstützt."
+    },
     "api_error_set_temperature": {
       "message": "Die Zieltemperatur konnte nicht gesetzt werden. Bitte Verbindung prüfen und erneut versuchen."
     },

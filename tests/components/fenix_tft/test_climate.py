@@ -305,6 +305,98 @@ async def test_climate_no_target_when_off(hass, mock_config_entry, mock_client):
     assert state.attributes.get("temperature") is None
 
 
+async def _setup_off(hass, mock_config_entry, mock_client):
+    mock_client.get_devices.return_value = [
+        dataclasses.replace(MOCK_DEVICE, preset_mode=PRESET_MODE_OFF)
+    ]
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    return _get_climate_entity_id(hass)
+
+
+async def test_set_temperature_with_heat_mode_when_off(
+    hass, mock_config_entry, mock_client
+):
+    """An off thermostat accepts a target together with the heat mode."""
+    entity_id = await _setup_off(hass, mock_config_entry, mock_client)
+
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {"entity_id": entity_id, ATTR_TEMPERATURE: 21.5, "hvac_mode": HVACMode.HEAT},
+        blocking=True,
+    )
+
+    mock_client.set_setpoint.assert_called_once_with(
+        MOCK_DEVICE_ID, PRESET_MODE_MANUAL, 21.5
+    )
+    mock_client.set_preset_mode.assert_not_called()
+    state = hass.states.get(entity_id)
+    assert state.state == HVACMode.HEAT
+    assert float(state.attributes["temperature"]) == pytest.approx(21.5)
+
+
+async def test_set_temperature_alone_when_off_raises(
+    hass, mock_config_entry, mock_client
+):
+    """A target alone doesn't turn on an off thermostat."""
+    entity_id = await _setup_off(hass, mock_config_entry, mock_client)
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            "climate",
+            "set_temperature",
+            {"entity_id": entity_id, ATTR_TEMPERATURE: 21.5},
+            blocking=True,
+        )
+
+    assert exc_info.value.translation_key == "no_target_mode"
+    mock_client.set_setpoint.assert_not_called()
+
+
+async def test_set_temperature_with_auto_mode(hass, setup_integration, mock_client):
+    """A target with another HVAC mode sets the manual target, then that mode."""
+    entity_id = _get_climate_entity_id(hass)
+
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {"entity_id": entity_id, ATTR_TEMPERATURE: 21.5, "hvac_mode": HVACMode.AUTO},
+        blocking=True,
+    )
+
+    mock_client.set_setpoint.assert_called_once_with(
+        MOCK_DEVICE_ID, PRESET_MODE_MANUAL, 21.5
+    )
+    mock_client.set_preset_mode.assert_called_once_with(
+        MOCK_DEVICE_ID, PRESET_MODE_PROGRAM
+    )
+    assert hass.states.get(entity_id).state == HVACMode.AUTO
+
+
+async def test_set_temperature_with_unsupported_hvac_mode(
+    hass, setup_integration, mock_client
+):
+    """An unsupported HVAC mode is rejected before any command is sent."""
+    entity_id = _get_climate_entity_id(hass)
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            "climate",
+            "set_temperature",
+            {
+                "entity_id": entity_id,
+                ATTR_TEMPERATURE: 21.5,
+                "hvac_mode": HVACMode.COOL,
+            },
+            blocking=True,
+        )
+
+    assert exc_info.value.translation_key == "unsupported_hvac_mode"
+    mock_client.set_setpoint.assert_not_called()
+
+
 async def test_set_temperature_in_program_switches_to_manual(
     hass, mock_config_entry, mock_client
 ):
