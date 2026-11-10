@@ -141,7 +141,6 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     _normalized_preset_modes: ClassVar[frozenset[str]] = frozenset(PRESET_INVERTED)
 
     _attr_native_temperature_unit: ClassVar[str] = UnitOfTemperature.CELSIUS
-    _attr_target_temperature_step: ClassVar[float] = TEMP_STEP
     _attr_translation_key: str = "thermostat"  # Translation key for entity name
 
     def __init__(
@@ -184,6 +183,18 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         # This is more reliable than checking preset_mode == HOLIDAYS
         active_holiday_mode = dev.active_holiday_mode
         return active_holiday_mode not in (None, HOLIDAY_MODE_NONE)
+
+    @property
+    def target_temperature_step(self) -> float:
+        """
+        Return the step the UI uses to change the target.
+
+        Home Assistant doesn't convert the step: in Fahrenheit, 0.5 °F would be
+        rounded back to the same 0.5 °C target, so whole degrees are used.
+        """
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return TEMP_STEP
+        return 1.0
 
     @property
     def native_current_temperature(self) -> float | None:
