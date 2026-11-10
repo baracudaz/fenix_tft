@@ -9,10 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.7.1] - 2026-11-10
+
 ### Fixed
 
-- Setting a target temperature in Fahrenheit no longer fails with "not a valid step": the converted value is rounded to the thermostat's 0.5 °C step.
-- With Fahrenheit, the thermostat card now steps the target by 1 °F; a 0.5 °F step was rounded back to the same 0.5 °C target, so the buttons seemed to do nothing.
+- Setting a target temperature in Fahrenheit no longer fails with "not a valid step": the converted value is rounded to the thermostat's 0.5 °C step ([#225](https://github.com/baracudaz/fenix_tft/pull/225)).
+- With Fahrenheit, the thermostat card now steps the target by 1 °F; a 0.5 °F step was rounded back to the same 0.5 °C target, so the buttons seemed to do nothing ([#228](https://github.com/baracudaz/fenix_tft/pull/228)).
+
+### Changed
+
+- README: the energy sensors are calculated by the cloud from the relay's on-time and the heating power set on the thermostat, with how to set it and what this means with HDO ([#224](https://github.com/baracudaz/fenix_tft/pull/224)).
 
 ---
 
