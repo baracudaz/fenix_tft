@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- WiFi Box: no floor temperature sensors any more. The box sends a floor temperature value, but Watts confirmed it means nothing there (no floor probe). Raw error values (0x7FFF) no longer show up as absurd temperatures. Both via pyfenixcontrol 0.5.1 (PR_LINK). Existing WiFi Box floor sensors stay as unavailable entities and can be deleted.
+
 ---
 
 ## [1.7.1] - 2026-11-10
