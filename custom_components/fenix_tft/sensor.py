@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from pyfenixcontrol import Device
 
     from . import FenixTFTConfigEntry
     from .coordinator import FenixTFTCoordinator
@@ -384,6 +385,18 @@ class FenixEnergyConsumptionSensor(FenixTFTEntity, SensorEntity):
         return self.coordinator.data.daily_energy.get(self._device_id)
 
 
+def _holiday_mode_name(dev: Device) -> str:
+    """
+    Return the display name of what an active holiday does.
+
+    H4 only tells that a holiday is active (it reads 2 for every holiday); what
+    the holiday does is its configured mode, H3[0]. H4 is the fallback for a
+    device that doesn't report H3.
+    """
+    mode = dev.holiday_mode or dev.active_holiday_mode
+    return HOLIDAY_MODE_DISPLAY_NAMES.get(mode, f"Unknown ({mode})")
+
+
 class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT holiday mode sensor."""
 
@@ -405,8 +418,8 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
         """
         Return the currently active holiday mode.
 
-        This uses H4 (active_holiday_mode) which is the real-time indicator
-        of whether a holiday is actively being applied to the device.
+        H4 (active_holiday_mode) tells whether a holiday is being applied to
+        the device; the mode itself is the configured one, H3[0] (holiday_mode).
         """
         dev = self._device
         none_display = HOLIDAY_MODE_DISPLAY_NAMES.get(HOLIDAY_MODE_NONE, "None")
@@ -415,16 +428,12 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
             return none_display
 
         # API field mapping:
-        # active_holiday_mode = H4 field (PRIMARY indicator)
-        #   (0=None/not active, 1=Off, 2=Reduce/Eco, 5=Defrost, 8=Sunday)
+        # active_holiday_mode = H4 field: 0 = no holiday, otherwise a holiday is
+        #   active (reads 2 for every holiday mode)
+        # holiday_mode = H3[0] field: what the holiday does
+        #   (0=None, 1=Off, 2=Reduce/Eco, 5=Defrost, 8=Sunday)
         # preset_mode = Cm field
         #   (0=Off, 1=Holidays, 2=Program, 4=Defrost, 5=Boost, 6=Manual)
-        # holiday_mode = H3[0] field (configured mode, not necessarily active)
-        #   (0=None, 1=Off, 2=Reduce/Eco, 5=Defrost, 8=Sunday)
-        # hvac_action = Hs field - dual purpose:
-        #   - Normal mode: heating status (0=idle, 1=heating, 2=off)
-        #   - Holiday mode (Cm=1): holiday mode type
-        #     (1=Off, 2=Reduce, 5=Defrost, 8=Sunday)
         # Note: H1 (holiday_start) is unreliable - updated dynamically by API
         active_holiday_mode = dev.active_holiday_mode
         holiday_end = dev.holiday_end
@@ -458,15 +467,9 @@ class FenixHolidayModeSensor(FenixTFTEntity, SensorEntity):
             )
             return none_display
 
-        # Return the active mode from H4
-        mode_name = HOLIDAY_MODE_DISPLAY_NAMES.get(
-            active_holiday_mode, f"Unknown ({active_holiday_mode})"
-        )
+        mode_name = _holiday_mode_name(dev)
         _LOGGER.debug(
-            "Device %s has active holiday mode: %s (%s)",
-            self._device_id,
-            mode_name,
-            active_holiday_mode,
+            "Device %s has active holiday mode: %s", self._device_id, mode_name
         )
         return mode_name
 
@@ -594,12 +597,7 @@ class FenixHolidayUntilSensor(FenixTFTEntity, SensorEntity):
         if not end_dt or dt_util.now() > end_dt:
             return {}
 
-        # Return the active mode from H4
-        mode_display = HOLIDAY_MODE_DISPLAY_NAMES.get(
-            active_holiday_mode, f"Unknown ({active_holiday_mode})"
-        )
-
-        return {"mode": mode_display}
+        return {"mode": _holiday_mode_name(dev)}
 
 
 class FenixHolidayTargetTempSensor(FenixTFTEntity, SensorEntity):

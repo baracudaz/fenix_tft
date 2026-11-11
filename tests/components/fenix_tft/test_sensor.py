@@ -365,10 +365,33 @@ async def test_holiday_sensors_active_without_end_date(
     )
 
 
-async def test_holiday_mode_unknown_code(hass, mock_config_entry, mock_client, freezer):
-    """An unknown active holiday code is shown with its number."""
+@pytest.mark.parametrize(
+    ("holiday_mode", "name"),
+    [
+        (1, "Off"),
+        (2, "Reduce (Eco)"),
+        (5, "Defrost"),
+        (8, "Sunday Schedule"),
+    ],
+)
+async def test_holiday_mode_follows_configured_mode(  # noqa: PLR0913, PLR0917
+    hass, mock_config_entry, mock_client, freezer, holiday_mode, name
+):
+    """The mode comes from H3; H4 reads 2 for every active holiday."""
     freezer.move_to(BEFORE_HOLIDAY_END)
-    device = dataclasses.replace(MOCK_DEVICE_HOLIDAY, active_holiday_mode=7)
+    device = dataclasses.replace(
+        MOCK_DEVICE_HOLIDAY, holiday_mode=holiday_mode, active_holiday_mode=2
+    )
+    await _setup(hass, mock_config_entry, mock_client, device)
+
+    assert _state(hass, "holiday_mode").state == name
+    assert _state(hass, "holiday_schedule_until").attributes["mode"] == name
+
+
+async def test_holiday_mode_unknown_code(hass, mock_config_entry, mock_client, freezer):
+    """An unknown holiday code is shown with its number."""
+    freezer.move_to(BEFORE_HOLIDAY_END)
+    device = dataclasses.replace(MOCK_DEVICE_HOLIDAY, holiday_mode=7)
     await _setup(hass, mock_config_entry, mock_client, device)
 
     assert _state(hass, "holiday_mode").state == "Unknown (7)"
