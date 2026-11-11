@@ -22,6 +22,7 @@ from .const import (
     DOMAIN,
     HOLIDAY_LOCKED_MSG,
     HOLIDAY_MODE_NONE,
+    HOLIDAY_MODE_OFF,
     HVAC_ACTION_HEATING,
     PRESET_MODE_BOOST,
     PRESET_MODE_DEFROST,
@@ -326,10 +327,16 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
         """Return the current HVAC mode based on device preset mode."""
         dev = self._device
         raw_preset = dev.preset_mode if dev else None
+        if dev is not None and self._is_holiday_active():
+            # The mode reported during a holiday depends on the device type and
+            # on what the holiday does: AUTO, or OFF if it turns the heating off
+            if dev.holiday_mode == HOLIDAY_MODE_OFF or raw_preset == PRESET_MODE_OFF:
+                return HVACMode.OFF
+            return HVACMode.AUTO
         hvac_mode_str = (
             HVAC_MODE_MAP.get(raw_preset) if raw_preset is not None else None
         )
-        # Map device modes to Home Assistant HVAC modes (holiday treated as AUTO)
+        # Map device modes to Home Assistant HVAC modes (unknown treated as AUTO)
         return (
             HVACMode.OFF
             if hvac_mode_str == "off"

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The climate entity shows the HVAC action (heating / idle) during a holiday again. It was hidden on the assumption that the thermostat reports the holiday mode in its heating state then; a test on a TFT Wi-Fi RF and a WiFi Box showed that the heating state stays correct. The off mode shows "Off" even when the thermostat sends no heating state ([#236](https://github.com/baracudaz/fenix_tft/pull/236)).
+- A WiFi Box in a holiday that turns the heating off shows the HVAC mode "Off" instead of "Auto", like the TFT thermostats. During a holiday the climate entity shows "Auto", or "Off" if the holiday turns the heating off, whatever mode the device itself reports ([#236](https://github.com/baracudaz/fenix_tft/pull/236)).
 
 ---
 

@@ -128,6 +128,35 @@ async def test_climate_hvac_action_during_holiday(
     assert state.attributes.get("hvac_action") == hvac_action
 
 
+@pytest.mark.parametrize(
+    ("preset_mode", "holiday_mode", "hvac_mode"),
+    [
+        # A WiFi Box reports mode 7 in every holiday, a TFT in a Sunday holiday
+        (7, 8, HVACMode.AUTO),
+        (7, 2, HVACMode.AUTO),
+        (PRESET_MODE_MANUAL, 2, HVACMode.AUTO),
+        (7, 1, HVACMode.OFF),
+        (PRESET_MODE_OFF, 1, HVACMode.OFF),
+    ],
+)
+async def test_climate_hvac_mode_during_holiday(  # noqa: PLR0913, PLR0917
+    hass, mock_config_entry, mock_client, preset_mode, holiday_mode, hvac_mode
+):
+    """A holiday shows auto, or off if it turns the heating off."""
+    mock_client.get_devices.return_value = [
+        dataclasses.replace(
+            MOCK_DEVICE_HOLIDAY, preset_mode=preset_mode, holiday_mode=holiday_mode
+        )
+    ]
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(_get_climate_entity_id(hass))
+    assert state.state == hvac_mode
+    assert state.attributes["hvac_modes"] == [hvac_mode]
+
+
 async def test_climate_hvac_action_off_without_heating_state(
     hass, mock_config_entry, mock_client
 ):
