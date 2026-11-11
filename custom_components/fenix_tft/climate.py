@@ -273,11 +273,13 @@ class FenixTFTClimate(FenixTFTEntity, ClimateEntity):
     def hvac_action(self) -> HVACAction | None:
         """Return the current HVAC action (heating, idle, off)."""
         dev = self._device
-        # During a holiday the heating state field carries the holiday mode
-        if dev is None or dev.hvac_state is None or self._is_holiday_active():
+        if dev is None:
             return None
         if self.hvac_mode == HVACMode.OFF:
             return HVACAction.OFF
+        # The heating state is also reported during a holiday
+        if dev.hvac_state is None:
+            return None
         if dev.hvac_state == HVAC_ACTION_HEATING:
             return HVACAction.HEATING
         # Not heating. TFT thermostats report 2 for this (also when the target is

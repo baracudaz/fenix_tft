@@ -8,6 +8,7 @@ import pytest
 from homeassistant.components.climate import (
     ATTR_TARGET_TEMP_STEP,
     ClimateEntityFeature,
+    HVACAction,
     HVACMode,
 )
 from homeassistant.const import ATTR_TEMPERATURE
@@ -109,17 +110,37 @@ async def test_climate_hvac_action(  # noqa: PLR0913, PLR0917
     assert state.attributes.get("hvac_action") == action
 
 
-async def test_climate_hvac_action_unknown_during_holiday(
-    hass, mock_config_entry, mock_client
+@pytest.mark.parametrize(
+    ("hvac_state", "hvac_action"), [(1, HVACAction.HEATING), (2, HVACAction.IDLE)]
+)
+async def test_climate_hvac_action_during_holiday(
+    hass, mock_config_entry, mock_client, hvac_state, hvac_action
 ):
-    """During a holiday the heating state carries the holiday mode: no action."""
-    mock_client.get_devices.return_value = [MOCK_DEVICE_HOLIDAY]
+    """The thermostat keeps reporting whether it heats during a holiday."""
+    mock_client.get_devices.return_value = [
+        dataclasses.replace(MOCK_DEVICE_HOLIDAY, hvac_state=hvac_state)
+    ]
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
     state = hass.states.get(_get_climate_entity_id(hass))
-    assert state.attributes.get("hvac_action") is None
+    assert state.attributes.get("hvac_action") == hvac_action
+
+
+async def test_climate_hvac_action_off_without_heating_state(
+    hass, mock_config_entry, mock_client
+):
+    """The off mode reports off even when no heating state is reported."""
+    mock_client.get_devices.return_value = [
+        dataclasses.replace(MOCK_DEVICE, preset_mode=PRESET_MODE_OFF, hvac_state=None)
+    ]
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(_get_climate_entity_id(hass))
+    assert state.attributes.get("hvac_action") == HVACAction.OFF
 
 
 # Sp of 21.0 shows that Defrost and Boost use their own setpoints (df, bo).
