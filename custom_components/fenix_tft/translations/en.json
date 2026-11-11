@@ -61,8 +61,8 @@
         "state_attributes": {
           "preset_mode": {
             "state": {
-              "home": "Program",
-              "away": "Defrost",
+              "program": "Program",
+              "defrost": "Defrost",
               "boost": "Boost"
             }
           }
