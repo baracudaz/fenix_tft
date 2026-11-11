@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Presets are named after the thermostat modes, as in the core FENIX Control integration:** Program is `program` (was `home`) and Defrost is `defrost` (was `away`); Boost stays `boost`. The labels shown in Home Assistant (Program, Defrost, Boost and their translations) don't change. This follows the review of the core integration: presets don't have to use Home Assistant's standard names. `climate.set_preset_mode` still accepts the former names `home`, `away`, `eco` and `comfort`.
+- **Presets are named after the thermostat modes, as in the core FENIX Control integration:** Program is `program` (was `home`) and Defrost is `defrost` (was `away`); Boost stays `boost`. The labels shown in Home Assistant (Program, Defrost, Boost and their translations) don't change. This follows the review of the core integration: presets don't have to use Home Assistant's standard names. `climate.set_preset_mode` still accepts the former names `home`, `away`, `eco` and `comfort` ([#235](https://github.com/baracudaz/fenix_tft/pull/235)).
 
 ---
 
