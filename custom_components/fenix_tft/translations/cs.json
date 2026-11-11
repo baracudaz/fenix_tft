@@ -61,8 +61,8 @@
         "state_attributes": {
           "preset_mode": {
             "state": {
-              "home": "Program",
-              "away": "Ochrana proti zamrznutí",
+              "program": "Program",
+              "defrost": "Ochrana proti zamrznutí",
               "boost": "Časovač"
             }
           }
