@@ -60,15 +60,15 @@ async def test_climate_initial_state(hass, setup_integration):
 @pytest.mark.parametrize(
     ("device_mode", "preset", "icon"),
     [
-        (PRESET_MODE_PROGRAM, "home", "mdi:clock-outline"),
-        (PRESET_MODE_DEFROST, "away", "mdi:snowflake"),
+        (PRESET_MODE_PROGRAM, "program", "mdi:clock-outline"),
+        (PRESET_MODE_DEFROST, "defrost", "mdi:snowflake"),
         (PRESET_MODE_BOOST, "boost", "mdi:fire"),
     ],
 )
-async def test_climate_reports_standard_presets(  # noqa: PLR0913, PLR0917
+async def test_climate_reports_presets(  # noqa: PLR0913, PLR0917
     hass, mock_config_entry, mock_client, device_mode, preset, icon
 ):
-    """Program, Defrost and Boost show as HA's home, away and boost presets."""
+    """Program, Defrost and Boost show as presets named like the modes."""
     mock_client.get_devices.return_value = [
         dataclasses.replace(MOCK_DEVICE, preset_mode=device_mode)
     ]
@@ -78,7 +78,7 @@ async def test_climate_reports_standard_presets(  # noqa: PLR0913, PLR0917
 
     state = hass.states.get(_get_climate_entity_id(hass))
     assert state.state == HVACMode.AUTO
-    assert state.attributes["preset_modes"] == ["home", "away", "boost"]
+    assert state.attributes["preset_modes"] == ["program", "defrost", "boost"]
     assert state.attributes["preset_mode"] == preset
     assert state.attributes["icon"] == icon
 
@@ -246,7 +246,7 @@ async def test_manual_range_follows_device(hass, mock_config_entry, mock_client)
 @pytest.mark.parametrize(
     ("device_mode", "preset", "temperature"),
     [
-        (PRESET_MODE_DEFROST, "away", 8.0),
+        (PRESET_MODE_DEFROST, "defrost", 8.0),
         (PRESET_MODE_BOOST, "boost", 23.0),
     ],
 )
@@ -333,12 +333,12 @@ async def test_switch_to_away_shows_defrost_setpoint_at_once(
     await hass.services.async_call(
         "climate",
         "set_preset_mode",
-        {"entity_id": entity_id, "preset_mode": "away"},
+        {"entity_id": entity_id, "preset_mode": "defrost"},
         blocking=True,
     )
 
     state = hass.states.get(entity_id)
-    assert state.attributes["preset_mode"] == "away"
+    assert state.attributes["preset_mode"] == "defrost"
     assert float(state.attributes["temperature"]) == pytest.approx(7.0)
 
 
@@ -671,7 +671,7 @@ async def test_set_preset_mode(hass, setup_integration, mock_client):
     await hass.services.async_call(
         "climate",
         "set_preset_mode",
-        {"entity_id": entity_id, "preset_mode": "home"},
+        {"entity_id": entity_id, "preset_mode": "program"},
         blocking=True,
     )
 
@@ -752,7 +752,7 @@ async def test_set_preset_mode_holiday_locked(hass, mock_config_entry, mock_clie
         ),
         (
             "set_preset_mode",
-            {"preset_mode": "away"},
+            {"preset_mode": "defrost"},
             "set_preset_mode",
             "api_error_set_preset_mode",
         ),

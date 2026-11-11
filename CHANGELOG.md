@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**Breaking:** automations, conditions and dashboards that check for the preset `home` or `away` need updating to `program` / `defrost` (see Changed).
+
+### Changed
+
+- **Presets are named after the thermostat modes, as in the core FENIX Control integration:** Program is `program` (was `home`) and Defrost is `defrost` (was `away`); Boost stays `boost`. The labels shown in Home Assistant (Program, Defrost, Boost and their translations) don't change. This follows the review of the core integration: presets don't have to use Home Assistant's standard names. `climate.set_preset_mode` still accepts the former names `home`, `away`, `eco` and `comfort` ([#235](https://github.com/baracudaz/fenix_tft/pull/235)).
+
 ### Fixed
 
 - The climate entity shows the HVAC action (heating / idle) during a holiday again. It was hidden on the assumption that the thermostat reports the holiday mode in its heating state then; a test on a TFT Wi-Fi RF and a WiFi Box showed that the heating state stays correct. The off mode shows "Off" even when the thermostat sends no heating state ([#236](https://github.com/baracudaz/fenix_tft/pull/236)).

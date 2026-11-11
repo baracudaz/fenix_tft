@@ -61,8 +61,8 @@
         "state_attributes": {
           "preset_mode": {
             "state": {
-              "home": "Programme",
-              "away": "Hors gel",
+              "program": "Programme",
+              "defrost": "Hors gel",
               "boost": "Dérogation temporaire"
             }
           }
