@@ -259,7 +259,7 @@ data:
 - Data gaps: Backfill missing periods after connectivity issues
 - Migration: Import data when moving from another system
 
-**Note:** Imported data appears as a separate external statistic (e.g., `fenix_tft:bedroom_daily_energy_consumption_history`) that can be added to the Energy Dashboard. This keeps historical imports separate from the main sensor's current data. The service maintains cumulative sum continuity and aligns with Home Assistant's hourly statistic buckets to prevent double-counting.
+**Note:** Imported data appears as a separate external statistic (e.g., `fenix_tft:bedroom_daily_energy_consumption_history`) that can be added to the Energy Dashboard. This keeps historical imports separate from the main sensor's current data. The service maintains cumulative sum continuity and aligns with Home Assistant's hourly statistic buckets to prevent double-counting. Hourly data is booked in the hour it covers: the cloud stamps each hourly bucket with the end of its hour, so the import moves it one hour back.
 
 ## Sensors
 
@@ -277,6 +277,26 @@ Each thermostat provides a set of sensors you can use in dashboards, automations
 | `*_daily_energy_consumption` | Accumulated energy for today (Wh). |
 | `*_holiday_mode` | Display name of the current holiday mode or `None`. Includes rich attributes. |
 | `*_holiday_schedule_until` | Timestamp when the holiday ends (if active). |
+
+## Energy in the Energy Dashboard
+
+The FENIX cloud reports energy per room as hourly buckets. A bucket is published
+about 1.5–2 hours after its hour ends, and is stamped with the end of the hour it
+covers. Two sources are available:
+
+- **"<installation> <room> energy (hourly)"** (external statistic
+  `fenix_tft:energy_<room id>`, recommended): each bucket is booked in the hour it
+  covers, so the Energy Dashboard matches a grid meter hour by hour. The last
+  hours fill in as their buckets arrive, including after midnight. There is one
+  statistic per room, even if the room has several thermostats.
+- `*_daily_energy_consumption`: today's buckets, restarts at midnight. It shows
+  energy about two hours late and misses buckets of the last evening hours that are
+  published after midnight. If a room has several thermostats, each one reports the
+  room's energy.
+
+Add only one source per room to the Energy Dashboard. Don't combine the hourly
+statistic with a "(History)" statistic from `import_historical_statistics` for the
+same room and period; the overlapping hours would be counted twice.
 
 ## Energy is calculated, not measured
 

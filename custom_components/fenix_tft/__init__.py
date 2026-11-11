@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypedDict
@@ -48,6 +49,7 @@ from .const import (
     ATTR_MODE,
     ATTR_START_DATE,
     DOMAIN,
+    ENERGY_BUCKET_OFFSET,
     HOLIDAY_PROPAGATION_DELAY,
     PLATFORMS,
     SERVICE_CANCEL_HOLIDAY_SCHEDULE,
@@ -628,6 +630,26 @@ def _determine_aggregation_period(
     return period, chunk_days
 
 
+def _shift_hourly_buckets(
+    buckets: list[EnergyMetric], chunk_start: dt_util.dt.datetime
+) -> list[EnergyMetric]:
+    """
+    Move hourly buckets to the hour they cover.
+
+    The cloud stamps an hourly bucket with the end of its hour. Buckets that
+    then fall before the chunk belong to the previous chunk and are dropped.
+    """
+    shifted = []
+    for bucket in buckets:
+        if bucket.start is None:
+            shifted.append(bucket)
+            continue
+        start = bucket.start - ENERGY_BUCKET_OFFSET
+        if start >= chunk_start:
+            shifted.append(dataclasses.replace(bucket, start=start))
+    return shifted
+
+
 async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
     client: FenixControlClient,
     installation_id: str,
@@ -704,14 +726,24 @@ async def _fetch_historical_energy_data(  # noqa: PLR0913, PLR0917
             chunk_days,
         )
 
+        # Hourly buckets are stamped with the end of their hour, and the cloud
+        # leaves out the bucket stamped at the query's end: query one hour later
+        # to get the buckets covering the chunk.
+        query_offset = (
+            ENERGY_BUCKET_OFFSET
+            if period == EnergyPeriod.HOUR
+            else dt_util.dt.timedelta(0)
+        )
         try:
             energy_data = await client.get_room_energy(
                 installation_id,
                 room_id,
-                chunk_start,
-                chunk_end,
+                chunk_start + query_offset,
+                chunk_end + query_offset,
                 period,
             )
+            if period == EnergyPeriod.HOUR:
+                energy_data = _shift_hourly_buckets(energy_data, chunk_start)
             if energy_data:
                 all_energy_data.extend(energy_data)
                 _LOGGER.debug(

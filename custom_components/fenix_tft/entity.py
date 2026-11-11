@@ -9,22 +9,10 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import FenixTFTCoordinator
+from .helpers import device_display_name
 
 if TYPE_CHECKING:
     from pyfenixcontrol import Device
-
-
-def _get_device_name(dev: Device | None) -> str:
-    """Build device name from installation and room names."""
-    if not dev:
-        return "Fenix TFT"
-
-    installation = dev.installation_name or "Fenix TFT"
-    room = dev.name or "Unnamed Device"
-
-    if installation and room:
-        return f"{installation} {room}"
-    return installation or room or "Fenix TFT"
 
 
 class FenixTFTEntity(CoordinatorEntity[FenixTFTCoordinator]):
@@ -39,7 +27,7 @@ class FenixTFTEntity(CoordinatorEntity[FenixTFTCoordinator]):
 
         # Find device data from coordinator
         dev = self._device
-        device_name = _get_device_name(dev)
+        device_name = device_display_name(dev)
 
         # Register device info - shared across all entities for the same device
         self._attr_device_info = DeviceInfo(
