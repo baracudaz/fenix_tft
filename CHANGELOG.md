@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A holiday that starts while a mode, preset or temperature command is being sent is shown right away. Before, the command's mode was shown over the holiday for up to 10 seconds, or until the next update if the command finished after the update (for example "Off" instead of "Auto" during the holiday) ([#239](https://github.com/baracudaz/fenix_tft/pull/239)).
+
 ---
 
 ## [1.8.0] - 2026-11-11
