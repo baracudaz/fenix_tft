@@ -277,6 +277,10 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
                 expired_updates.append(device_id)
                 continue
             if (device := fresh_data.devices.get(device_id)) is not None:
+                if device.holiday_active:
+                    # A holiday locks the controls, so it wins over the command
+                    expired_updates.append(device_id)
+                    continue
                 _LOGGER.debug(
                     "Preserving optimistic update for device %s: "
                     "preset_mode=%s, hvac_action=%s",
@@ -328,6 +332,13 @@ class FenixTFTCoordinator(DataUpdateCoordinator[FenixTFTData]):
             _LOGGER.warning(
                 "Device %s not found in coordinator data for optimistic update",
                 device_id,
+            )
+            return
+        if device.holiday_active:
+            # A poll finished while the command ran and found a holiday, which
+            # is newer than the command and locks the controls
+            _LOGGER.debug(
+                "Device %s is in a holiday, optimistic update skipped", device_id
             )
             return
 

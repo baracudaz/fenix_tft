@@ -33,6 +33,7 @@ from custom_components.fenix_tft.coordinator import (
 
 from .conftest import (
     MOCK_DEVICE,
+    MOCK_DEVICE_HOLIDAY,
     MOCK_DEVICE_ID,
     MOCK_INSTALLATION,
     MOCK_INSTALLATION_ID,
@@ -340,6 +341,31 @@ async def test_optimistic_update_unknown_device_is_ignored(coordinator):
 
     coordinator.update_device_preset_mode("UNKNOWN", PRESET_MODE_OFF)
 
+    assert coordinator.pending_optimistic_update_count == 0
+
+
+async def test_holiday_found_by_poll_wins_over_optimistic_update(
+    coordinator, mock_client
+):
+    """Test a poll that finds a new holiday isn't overlaid with a command."""
+    coordinator.data = await coordinator._async_update_data()
+    coordinator.update_device_preset_mode(MOCK_DEVICE_ID, PRESET_MODE_OFF)
+
+    mock_client.get_devices.return_value = [MOCK_DEVICE_HOLIDAY]
+    coordinator.data = await coordinator._async_update_data()
+
+    assert coordinator.data.devices[MOCK_DEVICE_ID] == MOCK_DEVICE_HOLIDAY
+    assert coordinator.pending_optimistic_update_count == 0
+
+
+async def test_optimistic_update_ignored_during_holiday(coordinator, mock_client):
+    """Test a command finishing after a poll found a holiday changes nothing."""
+    mock_client.get_devices.return_value = [MOCK_DEVICE_HOLIDAY]
+    coordinator.data = await coordinator._async_update_data()
+
+    coordinator.update_device_preset_mode(MOCK_DEVICE_ID, PRESET_MODE_OFF)
+
+    assert coordinator.data.devices[MOCK_DEVICE_ID] == MOCK_DEVICE_HOLIDAY
     assert coordinator.pending_optimistic_update_count == 0
 
 
