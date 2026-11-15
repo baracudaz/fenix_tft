@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.9.0] - 2026-11-15
+
 **Breaking:** the *Temperature difference* and *Floor-air difference* sensors are removed (see Removed). Automations, dashboards and templates that use them need a template helper instead.
 
 ### Removed
