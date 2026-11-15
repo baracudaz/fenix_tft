@@ -150,17 +150,6 @@ async def test_temperature_sensors_have_statistics(
             assert state_class is None, key
 
 
-async def test_differences_are_temperature_deltas(hass, mock_config_entry, mock_client):
-    """The difference sensors are deltas, so °F converts them without an offset."""
-    await _setup(hass, mock_config_entry, mock_client, MOCK_DEVICE)
-    registry = er.async_get(hass)
-
-    for key in ("temperature_difference", "floor_air_difference"):
-        entry = registry.async_get(_entity_id(hass, key))
-        assert entry is not None
-        assert entry.original_device_class == "temperature_delta", key
-
-
 @pytest.mark.parametrize(
     ("preset_mode", "hvac_state", "expected"),
     [

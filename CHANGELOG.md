@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- The *Temperature difference* and *Floor-air difference* sensors are now temperature differences (device class `temperature_delta`) instead of temperatures. In °C nothing changes. With °F as the display unit they were converted like absolute temperatures (a difference of 1 °C showed as 33.8 °F); now 1 °C shows as 1.8 °F ([#243](https://github.com/baracudaz/fenix_tft/pull/243)).
-
 ### Fixed
 
 - The temperature sensors (room, floor, target and holiday target) now keep long-term statistics. They had no state class, so Home Assistant kept only their raw history, which is purged after `purge_keep_days` (10 days by default): older graphs were empty, and there was no hourly mean / min / max. Statistics start with this release; history that has already been purged can't be recovered ([#243](https://github.com/baracudaz/fenix_tft/pull/243), closes [#242](https://github.com/baracudaz/fenix_tft/issues/242)).
