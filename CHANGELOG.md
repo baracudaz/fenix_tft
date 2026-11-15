@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The *Temperature difference* (target − room) and *Floor-air difference* (floor − room) sensors. Both were disabled by default and only subtracted two values that other entities already show; the floor-air difference was never created, because no thermostat currently reports a floor temperature. Their entities are removed from the entity registry on the first start. To keep the target − room difference, create a template sensor (Settings → Devices & services → Helpers → Template → Sensor) with the state `{{ (state_attr('climate.living_room', 'temperature') | float(0) - state_attr('climate.living_room', 'current_temperature') | float(0)) | round(1) }}`, replacing `climate.living_room` with your thermostat ([#244](https://github.com/baracudaz/fenix_tft/pull/244)).
 
+### Fixed
+
+- The temperature sensors (room, floor, target and holiday target) now keep long-term statistics. They had no state class, so Home Assistant kept only their raw history, which is purged after `purge_keep_days` (10 days by default): older graphs were empty, and there was no hourly mean / min / max. Statistics start with this release; history that has already been purged can't be recovered ([#243](https://github.com/baracudaz/fenix_tft/pull/243), closes [#242](https://github.com/baracudaz/fenix_tft/issues/242)).
+
 ---
 
 ## [1.8.1] - 2026-11-12

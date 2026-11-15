@@ -110,6 +110,7 @@ class FenixFloorTempSensor(FenixTFTEntity, SensorEntity):
     _attr_translation_key = "floor_temperature"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
@@ -139,6 +140,7 @@ class FenixAmbientTempSensor(FenixTFTEntity, SensorEntity):
     _attr_translation_key = "ambient_temperature"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
         """Initialize a Fenix TFT ambient temperature sensor."""
@@ -158,6 +160,7 @@ class FenixTargetTempSensor(FenixTFTEntity, SensorEntity):
     _attr_translation_key = "target_temperature"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
@@ -533,6 +536,7 @@ class FenixHolidayTargetTempSensor(FenixTFTEntity, SensorEntity):
     _attr_translation_key = "holiday_target_temperature"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
