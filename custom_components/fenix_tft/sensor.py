@@ -184,7 +184,6 @@ class FenixTempDifferenceSensor(FenixTFTEntity, SensorEntity):
     _attr_translation_key = "temperature_difference"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE_DELTA
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
@@ -297,7 +296,6 @@ class FenixFloorAirDifferenceSensor(FenixTFTEntity, SensorEntity):
     _attr_translation_key = "floor_air_difference"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_device_class = SensorDeviceClass.TEMPERATURE_DELTA
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:

@@ -130,8 +130,6 @@ MEASUREMENT_SENSORS = (
     "floor_temperature",
     "target_temperature",
     "holiday_target_temperature",
-    "temperature_difference",
-    "floor_air_difference",
 )
 
 
