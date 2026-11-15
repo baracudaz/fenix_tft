@@ -79,9 +79,6 @@
       "target_temperature": {
         "name": "Cílová teplota"
       },
-      "temperature_difference": {
-        "name": "Rozdíl teplot"
-      },
       "hvac_state": {
         "name": "Stav topení"
       },
@@ -95,9 +92,6 @@
           "boost": "Časovač",
           "manual": "Manuální"
         }
-      },
-      "floor_air_difference": {
-        "name": "Rozdíl podlaha-vzduch"
       },
       "connectivity_status": {
         "name": "Připojení"

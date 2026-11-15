@@ -31,7 +31,7 @@ Here is the thermostat integration in action.
 - **Climate Control**: Temperature control (in the range each thermostat accepts, usually 5–35 °C; 0.5 °C steps), heating modes (Off/Manual/Program), real-time monitoring
 - **Energy Monitoring**: Daily consumption tracking with Home Assistant Energy Dashboard integration
 - **Holiday Mode**: Set and cancel holiday schedules with automatic control locking during holidays
-- **Multi-Sensor Support**: Room/floor temperatures, target & difference metrics, HVAC status, connectivity, energy, holiday state & end timestamp
+- **Multi-Sensor Support**: Room/floor temperatures, target temperature, HVAC status, connectivity, energy, holiday state & end timestamp
 - **Multi-Device**: Supports multiple thermostats across different rooms
 - **Reconfigure**: Update credentials without removing and re-adding the integration
 - **Diagnostics**: Built-in diagnostics panel for troubleshooting (redacts sensitive data)
@@ -270,8 +270,6 @@ Each thermostat provides a set of sensors you can use in dashboards, automations
 | `*_ambient_temperature` | Current room temperature (°C). |
 | `*_floor_temperature` | Floor probe temperature (°C). Only if the thermostat reports one; TFT Wi-Fi thermostats currently don't ([#183](https://github.com/baracudaz/fenix_tft/issues/183)). |
 | `*_target_temperature` | Target temperature (°C). |
-| `*_temperature_difference` | Target minus current temperature (°C). |
-| `*_floor_air_difference` | Floor minus ambient temperature (°C). Same condition as the floor temperature. |
 | `*_hvac_state` | Heating state: `heating`, `idle`, `off`. |
 | `*_connectivity_status` | `connected` / `disconnected`. |
 | `*_daily_energy_consumption` | Accumulated energy for today (Wh). |

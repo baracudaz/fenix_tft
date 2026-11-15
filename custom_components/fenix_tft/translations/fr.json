@@ -79,9 +79,6 @@
       "target_temperature": {
         "name": "Température cible"
       },
-      "temperature_difference": {
-        "name": "Différence de température"
-      },
       "hvac_state": {
         "name": "État HVAC"
       },
@@ -95,9 +92,6 @@
           "boost": "Dérogation temporaire",
           "manual": "Manuel"
         }
-      },
-      "floor_air_difference": {
-        "name": "Différence sol-air"
       },
       "connectivity_status": {
         "name": "Connectivité"

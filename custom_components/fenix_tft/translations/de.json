@@ -79,9 +79,6 @@
       "target_temperature": {
         "name": "Zieltemperatur"
       },
-      "temperature_difference": {
-        "name": "Temperaturdifferenz"
-      },
       "hvac_state": {
         "name": "Heizungsstatus"
       },
@@ -95,9 +92,6 @@
           "boost": "Timer",
           "manual": "Manuell"
         }
-      },
-      "floor_air_difference": {
-        "name": "Boden-Luft-Differenz"
       },
       "connectivity_status": {
         "name": "Verbindung"

@@ -11,6 +11,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import UnitOfEnergy, UnitOfTemperature
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.util import dt as dt_util
 
@@ -36,13 +37,17 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Sensors dropped in 1.9.0; template helpers can compute them
+REMOVED_SENSOR_KEYS = ("_temperature_difference", "_floor_air_difference")
+
 
 async def async_setup_entry(
-    _: HomeAssistant,
+    hass: HomeAssistant,
     entry: FenixTFTConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Fenix TFT sensor entities from a config entry."""
+    _remove_dropped_sensors(hass, entry)
     data = entry.runtime_data
     coordinator = data["coordinator"]
 
@@ -80,23 +85,23 @@ async def async_setup_entry(
         if dev.target_temperature is not None:
             entities.append(FenixTargetTempSensor(coordinator, device_id))
 
-        # 9. Temperature difference (Disabled)
-        if dev.target_temperature is not None and dev.room_temperature is not None:
-            entities.append(FenixTempDifferenceSensor(coordinator, device_id))
-
-        # 10. Floor temperature (Disabled)
+        # 9. Floor temperature (Disabled)
         if dev.floor_temperature is not None:
             entities.append(FenixFloorTempSensor(coordinator, device_id))
-
-        # 11. Floor-air difference (Disabled)
-        if dev.floor_temperature is not None and dev.room_temperature is not None:
-            entities.append(FenixFloorAirDifferenceSensor(coordinator, device_id))
 
         # Diagnostic sensors
         entities.append(FenixConnectivitySensor(coordinator, device_id))
 
     if entities:
         async_add_entities(entities)
+
+
+def _remove_dropped_sensors(hass: HomeAssistant, entry: FenixTFTConfigEntry) -> None:
+    """Remove sensors that are no longer provided from the entity registry."""
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if entity.domain == "sensor" and entity.unique_id.endswith(REMOVED_SENSOR_KEYS):
+            registry.async_remove(entity.entity_id)
 
 
 class FenixFloorTempSensor(FenixTFTEntity, SensorEntity):
@@ -178,45 +183,6 @@ class FenixTargetTempSensor(FenixTFTEntity, SensorEntity):
         return dev.target_temperature if dev else None
 
 
-class FenixTempDifferenceSensor(FenixTFTEntity, SensorEntity):
-    """Representation of a Fenix TFT temperature difference sensor."""
-
-    _attr_translation_key = "temperature_difference"
-    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-    _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_entity_registry_enabled_default = False
-
-    def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
-        """Initialize a Fenix TFT temperature difference sensor."""
-        super().__init__(coordinator, device_id)
-        self._attr_unique_id = f"{device_id}_temperature_difference"
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        dev = self._device
-        return (
-            super().available
-            and dev is not None
-            and dev.target_temperature is not None
-            and dev.room_temperature is not None
-        )
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the temperature difference (target - current)."""
-        dev = self._device
-        if not dev:
-            return None
-
-        target = dev.target_temperature
-        current = dev.room_temperature
-
-        if target is not None and current is not None:
-            return round(target - current, 1)
-        return None
-
-
 class FenixHvacStateSensor(FenixTFTEntity, SensorEntity):
     """Representation of a Fenix TFT HVAC state sensor."""
 
@@ -288,45 +254,6 @@ class FenixPresetModeSensor(FenixTFTEntity, SensorEntity):
         # Map numeric preset mode to display name, then to lowercase for enum
         display_name = PRESET_MODE_DISPLAY_NAMES.get(preset_mode)
         return display_name.lower() if display_name else None
-
-
-class FenixFloorAirDifferenceSensor(FenixTFTEntity, SensorEntity):
-    """Representation of a Fenix TFT floor-air temperature difference sensor."""
-
-    _attr_translation_key = "floor_air_difference"
-    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-    _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_entity_registry_enabled_default = False
-
-    def __init__(self, coordinator: FenixTFTCoordinator, device_id: str) -> None:
-        """Initialize a Fenix TFT floor-air difference sensor."""
-        super().__init__(coordinator, device_id)
-        self._attr_unique_id = f"{device_id}_floor_air_difference"
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        dev = self._device
-        return (
-            super().available
-            and dev is not None
-            and dev.floor_temperature is not None
-            and dev.room_temperature is not None
-        )
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the floor-air temperature difference."""
-        dev = self._device
-        if not dev:
-            return None
-
-        floor_temp = dev.floor_temperature
-        current_temp = dev.room_temperature
-
-        if floor_temp is not None and current_temp is not None:
-            return round(floor_temp - current_temp, 1)
-        return None
 
 
 class FenixConnectivitySensor(FenixTFTEntity, SensorEntity):

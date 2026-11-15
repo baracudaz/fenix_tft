@@ -79,9 +79,6 @@
       "target_temperature": {
         "name": "Cieľová teplota"
       },
-      "temperature_difference": {
-        "name": "Rozdiel teplôt"
-      },
       "hvac_state": {
         "name": "Stav kúrenia"
       },
@@ -95,9 +92,6 @@
           "boost": "Boost",
           "manual": "Manuálny"
         }
-      },
-      "floor_air_difference": {
-        "name": "Rozdiel podlaha-vzduch"
       },
       "connectivity_status": {
         "name": "Pripojenie"
