@@ -124,6 +124,34 @@ async def test_sensor_values(hass, mock_config_entry, mock_client):
     assert _state(hass, "connectivity_status").state == "connected"
 
 
+# Temperature sensors measured over time get long-term statistics
+MEASUREMENT_SENSORS = (
+    "ambient_temperature",
+    "floor_temperature",
+    "target_temperature",
+    "holiday_target_temperature",
+    "temperature_difference",
+    "floor_air_difference",
+)
+
+
+async def test_temperature_sensors_have_statistics(
+    hass, mock_config_entry, mock_client
+):
+    """Temperature sensors have the measurement state class; others have none."""
+    await _setup(hass, mock_config_entry, mock_client, MOCK_DEVICE)
+    registry = er.async_get(hass)
+
+    for key in ALL_SENSORS:
+        entry = registry.async_get(_entity_id(hass, key))
+        assert entry is not None
+        state_class = (entry.capabilities or {}).get("state_class")
+        if key in MEASUREMENT_SENSORS:
+            assert state_class == "measurement", key
+        elif key != "daily_energy_consumption":
+            assert state_class is None, key
+
+
 @pytest.mark.parametrize(
     ("preset_mode", "hvac_state", "expected"),
     [
