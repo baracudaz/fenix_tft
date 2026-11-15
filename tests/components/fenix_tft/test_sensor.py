@@ -37,9 +37,7 @@ ALL_SENSORS = (
     "holiday_target_temperature",
     "ambient_temperature",
     "target_temperature",
-    "temperature_difference",
     "floor_temperature",
-    "floor_air_difference",
     "connectivity_status",
 )
 
@@ -118,9 +116,7 @@ async def test_sensor_values(hass, mock_config_entry, mock_client):
     assert _state(hass, "preset_mode").state == "manual"
     assert float(_state(hass, "ambient_temperature").state) == pytest.approx(19.2)
     assert float(_state(hass, "target_temperature").state) == pytest.approx(22.5)
-    assert float(_state(hass, "temperature_difference").state) == pytest.approx(3.3)
     assert float(_state(hass, "floor_temperature").state) == pytest.approx(20.0)
-    assert float(_state(hass, "floor_air_difference").state) == pytest.approx(0.8)
     assert _state(hass, "connectivity_status").state == "connected"
 
 
@@ -188,9 +184,7 @@ async def test_sensors_not_created_without_data(hass, mock_config_entry, mock_cl
         "preset_mode",
         "ambient_temperature",
         "target_temperature",
-        "temperature_difference",
         "floor_temperature",
-        "floor_air_difference",
     }
     for key in missing:
         assert (
@@ -226,9 +220,7 @@ async def test_sensors_unavailable_when_value_disappears(
         "hvac_state",
         "preset_mode",
         "target_temperature",
-        "temperature_difference",
         "floor_temperature",
-        "floor_air_difference",
     ):
         assert _state(hass, key).state == STATE_UNAVAILABLE, key
     # The ambient sensor has no extra availability check; it just has no value
@@ -421,10 +413,8 @@ async def test_holiday_mode_without_holiday_target(
         sensor.FenixFloorTempSensor,
         sensor.FenixAmbientTempSensor,
         sensor.FenixTargetTempSensor,
-        sensor.FenixTempDifferenceSensor,
         sensor.FenixHvacStateSensor,
         sensor.FenixPresetModeSensor,
-        sensor.FenixFloorAirDifferenceSensor,
         sensor.FenixEnergyConsumptionSensor,
         sensor.FenixHolidayUntilSensor,
         sensor.FenixHolidayTargetTempSensor,
@@ -456,3 +446,28 @@ async def test_holiday_and_connectivity_without_device(hass, setup_integration):
     connectivity = sensor.FenixConnectivitySensor(coordinator, "UNKNOWN_DEVICE")
     assert connectivity.available is False
     assert connectivity.native_value == "disconnected"
+
+
+async def test_removed_difference_sensors_are_cleaned_up(
+    hass, mock_config_entry, mock_client
+):
+    """Difference sensors left in the registry by older versions are removed."""
+    mock_config_entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    for key in ("temperature_difference", "floor_air_difference"):
+        registry.async_get_or_create(
+            "sensor",
+            DOMAIN,
+            f"{MOCK_DEVICE_ID}_{key}",
+            config_entry=mock_config_entry,
+        )
+
+    await _setup(hass, mock_config_entry, mock_client, MOCK_DEVICE)
+
+    for key in ("temperature_difference", "floor_air_difference"):
+        assert (
+            registry.async_get_entity_id("sensor", DOMAIN, f"{MOCK_DEVICE_ID}_{key}")
+            is None
+        ), key
+    # The other sensors stay
+    _entity_id(hass, "ambient_temperature")
