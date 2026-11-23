@@ -9,11 +9,13 @@ bo=680/10=68.0°F→20.0°C.
 from __future__ import annotations
 
 import dataclasses
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.util import dt as dt_util
 from pyfenixcontrol import Device, EnergyMetric, Installation, Room
 from pytest_homeassistant.common import MockConfigEntry
 
@@ -65,17 +67,37 @@ MOCK_DEVICE_HOLIDAY = dataclasses.replace(
     holiday_end="10/12/2025 12:00:00",
 )
 
-# Today's hourly energy buckets of the room (Wh)
-MOCK_ENERGY = [
-    EnergyMetric(start=None, value=120.0, processed_value=120.0, raw={}),
-    EnergyMetric(start=None, value=80.5, processed_value=80.5, raw={}),
-]
+# Values of the room's hourly energy buckets stamped today (Wh)
+MOCK_ENERGY_VALUES = (120.0, 80.5)
+
+
+def energy_bucket(start: datetime, value: float) -> EnergyMetric:
+    """Return an hourly energy bucket stamped at ``start``."""
+    return EnergyMetric(start=start, value=value, processed_value=value, raw={})
+
+
+def mock_energy(*_: object) -> list[EnergyMetric]:
+    """Return today's buckets, stamped 01:00 and 02:00 local time."""
+    midnight = dt_util.start_of_local_day()
+    return [
+        energy_bucket(dt_util.as_utc(midnight + timedelta(hours=hour)), value)
+        for hour, value in enumerate(MOCK_ENERGY_VALUES, start=1)
+    ]
 
 
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Auto-enable custom integrations for all tests in this module."""
     return enable_custom_integrations
+
+
+@pytest.fixture(autouse=True)
+def mock_import_recent_energy() -> Generator[AsyncMock]:
+    """Don't write energy statistics; the recorder is not set up in tests."""
+    with patch(
+        "custom_components.fenix_tft.coordinator.async_import_recent_energy"
+    ) as mock:
+        yield mock
 
 
 @pytest.fixture
@@ -98,7 +120,7 @@ def mock_client() -> Generator[AsyncMock]:
     mock.get_installations.return_value = [MOCK_INSTALLATION]
     mock.get_devices.return_value = [MOCK_DEVICE]
     mock.trigger_installation_update.return_value = None
-    mock.get_room_energy.return_value = MOCK_ENERGY
+    mock.get_room_energy.side_effect = mock_energy
     mock.set_setpoint.return_value = None
     mock.set_preset_mode.return_value = None
     mock.set_holiday_schedule.return_value = None

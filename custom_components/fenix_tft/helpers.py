@@ -10,6 +10,8 @@ from pyfenixcontrol import parse_holiday_date
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from pyfenixcontrol import Device
+
 
 def parse_holiday_end(end_str: str | None) -> datetime | None:
     """
@@ -22,3 +24,16 @@ def parse_holiday_end(end_str: str | None) -> datetime | None:
     if (end := parse_holiday_date(end_str)) is None:
         return None
     return end.replace(tzinfo=dt_util.get_default_time_zone())
+
+
+def device_display_name(dev: Device | None) -> str:
+    """Build device name from installation and room names."""
+    if not dev:
+        return "Fenix TFT"
+
+    installation = dev.installation_name or "Fenix TFT"
+    room = dev.name or "Unnamed Device"
+
+    if installation and room:
+        return f"{installation} {room}"
+    return installation or room or "Fenix TFT"
